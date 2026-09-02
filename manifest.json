@@ -1,0 +1,8 @@
+{
+  "name": "LIFE AI v6 Live Data Beta",
+  "short_name": "LIFE AI",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f4c81"
+}
