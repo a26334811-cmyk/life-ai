@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f4c81" />
+  <title>LIFE AI Prototype</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root{
+      --primary:#0f4c81;
+      --primary2:#2e73ad;
+      --bg:#f5f8fb;
+      --card:#ffffff;
+      --text:#17324a;
+      --muted:#6b7d8d;
+      --line:#dce5ec;
+      --danger:#c83e3e;
+      --warn:#a76b00;
+      --success:#2f7b57;
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
+    }
+    button,input,select{font:inherit}
+    .app{
+      width:min(430px,100%);min-height:100vh;margin:0 auto;background:#fff;
+      position:relative;box-shadow:0 0 30px rgba(15,76,129,.08);
+      padding-bottom:88px;
+    }
+    .screen{display:none;padding:24px 20px 36px}
+    .screen.active{display:block}
+    .hero{min-height:86vh;display:flex;flex-direction:column;justify-content:center}
+    .logo{font-size:14px;font-weight:800;letter-spacing:.14em;color:var(--primary);margin-bottom:18px}
+    h1{font-size:30px;line-height:1.25;margin:0 0 14px}
+    h2{font-size:22px;margin:0 0 18px}
+    h3{font-size:16px;margin:0 0 10px}
+    p{line-height:1.6;margin:0 0 14px}
+    .muted{color:var(--muted)}
+    .tag{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef5fb;color:var(--primary);font-size:12px;font-weight:700}
+    .btn{
+      border:0;border-radius:16px;padding:15px 17px;font-weight:800;cursor:pointer;
+    }
+    .btn.primary{background:var(--primary);color:#fff;width:100%}
+    .btn.secondary{background:#edf4f9;color:var(--primary);width:100%}
+    .btn.ghost{background:#fff;color:var(--primary);border:1px solid var(--line);width:100%}
+    .btn.row{width:auto}
+    .stack{display:grid;gap:12px}
+    .card{
+      background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+      padding:18px;box-shadow:0 6px 20px rgba(20,60,90,.04);
+    }
+    .choice{display:flex;align-items:center;justify-content:space-between;text-align:left;width:100%;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;cursor:pointer}
+    .choice strong{font-size:16px}
+    .field{margin:16px 0}
+    .field label{display:block;font-weight:700;margin-bottom:8px}
+    .field input,.field select{
+      width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;
+    }
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .back{border:0;background:none;font-size:24px;cursor:pointer;color:var(--text);padding:0}
+    .section-title{font-weight:900;margin:22px 0 12px}
+    .opportunity{display:grid;gap:8px}
+    .meta{font-size:13px;color:var(--muted)}
+    .status{font-size:14px;font-weight:800}
+    .success{color:var(--success)} .warn{color:var(--warn)} .danger{color:var(--danger)}
+    .actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:18px}
+    .check{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid #edf1f4}
+    .check input{width:20px;height:20px;margin-top:1px}
+    .timeline{display:grid;gap:12px}
+    .event{display:flex;gap:12px}
+    .dot{width:10px;height:10px;background:var(--primary);border-radius:50%;margin-top:6px;flex:0 0 auto}
+    .bottomnav{
+      position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+      width:min(430px,100%);height:72px;background:rgba(255,255,255,.96);
+      border-top:1px solid var(--line);display:none;grid-template-columns:repeat(5,1fr);
+      backdrop-filter:blur(12px);z-index:20;
+    }
+    .bottomnav.show{display:grid}
+    .bottomnav button{
+      border:0;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;
+    }
+    .bottomnav button.active{color:var(--primary)}
+    .navicon{display:block;font-size:21px;margin-bottom:4px}
+    .toast{
+      position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(20px);
+      width:min(390px,calc(100% - 36px));background:#17324a;color:#fff;padding:13px 16px;border-radius:14px;
+      opacity:0;pointer-events:none;transition:.25s;z-index:30;font-size:14px;
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .pillbar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+    .pill{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:999px;white-space:nowrap}
+    .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .big-status{padding:16px;border-radius:18px;background:#f2f7fb;margin:14px 0}
+    .divider{height:1px;background:var(--line);margin:20px 0}
+  </style>
+</head>
+<body>
+<div class="app">
+  <section id="start" class="screen active hero">
+    <div class="logo">LIFE AI</div>
+    <h1>내 목표에 필요한 기회를 찾고<br>해야 할 일을 챙겨드려요.</h1>
+    <p class="muted">찾아주는 데서 끝나지 않고, 해낼 때까지.</p>
+    <div style="margin-top:28px"><button class="btn primary" onclick="go('name')">시작하기</button></div>
+  </section>
+
+  <section id="name" class="screen">
+    <div class="topbar"><button class="back" onclick="go('start')">←</button></div>
+    <h2>어떻게 불러드릴까요?</h2>
+    <div class="field"><input id="nickname" value="" placeholder="예: 예지, 민준" /></div>
+    <button class="btn primary" onclick="go('goalChoice')">다음</button>
+  </section>
+
+  <section id="goalChoice" class="screen">
+    <div class="topbar"><button class="back" onclick="go('name')">←</button></div>
+    <h2>지금 가장 하고 싶은 것은 무엇인가요?</h2>
+    <div class="stack">
+      <button class="choice" onclick="go('companyChoice')"><strong>💼 취업하고 싶어요</strong><span>›</span></button>
+      <button class="choice" onclick="go('certStart')"><strong>🏅 자격증을 따고 싶어요</strong><span>›</span></button>
+      <button class="choice" onclick="go('policyStart')"><strong>🏛 받을 수 있는 지원을 찾고 싶어요</strong><span>›</span></button>
+      <button class="choice" onclick="go('customGoal')"><strong>✨ 직접 입력</strong><span>›</span></button>
+    </div>
+  </section>
+
+  <section id="companyChoice" class="screen">
+    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <h2>생각해둔 회사가 있나요?</h2>
+    <div class="stack">
+      <button class="choice" onclick="go('company')"><strong>있어요</strong><span>›</span></button>
+      <button class="choice" onclick="go('jobOnly')"><strong>직무 중심으로 찾고 있어요</strong><span>›</span></button>
+      <button class="choice" onclick="quickGoal('취업 기회 탐색')"><strong>아직 정하지 않았어요</strong><span>›</span></button>
+    </div>
+  </section>
+
+  <section id="company" class="screen">
+    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <h2>어느 회사에 관심이 있나요?</h2>
+    <div class="field"><input id="companyInput" value="" placeholder="회사명을 직접 입력하세요" /></div>
+    <div class="stack">
+      <button class="choice" onclick="selectCompany('포스코')"><span><strong>포스코</strong><div class="meta">DEMO 선택지</div></span><span>›</span></button>
+      <button class="choice" onclick="selectCompany('삼성전자')"><span><strong>삼성전자</strong><div class="meta">목표 입력 예시</div></span><span>›</span></button>
+      <button class="choice" onclick="selectCompany('현대자동차')"><span><strong>현대자동차</strong><div class="meta">목표 입력 예시</div></span><span>›</span></button>
+    </div>
+    <div style="margin-top:18px"><button class="btn primary" onclick="selectCompany()">이 회사로 계속</button></div>
+  </section>
+
+  <section id="job" class="screen">
+    <div class="topbar"><button class="back" onclick="go('company')">←</button></div>
+    <h2>어떤 일을 하고 싶나요?</h2>
+    <div class="stack">
+      <button class="choice" onclick="selectJob('설비기술')"><strong>설비기술</strong><span>›</span></button>
+      <button class="choice" onclick="selectJob('생산기술')"><strong>생산기술</strong><span>›</span></button>
+      <button class="choice" onclick="selectJob('정비')"><strong>정비</strong><span>›</span></button>
+      <button class="choice" onclick="go('jobOnly')"><strong>직접 입력</strong><span>›</span></button>
+    </div>
+  </section>
+
+
+  <section id="jobOnly" class="screen">
+    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <h2>원하는 직무를 알려주세요.</h2>
+    <p class="muted">정확하지 않아도 괜찮아요. 나중에 바꿀 수 있어요.</p>
+    <div class="field"><input id="jobInput" placeholder="예: 설비기술, 회계, 개발자" /></div>
+    <button class="btn primary" onclick="selectJob(document.getElementById('jobInput').value || '관심 직무')">이 직무로 계속</button>
+  </section>
+
+  <section id="certStart" class="screen">
+    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <h2>어떤 자격증을 준비하고 싶나요?</h2>
+    <div class="field"><input id="certInput" placeholder="예: 컴퓨터활용능력, 전기기사" /></div>
+    <div class="stack">
+      <button class="choice" onclick="quickGoal('컴퓨터활용능력 준비')"><strong>컴퓨터활용능력</strong><span>›</span></button>
+      <button class="choice" onclick="quickGoal('전기기사 준비')"><strong>전기기사</strong><span>›</span></button>
+    </div>
+    <button class="btn primary" style="margin-top:16px" onclick="quickGoal((document.getElementById('certInput').value||'자격증')+' 준비')">직접 입력한 자격증으로 시작</button>
+  </section>
+
+  <section id="policyStart" class="screen">
+    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <h2>어떤 지원을 찾고 있나요?</h2>
+    <div class="stack">
+      <button class="choice" onclick="quickGoal('취업·구직 지원 찾기')"><strong>💼 취업·구직 지원</strong><span>›</span></button>
+      <button class="choice" onclick="quickGoal('청년 생활지원 찾기')"><strong>🏠 청년 생활지원</strong><span>›</span></button>
+      <button class="choice" onclick="quickGoal('창업 지원 찾기')"><strong>🚀 창업 지원</strong><span>›</span></button>
+      <button class="choice" onclick="quickGoal('나에게 맞는 지원 찾기')"><strong>🤔 잘 모르겠어요</strong><span>›</span></button>
+    </div>
+  </section>
+
+  <section id="customGoal" class="screen">
+    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <h2>하고 싶은 일을 편하게 적어주세요.</h2>
+    <p class="muted">문장으로 적어도 괜찮아요. 예: 올해 안에 서울로 이직하고 싶어요.</p>
+    <div class="field"><input id="customGoalInput" placeholder="내 목표를 한 문장으로 입력" /></div>
+    <button class="btn primary" onclick="createCustomGoal()">AI가 목표 정리하기</button>
+  </section>
+
+  <section id="profile" class="screen">
+    <div class="topbar"><button class="back" onclick="go('job')">←</button></div>
+    <h2>더 잘 맞는 기회를 찾기 위해<br>몇 가지만 알려주세요.</h2>
+    <div class="field"><label>현재 상태</label><select id="employmentStatus"><option>구직 중</option><option>재직 중</option><option>학생</option><option>기타</option></select></div>
+    <div class="field"><label>관련 경력</label><input id="careerInput" placeholder="예: 2년 / 신입" /></div>
+    <div class="field"><label>최종학력</label><select id="educationInput"><option>고등학교 졸업</option><option>전문대 졸업</option><option>대학교 졸업</option><option>대학원 이상</option></select></div>
+    <div class="field"><label>보유 자격증</label><input id="certOwnedInput" placeholder="없으면 비워두세요" /></div>
+    <button class="btn primary" onclick="createGoal()">목표 만들기</button>
+  </section>
+
+  <section id="goalCreated" class="screen">
+    <div class="topbar"><span class="tag">✨ AI가 목표를 정리했어요</span></div>
+    <h1 id="goalCreatedTitle">🎯 새 목표</h1>
+    <p class="muted" id="goalCreatedSubtitle"></p>
+    <div id="goalUnderstanding"></div>
+    <div class="section-title">지금부터 이렇게 도와드릴게요</div>
+    <div id="goalPlanPreview"></div>
+    <button class="btn primary" style="margin-top:18px" onclick="go('home')">오늘 할 일 보기</button>
+  </section>
+
+  <section id="home" class="screen">
+    <div class="topbar"><div><div class="logo" style="margin:0">LIFE AI</div><strong id="hello">안녕하세요 👋</strong></div><span>🔔</span></div>
+    <div id="homeContent"></div>
+  </section>
+
+  <section id="jobDetail" class="screen">
+    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
+    <h2>💼 관심 회사 · 관심 직무 채용</h2>
+    <div id="liveJobStatus" class="card">
+      <strong>🔎 고용24 실제 공고 확인</strong>
+      <p class="meta">목표에 입력한 회사·직무를 기준으로 실제 채용공고를 불러옵니다.</p>
+      <button class="btn secondary" onclick="loadLiveJobs()">실제 공고 불러오기</button>
+    </div>
+    <div id="liveJobResults"></div>
+    <p class="danger"><strong>지원 마감 D-12</strong></p>
+    <div class="card">
+      <h3>✨ 왜 추천했나요?</h3>
+      <p>• 내가 입력한 관심회사 기준<br>• 내가 입력한 관심직무 기준<br>• 현재 프로토타입의 DEMO 추천</p>
+    </div>
+    <div class="section-title">현재 확인된 조건</div>
+    <div class="stack">
+      <div class="card"><span class="status success">🟢 경력</span><p class="meta">실제 조건 미연결 · 입력한 경력 정보를 바탕으로 비교할 예정</p></div>
+      <div class="card"><span class="status success">🟢 학력</span><p class="meta">실제 조건 미연결 · 입력한 학력 정보를 바탕으로 비교할 예정</p></div>
+      <div class="card"><span class="status warn">🟡 자격조건</span><p class="meta">일부 우대조건을 추가로 확인해보세요.</p></div>
+    </div>
+    <p class="muted" style="margin-top:14px">현재는 조건 비교 UI만 보여주는 DEMO예요. 실제 서비스에서는 공식 채용공고의 필수조건만 사용합니다.</p>
+    <div class="actions">
+      <button class="btn ghost" onclick="favorite()">♡ 관심 저장</button>
+      <button class="btn primary" onclick="go('prepare')">🎯 지원 준비</button>
+    </div>
+  </section>
+
+  <section id="prepare" class="screen">
+    <div class="topbar"><button class="back" onclick="go('jobDetail')">←</button></div>
+    <h2>지원 준비를 시작할까요?</h2>
+    <div class="card"><strong>🎯 생성할 목표</strong><p>선택한 회사·직무 지원</p></div>
+    <div class="card" style="margin-top:12px"><strong>📅 추가할 일정</strong><p>DEMO 마감 일정</p></div>
+    <div class="card" style="margin-top:12px"><strong>☑ 준비할 일</strong><p>지원자격 확인 · 이력서 준비 · 자기소개서 작성 · 증빙자료 확인 · 최종 지원서 검토</p></div>
+    <button class="btn primary" style="margin-top:18px" onclick="startPrep()">지원 준비 시작</button>
+  </section>
+
+  <section id="goals" class="screen">
+    <div class="topbar"><h2 style="margin:0">🎯 내 목표</h2></div>
+    <div id="goalsContent"></div>
+  </section>
+
+  <section id="goalDetail" class="screen">
+    <div class="topbar"><button class="back" onclick="go('goals')">←</button></div>
+    <h2 id="goalDetailTitle">🎯 내 목표</h2>
+    <div class="big-status"><strong>현재 단계</strong><div id="stageText">지원 준비</div></div>
+    <div class="section-title">할 일</div>
+    <div id="taskList"></div>
+  </section>
+
+  <section id="calendar" class="screen">
+    <div class="topbar"><h2 style="margin:0">📅 일정</h2></div>
+    <div id="calendarContent"></div>
+  </section>
+
+  <section id="policy" class="screen">
+    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
+    <h2>🏛 나에게 맞는 지원 조건 확인</h2>
+    <div class="card"><p>🟢 현재 입력 정보</p><p>🟡 세부 자격조건은 실제 정책 데이터 연결 후 확인</p><p id="incomeStatus">🟡 소득 정보가 필요한 정책일 수 있어요</p></div>
+    <div id="incomeBox" class="card" style="margin-top:12px">
+      <h3>조건을 하나 더 확인하면 더 정확하게 볼 수 있어요.</h3>
+      <p class="meta">이 정보는 이 지원사업의 소득조건 확인에 사용해요.</p>
+      <select id="incomeSelect" style="width:100%;padding:13px;border:1px solid var(--line);border-radius:14px">
+        <option>기준 중위소득 100% 이하</option>
+        <option>100~150%</option>
+        <option>150% 초과</option>
+        <option>잘 모르겠어요</option>
+      </select>
+      <button class="btn primary" style="margin-top:12px" onclick="saveIncome()">조건 확인</button>
+    </div>
+  </section>
+
+  <section id="cert" class="screen">
+    <div class="topbar"><button class="back" onclick="historyBack()">←</button><span class="tag">DEMO</span></div>
+    <h2 id="certTitle">🏅 자격증 준비</h2>
+    <div id="liveCertStatus" class="card">
+      <strong>🔎 Q-Net 실제 시험일정 확인</strong>
+      <p class="meta">자격증 이름으로 종목을 찾고 실제 접수일·시험일을 불러옵니다.</p>
+      <button class="btn secondary" onclick="loadLiveCertSchedule()">실제 일정 불러오기</button>
+    </div>
+    <div id="liveCertResults"></div>
+    <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
+    <div class="card"><strong>다음 원서접수</strong><p>실제 시험일정 API 연결 전 DEMO</p></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="toast('관심 목록에 저장했어요.')">♡ 관심 저장</button>
+      <button class="btn primary" onclick="state.goalType='cert'; if(!state.mainGoal.includes('자격')&&!state.mainGoal.includes('기사')) state.mainGoal='자격증 취득 준비'; toast('취득 준비 목표를 만들었어요.'); go('goals')">🎯 취득 준비</button>
+    </div>
+  </section>
+
+
+  <section id="opportunities" class="screen">
+    <div class="topbar"><h2 style="margin:0">✨ 기회</h2></div>
+    <p class="muted">현재 프로토타입에서는 예시 데이터로 추천 흐름을 테스트해요.</p>
+    <div class="pillbar"><button class="pill active">전체</button><button class="pill">취업</button><button class="pill">정책</button><button class="pill">자격증</button></div>
+    <div class="section-title">맞춤 추천</div>
+    <div id="opportunityFeed"></div>
+  </section>
+
+  <section id="my" class="screen">
+    <div class="topbar"><h2 style="margin:0">MY</h2></div>
+    <div id="myContent"></div>
+  </section>
+
+  <nav id="bottomnav" class="bottomnav">
+    <button data-target="home" onclick="go('home')"><span class="navicon">⌂</span>홈</button>
+    <button data-target="opportunities" onclick="go('opportunities')"><span class="navicon">⌕</span>기회</button>
+    <button data-target="goals" onclick="go('goals')"><span class="navicon">◎</span>목표</button>
+    <button data-target="calendar" onclick="go('calendar')"><span class="navicon">□</span>일정</button>
+    <button data-target="my" onclick="go('my')"><span class="navicon">○</span>MY</button>
+  </nav>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+const state = {
+  nickname:'',
+  goalType:null,
+  mainGoal:'',
+  selectedCompany:'',
+  selectedJob:'',
+  employmentStatus:'',
+  career:'',
+  education:'',
+  ownedCert:'',
+  jobPreparationStarted:false,
+  completedTasks:[false,false,false,false,false],
+  policyIncomeAdded:false,
+  jobSubmitted:false,
+  favorite:false,
+  parsedGoal:{},
+  activity:[]
+};
+const savedState = localStorage.getItem('lifeAIPrototypeV5');
+if(savedState){
+  try { Object.assign(state, JSON.parse(savedState)); } catch(e) {}
+}
+function persistState(){
+  try { localStorage.setItem('lifeAIPrototypeV5', JSON.stringify(state)); } catch(e) {}
+}
+
+const taskNames = ['기본 조건 확인','필요 자료 정리','핵심 준비 시작','최종 검토','완료 기록'];
+
+
+
+function createAIFirstGoal(){
+  const raw=(document.getElementById('aiFirstGoal')?.value||'').trim();
+  if(!raw){ toast('하고 싶은 일을 한 문장으로 적어주세요.'); return; }
+  state.nickname=getNick();
+  state.parsedGoal=inferGoal(raw);
+  state.goalType=state.parsedGoal.type;
+  state.mainGoal=raw;
+  addActivity('AI에게 새 목표를 말했어요');
+  finishGoalCreation();
+}
+function editCurrentGoal(){
+  const next=prompt('현재 목표를 수정해보세요.', state.mainGoal || '');
+  if(next===null) return;
+  const value=next.trim();
+  if(!value){ toast('목표는 비워둘 수 없어요.'); return; }
+  state.mainGoal=value;
+  state.parsedGoal=inferGoal(value);
+  state.goalType=state.parsedGoal.type;
+  state.jobPreparationStarted=false;
+  state.jobSubmitted=false;
+  state.completedTasks=[false,false,false,false,false];
+  addActivity('목표를 수정했어요');
+  persistState();
+  renderMy();
+  toast('목표를 수정했어요.');
+}
+function resetPrototype(){
+  if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
+  localStorage.removeItem('lifeAIPrototypeV5');
+  location.reload();
+}
+
+function inferGoal(text){
+  const t=(text||'').trim();
+  const out={raw:t, type:'custom', intent:'목표 실행', region:'', timing:'', subject:'', confidence:'low'};
+  if(/취업|이직|입사|회사/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
+  if(/자격증|기사|기능사|컴활|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
+  if(/지원금|지원사업|혜택|보조금|정책/.test(t)){ out.type='policy'; out.intent='지원 찾기'; out.confidence='high'; }
+  const regions=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주','광양','포항'];
+  out.region=regions.find(r=>t.includes(r))||'';
+  if(/올해/.test(t)) out.timing='올해 안';
+  else if(/이번달|이번 달/.test(t)) out.timing='이번 달';
+  else if(/3개월/.test(t)) out.timing='3개월 안';
+  const certMatch=t.match(/([가-힣A-Za-z0-9]+(?:기사|기능사|산업기사|자격증|컴활))/);
+  if(certMatch) out.subject=certMatch[1];
+  return out;
+}
+function understandingHTML(){
+  const p=state.parsedGoal||{};
+  if(!p.raw && state.goalType==='job'){
+    return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${state.selectedCompany||'회사 미정'}</span> <span class="tag">${state.selectedJob||'직무 미정'}</span></div></div>`;
+  }
+  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${state.mainGoal}</p></div>`;
+  const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
+  const note=p.confidence==='low'
+    ? '아직 목표 유형을 확실히 판단하기 어려워요. 우선 일반 목표로 시작하고 이후 필요한 정보를 더 확인할게요.'
+    : '입력한 문장에서 핵심 목표를 정리했어요. 잘못 이해한 부분은 MY에서 수정할 수 있어요.';
+  return `<div class="card"><strong>AI가 이렇게 이해했어요</strong><div style="margin-top:10px">${chips||'<span class="tag">목표 실행</span>'}</div><p class="meta" style="margin-top:10px">${note}</p></div>`;
+}
+function priorityReason(){
+  if(state.goalType==='job'){
+    if(state.jobSubmitted) return '이미 제출한 일정은 더 이상 재촉하지 않고 다음 단계만 보여줘요.';
+    if(state.jobPreparationStarted) return '준비 중인 목표가 있으므로 새 정보보다 미완료 행동을 먼저 보여줘요.';
+    return '취업 목표가 있으므로 가장 먼저 지원 가능한 기회를 확인하도록 정했어요.';
+  }
+  if(state.goalType==='cert') return '시험 일정이 준비 계획 전체를 결정하므로 가장 먼저 확인하도록 정했어요.';
+  if(state.goalType==='policy') return '지원 가능 여부를 먼저 알아야 불필요한 신청 준비를 줄일 수 있어요.';
+  return '아직 실행 단계가 없어서 목표와 연결되는 첫 행동부터 제안해요.';
+}
+function addActivity(text){
+  state.activity.unshift(text);
+  state.activity=state.activity.slice(0,5);
+  persistState();
+}
+function createCustomGoal(){
+  const raw=(document.getElementById('customGoalInput').value||'').trim();
+  if(!raw){ toast('목표를 한 문장으로 적어주세요.'); return; }
+  state.parsedGoal=inferGoal(raw);
+  state.goalType=state.parsedGoal.type;
+  state.mainGoal=raw;
+  state.nickname=getNick();
+  addActivity('목표를 만들었어요');
+  finishGoalCreation();
+}
+
+function startOrContinue(){
+  if(state.mainGoal){
+    go('home');
+  } else {
+    go('name');
+  }
+}
+function getNick(){
+  return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
+}
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const nav = document.getElementById('bottomnav');
+  const showNav = ['home','opportunities','goals','goalDetail','calendar','my'].includes(id);
+  nav.classList.toggle('show', showNav);
+  document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll(`.bottomnav button[data-target="${id}"]`).forEach(b=>b.classList.add('active'));
+  if(id==='home') renderHome();
+  if(id==='goals') renderGoals();
+  if(id==='goalDetail') renderTasks();
+  if(id==='calendar') renderCalendar();
+  if(id==='my') renderMy();
+  if(id==='opportunities') document.getElementById('opportunityFeed').innerHTML=opportunityCards();
+  requestAnimationFrame(() => {
+    window.scrollTo(0,0);
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
+  });
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),1800);
+}
+function historyBack(){ go('home'); }
+
+function selectCompany(name){
+  const typed=(document.getElementById('companyInput')?.value||'').trim();
+  state.selectedCompany=name || typed || '관심 회사';
+  state.goalType='job';
+  go('job');
+}
+function selectJob(name){
+  state.selectedJob=(name||'관심 직무').trim();
+  state.goalType='job';
+  go('profile');
+}
+function createGoal(){
+  state.nickname=getNick();
+  state.goalType='job';
+  state.employmentStatus=document.getElementById('employmentStatus')?.value || '';
+  state.career=(document.getElementById('careerInput')?.value||'').trim();
+  state.education=document.getElementById('educationInput')?.value || '';
+  state.ownedCert=(document.getElementById('certOwnedInput')?.value||'').trim();
+  const company=state.selectedCompany || '관심 회사';
+  const job=state.selectedJob || '관심 직무';
+  state.mainGoal=`${company} ${job} 취업`;
+  state.parsedGoal={};
+  addActivity('취업 목표를 만들었어요');
+  finishGoalCreation();
+}
+function quickGoal(title){
+  state.nickname=getNick();
+  state.mainGoal=(title||'새 목표').trim();
+  if(state.mainGoal.includes('자격') || state.mainGoal.includes('컴퓨터활용') || state.mainGoal.includes('전기기사')) state.goalType='cert';
+  else if(state.mainGoal.includes('지원') || state.mainGoal.includes('혜택') || state.mainGoal.includes('창업')) state.goalType='policy';
+  else if(state.mainGoal.includes('취업') || state.mainGoal.includes('이직')) state.goalType='job';
+  else state.goalType='custom';
+  state.parsedGoal={};
+  addActivity('목표를 만들었어요');
+  finishGoalCreation();
+}
+function finishGoalCreation(){
+  const nick=getNick();
+  document.getElementById('hello').textContent=`안녕하세요, ${nick}님 👋`;
+  document.getElementById('goalCreatedTitle').textContent='🎯 '+state.mainGoal;
+  document.getElementById('goalCreatedSubtitle').textContent=`${nick}님의 목표를 기준으로 지금 필요한 행동부터 정리했어요.`;
+  document.getElementById('goalUnderstanding').innerHTML=understandingHTML();
+  document.getElementById('goalPlanPreview').innerHTML=goalPlanCards();
+  persistState();
+  go('goalCreated');
+}
+
+function goalPlanCards(){
+  if(state.goalType==='job'){
+    const goalHint=state.parsedGoal?.region ? `${state.parsedGoal.region} 지역을 우선 반영` : `${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준`;
+    return `
+      <div class="stack">
+        <div class="card"><strong>1. 맞는 채용 찾기</strong><p class="meta">${goalHint}</p></div>
+        <div class="card"><strong>2. 지원 준비 체크리스트</strong><p class="meta">조건 확인 → 서류 준비 → 최종 제출</p></div>
+        <div class="card"><strong>3. 놓치면 안 되는 일정</strong><p class="meta">지원 마감과 준비 일정을 한곳에서 관리</p></div>
+      </div>`;
+  }
+  if(state.goalType==='cert'){
+    return `
+      <div class="stack">
+        <div class="card"><strong>1. 응시 일정 확인</strong><p class="meta">다음 접수·시험 일정을 우선 확인</p></div>
+        <div class="card"><strong>2. 준비 단계 정리</strong><p class="meta">응시조건 → 접수 → 공부 → 시험</p></div>
+        <div class="card"><strong>3. 관련 기회 연결</strong><p class="meta">이 자격증과 연결되는 취업 기회도 함께 탐색</p></div>
+      </div>`;
+  }
+  if(state.goalType==='policy'){
+    return `
+      <div class="stack">
+        <div class="card"><strong>1. 받을 수 있는 지원 찾기</strong><p class="meta">현재 입력 정보로 먼저 확인</p></div>
+        <div class="card"><strong>2. 부족한 조건만 질문</strong><p class="meta">소득·거주 등 필요한 정보만 추가 확인</p></div>
+        <div class="card"><strong>3. 신청 일정 관리</strong><p class="meta">마감 전 필요한 행동을 알려드림</p></div>
+      </div>`;
+  }
+  return `
+    <div class="stack">
+      <div class="card"><strong>1. 목표를 작은 행동으로 나누기</strong><p class="meta">지금 할 수 있는 첫 단계부터 시작</p></div>
+      <div class="card"><strong>2. 필요한 기회 찾기</strong><p class="meta">목표와 연결되는 채용·자격·지원 탐색</p></div>
+      <div class="card"><strong>3. 일정과 완료 상태 관리</strong><p class="meta">해야 할 일을 놓치지 않게 정리</p></div>
+    </div>`;
+}
+
+function currentAction(){
+  if(state.goalType==='job'){
+    if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 마감 알림은 종료했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
+    if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
+    return {title:'먼저 맞는 채용을 확인해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
+  }
+  if(state.goalType==='cert') return {title:'다음 시험 일정을 먼저 확인해보세요', desc:'접수일과 시험일을 알면 준비 계획을 바로 만들 수 있어요.', cta:'자격증 기회 보기'};
+  if(state.goalType==='policy') return {title:'내가 받을 수 있는 지원부터 확인해보세요', desc:'현재 정보로 확인하고, 부족한 조건만 추가로 물어볼게요.', cta:'지원 조건 보기'};
+  return {title:'이 목표를 조금 더 구체화해볼게요', desc:'아직 목표 유형을 확실히 판단하지 못했어요. 프로토타입에서는 일반 실행 단계로 정리해볼게요.', cta:'구조 보기'};
+}
+
+function renderHome(){
+  const c=document.getElementById('homeContent');
+  document.getElementById('hello').textContent=`안녕하세요, ${getNick()}님 👋`;
+  const a=currentAction();
+  c.innerHTML=`
+    <div class="card" style="padding:22px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="tag">오늘 가장 먼저</span><span class="meta">PROTOTYPE</span></div>
+      <h2 style="margin:12px 0 6px">${a.title}</h2>
+      <p class="muted">${a.desc}</p>
+      <p class="meta">✨ ${priorityReason()}</p>
+      <button class="btn primary" onclick="${state.goalType==='job' && state.jobPreparationStarted ? "go('goalDetail')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : "go('opportunities')"}">${a.cta}</button>
+    </div>
+    <div class="section-title">내 목표</div>
+    <div class="card"><strong>🎯 ${state.mainGoal || '아직 목표가 없어요'}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
+    <div class="section-title">지금 볼 만한 기회</div>
+    ${opportunityCards()}
+  `;
+}
+
+function opportunityCards(){
+  if(state.goalType==='cert'){
+    return `
+      <div class="stack">
+        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${state.mainGoal.replace(' 준비','')}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
+        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="toast('외부 테스트 전에는 DEMO 기회만 보여줘요.')">둘러보기</button></div>
+      </div>`;
+  }
+  if(state.goalType==='policy'){
+    return `
+      <div class="stack">
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'현재 입력한 정보에서 확인 가능한 조건은 일치해요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
+      </div>`;
+  }
+  if(state.goalType==='job'){
+    const company=state.selectedCompany || '관심 회사';
+    const job=state.selectedJob || '관심 직무';
+    return `
+      <div class="stack">
+        <div class="card opportunity"><span class="tag">💼 취업 · DEMO</span><strong>${company} ${job} 채용 예시</strong><span class="meta">고용24 연동 시 실제 공고와 지원 마감일을 확인해요.</span><button class="btn secondary" onclick="go('jobDetail')">자세히 보기</button></div>
+        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${job} 관련 자격 탐색</strong><span class="meta">취업 목표와 연결되는 준비 기회를 보여줘요.</span><button class="btn secondary" onclick="go('cert')">둘러보기</button></div>
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>취업 준비 지원 탐색</strong><span class="meta">현재 정보로 확인 가능한 정책을 살펴봐요.</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+      </div>`;
+  }
+  return `
+    <div class="stack">
+      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
+    </div>`;
+}
+
+function startPrep(){
+  state.jobPreparationStarted=true;
+  addActivity('지원 준비를 시작했어요');
+  toast('지원 준비 목표와 일정이 만들어졌어요.');
+  go('goals');
+}
+function favorite(){
+  state.favorite=!state.favorite;
+  persistState();
+  toast(state.favorite?'관심 목록에 저장했어요.':'관심 저장을 해제했어요.');
+}
+function saveIncome(){
+  state.policyIncomeAdded=true;
+  addActivity('지원 조건 정보를 추가했어요');
+  document.getElementById('incomeStatus').textContent='🟢 소득';
+  document.getElementById('incomeBox').innerHTML='<h3 class="success">현재 입력한 정보에서 확인 가능한 조건은 일치해요.</h3><p class="muted">실제 신청 가능 여부는 공식 조건을 최종 확인해야 해요.</p>';
+  persistState();
+}
+function renderGoals(){
+  const el=document.getElementById('goalsContent');
+  const status = state.goalType==='job'
+    ? (state.jobSubmitted?'지원 완료':state.jobPreparationStarted?'지원 준비 중':'기회 탐색 중')
+    : state.goalType==='cert'?'시험 일정 확인 단계'
+    : state.goalType==='policy'?'조건 확인 단계'
+    : '첫 행동 정리 중';
+  el.innerHTML=`
+    <div class="card">
+      <h3>${state.mainGoal || '새 목표'}</h3>
+      <p class="meta">${status}</p>
+      <button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>
+    </div>`;
+}
+function renderTasks(){
+  document.getElementById('goalDetailTitle').textContent='🎯 '+(state.mainGoal||'내 목표');
+  const box=document.getElementById('taskList');
+  if(state.goalType==='cert'){
+    document.getElementById('stageText').textContent='응시 준비';
+    box.innerHTML=['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    return;
+  }
+  if(state.goalType==='policy'){
+    document.getElementById('stageText').textContent='조건 확인';
+    box.innerHTML=['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    return;
+  }
+  if(state.goalType!=='job'){
+    document.getElementById('stageText').textContent='실행 준비';
+    box.innerHTML=['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    return;
+  }
+  if(state.jobSubmitted){
+    document.getElementById('stageText').textContent='지원 완료 ✓';
+    box.innerHTML=`<div class="card"><h3 class="success">🎉 지원이 기록됐어요.</h3><p>마감 알림은 종료했어요.</p><div class="divider"></div><strong>다음 단계</strong><p>결과 일정이 생기면 추가해보세요.</p></div>`;
+    return;
+  }
+  document.getElementById('stageText').textContent=state.jobPreparationStarted?'지원 준비':'기회 탐색';
+  const jobTasks=['지원자격 최종 확인','이력서 준비','자기소개서 작성','증빙자료 확인','최종 지원서 제출'];
+  box.innerHTML=jobTasks.map((t,i)=>`
+    <label class="check">
+      <input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"/>
+      <span><strong>${t}</strong></span>
+    </label>`).join('');
+}
+function toggleTask(i){
+  if(i===4 && !state.completedTasks[i]){
+    const ok=confirm('지원서를 실제로 제출했나요?');
+    if(!ok) return;
+    state.completedTasks[i]=true;
+    state.jobSubmitted=true;
+    addActivity('지원 완료를 기록했어요');
+    toast('지원 완료가 기록됐어요.');
+  } else {
+    state.completedTasks[i]=!state.completedTasks[i];
+  }
+  persistState();
+  renderTasks();
+}
+function renderCalendar(){
+  const c=document.getElementById('calendarContent');
+  if(state.goalType==='job'){
+    c.innerHTML=`<div class="card"><h3>다가오는 일정</h3><div class="timeline"><div class="event"><div class="dot"></div><div><strong>준비 권장일</strong><p class="meta">서류 초안 완료</p></div></div><div class="event"><div class="dot"></div><div><strong>DEMO 마감일</strong><p class="meta">${state.jobSubmitted?'✓ 지원 완료로 알림 종료':'지원 마감 일정'}</p></div></div></div></div>`;
+  } else if(state.goalType==='cert'){
+    c.innerHTML=`<div class="card"><h3>자격증 일정</h3><p class="meta">실제 Q-Net 데이터 연결 전 DEMO 상태예요.</p><div class="timeline"><div class="event"><div class="dot"></div><div><strong>원서접수 확인</strong><p class="meta">다음 접수 일정 확인 필요</p></div></div></div></div>`;
+  } else if(state.goalType==='policy'){
+    c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
+  } else {
+    c.innerHTML=`<div class="card"><h3>아직 등록된 일정이 없어요.</h3><p class="meta">목표에서 첫 행동을 정하면 여기에 일정이 생겨요.</p></div>`;
+  }
+}
+function renderMy(){
+  const c=document.getElementById('myContent');
+  c.innerHTML=`
+    <div class="card"><h3>${getNick()}님 👋</h3><p class="muted">지금 입력한 정보만 추천에 사용하고 있어요.</p></div>
+    <div class="section-title">현재 목표</div>
+    <div class="card"><strong>🎯 ${state.mainGoal || '아직 목표 없음'}</strong></div>
+    <div class="section-title">AI가 알고 있는 정보</div>
+    <div class="stack">
+      <div class="card"><strong>목표 유형</strong><p class="meta">${state.goalType || '미설정'}</p></div>
+      ${state.goalType==='job'?`
+      <div class="card"><strong>관심 회사·직무</strong><p class="meta">${state.selectedCompany||'미입력'} · ${state.selectedJob||'미입력'}</p></div>
+      <div class="card"><strong>취업 정보</strong><p class="meta">${state.employmentStatus||'미입력'} · ${state.career||'경력 미입력'} · ${state.education||'학력 미입력'}</p></div>
+      <div class="card"><strong>보유 자격증</strong><p class="meta">${state.ownedCert||'입력 없음'}</p></div>`:''}
+      <div class="card"><strong>🏛 지원조건 정보</strong><p class="meta">${state.policyIncomeAdded?'소득 정보 확인됨':'필요할 때만 추가로 확인'}</p></div>
+    </div>
+    <div class="section-title">최근 활동</div>
+    <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <div class="section-title">목표 관리</div>
+    <div class="stack">
+      <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
+      <button class="btn ghost" onclick="editCurrentGoal()">✏️ 현재 목표 수정</button>
+      <button class="btn ghost" onclick="resetPrototype()">↺ 처음부터 다시 시작</button>
+    </div>
+    <div class="section-title">테스트하면서 생각해볼 것</div>
+    <div class="card"><p>① 처음 봤을 때 무슨 앱인지 알겠나요?</p><p>② 내 목표를 이해한다고 느꼈나요?</p><p>③ 홈에서 지금 뭘 해야 할지 알겠나요?</p><p>④ 실제 정보가 연결되면 다시 쓰고 싶나요?</p></div>`;
+}
+
+// Make the DEMO job detail reflect the user's chosen company/job.
+
+function esc(s){
+  return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+function fmtDate(s){
+  if(!s) return '미정';
+  const t=String(s).replace(/\D/g,'');
+  if(t.length!==8) return s;
+  return `${t.slice(0,4)}.${t.slice(4,6)}.${t.slice(6,8)}`;
+}
+function daysUntil(s){
+  if(!s) return '';
+  const t=String(s).replace(/\D/g,'');
+  if(t.length!==8) return '';
+  const d=new Date(`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}T23:59:59+09:00`);
+  const now=new Date();
+  const n=Math.ceil((d-now)/86400000);
+  return n<0?'마감':n===0?'D-DAY':`D-${n}`;
+}
+async function loadLiveJobs(){
+  const status=document.getElementById('liveJobStatus');
+  const box=document.getElementById('liveJobResults');
+  if(!status||!box) return;
+  const keyword=[state.selectedCompany,state.selectedJob].filter(Boolean).join(' ') || state.parsedGoal?.raw || state.mainGoal || '';
+  status.innerHTML=`<strong>⏳ 고용24에서 찾는 중…</strong><p class="meta">검색어: ${esc(keyword)}</p>`;
+  box.innerHTML='';
+  try{
+    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`);
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.message||'채용정보를 불러오지 못했어요.');
+    if(!data.items?.length){
+      status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
+      return;
+    }
+    status.innerHTML=`<strong>🟢 고용24 실제 데이터</strong><p class="meta">${esc(data.source)} · ${data.items.length}건 확인</p>`;
+    box.innerHTML=`<div class="section-title">실제 채용공고</div><div class="stack">${
+      data.items.map((x,i)=>`
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:8px"><span class="tag">${esc(x.company||'회사')}</span><strong>${esc(daysUntil(x.closeDt))}</strong></div>
+        <h3>${esc(x.title||'채용공고')}</h3>
+        <p class="meta">${esc(x.region||'지역 미정')} · ${esc(x.career||'경력 무관/미정')}</p>
+        <p><strong>지원기간</strong> ${fmtDate(x.regDt)} ~ ${fmtDate(x.closeDt)}</p>
+        ${x.url?`<button class="btn secondary" onclick="window.open('${esc(x.url)}','_blank','noopener')">고용24에서 확인</button>`:''}
+      </div>`).join('')
+    }</div>`;
+  }catch(e){
+    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
+  }
+}
+function certQueryName(){
+  if(state.parsedGoal?.subject) return state.parsedGoal.subject;
+  const raw=state.mainGoal||'';
+  return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
+}
+async function loadLiveCertSchedule(){
+  const status=document.getElementById('liveCertStatus');
+  const box=document.getElementById('liveCertResults');
+  if(!status||!box) return;
+  const name=certQueryName();
+  if(!name){
+    status.innerHTML=`<strong>자격증 이름이 필요해요.</strong><p class="meta">예: 전기기사, 산업안전기사처럼 목표를 수정해주세요.</p>`;
+    return;
+  }
+  status.innerHTML=`<strong>⏳ Q-Net에서 찾는 중…</strong><p class="meta">${esc(name)}</p>`;
+  box.innerHTML='';
+  try{
+    const r=await fetch(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${new Date().getFullYear()}`);
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.message||'시험일정을 불러오지 못했어요.');
+    status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
+    if(!data.items?.length){
+      box.innerHTML=`<div class="card"><strong>올해 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
+      return;
+    }
+    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${
+      data.items.map(x=>`
+      <div class="card">
+        <span class="tag">${esc(x.qualgbNm||'국가자격')} · ${esc(x.implSeq||'')}회</span>
+        <h3>${esc(x.description||data.qualification?.name||name)}</h3>
+        <p><strong>필기 접수</strong> ${fmtDate(x.docRegStartDt)} ~ ${fmtDate(x.docRegEndDt)}</p>
+        <p><strong>필기 시험</strong> ${fmtDate(x.docExamStartDt)} ~ ${fmtDate(x.docExamEndDt)}</p>
+        ${x.pracRegStartDt?`<p><strong>실기 접수</strong> ${fmtDate(x.pracRegStartDt)} ~ ${fmtDate(x.pracRegEndDt)}</p>`:''}
+        ${x.pracExamStartDt?`<p><strong>실기 시험</strong> ${fmtDate(x.pracExamStartDt)} ~ ${fmtDate(x.pracExamEndDt)}</p>`:''}
+      </div>`).join('')
+    }</div>`;
+  }catch(e){
+    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 DATA_GO_KR_SERVICE_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
+  }
+}
+
+function syncJobDetail(){
+  const title=document.querySelector('#jobDetail h2');
+  if(title){
+    const company=state.selectedCompany || (state.parsedGoal?.raw ? '추천 회사' : '관심 회사');
+    const job=state.selectedJob || (state.parsedGoal?.intent==='이직' ? '이직 후보 직무' : '관심 직무');
+    title.textContent=`💼 ${company} · ${job} 채용 예시`;
+  }
+  const prepareGoal=document.querySelector('#prepare .card p');
+  if(prepareGoal) prepareGoal.textContent=`${state.selectedCompany||'관심 회사'} ${state.selectedJob||'관심 직무'} 지원`;
+}
+
+const _go=go;
+go=function(id){
+  if(id==='jobDetail' || id==='prepare') syncJobDetail();
+  _go(id);
+};
+
+if(state.mainGoal){
+  document.getElementById('startBtn').textContent='이어서 하기';
+  document.getElementById('resetStartBtn').style.display='block';
+  document.getElementById('hello').textContent=`안녕하세요, ${getNick()}님 👋`;
+}
+renderHome();
+</script>
+</body>
+</html>
