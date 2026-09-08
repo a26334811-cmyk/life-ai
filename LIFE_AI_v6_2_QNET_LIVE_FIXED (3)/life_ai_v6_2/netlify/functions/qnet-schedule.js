@@ -87,7 +87,7 @@ exports.handler=async(event)=>{
     });
     if(qual.qualgbCd) qs.set('qualgbCd',qual.qualgbCd);
 
-    const url=`https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList?${qs.toString()}`;
+    const url=`http://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList?${qs.toString()}`;
     const r=await fetch(url);
     const text=await r.text();
     if(!r.ok) throw new Error(`Q-Net 일정 조회 오류 ${r.status}`);
