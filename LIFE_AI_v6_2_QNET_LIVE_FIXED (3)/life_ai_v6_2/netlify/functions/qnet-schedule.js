@@ -83,7 +83,6 @@ exports.handler=async(event)=>{
       pageNo:'1',
       dataFormat:'json',
       implYy:year,
-      jmCd:qual.code
     });
     if(qual.qualgbCd) qs.set('qualgbCd',qual.qualgbCd);
 
