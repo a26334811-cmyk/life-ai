@@ -126,6 +126,18 @@ exports.handler=async(event)=>{
         year,
         qualification:qual,
         totalCount:Number(body?.totalCount || items.length || 0),
+        debug: {
+          resultCode: header.resultCode ?? null,
+          resultMsg: header.resultMsg ?? null,
+          bodyKeys: Object.keys(body || {}),
+          rawItemType: typeof body?.items,
+          rawItemKeys: body?.items && !Array.isArray(body.items) ? Object.keys(body.items) : [],
+          requested: {
+            implYy: year,
+            qualgbCd: qual.qualgbCd || null,
+            jmCd: null
+          }
+        },
         items
       })
     };
