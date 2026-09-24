@@ -79,14 +79,15 @@ exports.handler=async(event)=>{
 
     const qs=new URLSearchParams({
       serviceKey:key,
-      numOfRows:'100',
+      numOfRows:'50',
       pageNo:'1',
       dataFormat:'json',
       implYy:year,
     });
     if(qual.qualgbCd) qs.set('qualgbCd',qual.qualgbCd);
 
-    const url=`http://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList?${qs.toString()}`;
+    if(qual.code) qs.set('jmCd',qual.code);
+    const url=`https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList?${qs.toString()}`;
     const r=await fetch(url);
     const text=await r.text();
     if(!r.ok) throw new Error(`Q-Net 일정 조회 오류 ${r.status}`);
@@ -132,10 +133,13 @@ exports.handler=async(event)=>{
           bodyKeys: Object.keys(body || {}),
           rawItemType: typeof body?.items,
           rawItemKeys: body?.items && !Array.isArray(body.items) ? Object.keys(body.items) : [],
+          responseKeys: Object.keys(data || {}),
+          responseType: Array.isArray(data) ? 'array' : typeof data,
+          rawResponsePreview: String(text || '').slice(0,500),
           requested: {
             implYy: year,
             qualgbCd: qual.qualgbCd || null,
-            jmCd: null
+            jmCd: qual.code || null
           }
         },
         items
