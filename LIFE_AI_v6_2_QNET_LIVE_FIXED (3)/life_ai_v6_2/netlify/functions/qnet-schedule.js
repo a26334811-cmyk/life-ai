@@ -84,9 +84,9 @@ exports.handler=async(event)=>{
       dataFormat:'json',
       implYy:year,
     });
-    if(qual.qualgbCd) qs.set('qualgbCd',qual.qualgbCd);
-
-    if(qual.code) qs.set('jmCd',qual.code);
+    // 진단 단계: 시행년도만으로 먼저 조회합니다.
+    // 일부 Q-Net 일정 데이터는 qualgbCd/jmCd를 함께 주면 0건이 반환되는 경우가 있어,
+    // 우선 전체 시행계획을 받은 뒤 응답 구조를 확인합니다.
     const url=`https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList?${qs.toString()}`;
     const r=await fetch(url);
     const text=await r.text();
