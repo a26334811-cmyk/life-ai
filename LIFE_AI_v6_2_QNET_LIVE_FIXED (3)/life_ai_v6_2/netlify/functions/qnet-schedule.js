@@ -47,22 +47,55 @@ function parseScheduleTable(html, year){
 }
 async function findQualification(key, name){
   const base='http://openapi.q-net.or.kr/api/service/rest/InquiryListNationalQualifcationSVC/getList';
-  const qs=new URLSearchParams({serviceKey:key});
-  const r=await fetch(`${base}?${qs.toString()}`);
-  const xml=await r.text();
-  if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
-  const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
-  const errMsg=xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg');
-  if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 종목 목록 API: ${errMsg||errCode}`);
-  const blocks=xml.match(/<item>[\s\S]*?<\/item>/gi)||[];
-  const all=blocks.map(b=>({
-    code:decodeXml(xmlText(b,'jmcd')),name:decodeXml(xmlText(b,'jmfldnm')),
-    qualgbCd:decodeXml(xmlText(b,'qualgbcd')),qualgbNm:decodeXml(xmlText(b,'qualgbnm')),
-    seriesNm:decodeXml(xmlText(b,'seriesnm')),fieldNm:decodeXml(xmlText(b,'mdobligfldnm'))
-  })).filter(x=>x.code&&x.name);
   const clean=s=>String(s||'').replace(/\s+/g,'').replace(/[()（）]/g,'').toLowerCase();
   const q=clean(name);
-  return all.find(x=>clean(x.name)===q)||all.find(x=>clean(x.name).includes(q))||all.find(x=>q.includes(clean(x.name)));
+  const numOfRows=500;
+  let pageNo=1;
+  let totalCount=null;
+
+  while(pageNo<=20){
+    const qs=new URLSearchParams({
+      serviceKey:key,
+      pageNo:String(pageNo),
+      numOfRows:String(numOfRows)
+    });
+    const r=await fetch(`${base}?${qs.toString()}`);
+    const xml=await r.text();
+    if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
+
+    const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
+    const errMsg=xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg');
+    if(errCode&&!['00','0'].includes(errCode)) {
+      throw new Error(`Q-Net 종목 목록 API: ${errMsg||errCode}`);
+    }
+
+    if(totalCount===null){
+      const parsed=Number(xmlText(xml,'totalCount'));
+      if(Number.isFinite(parsed)&&parsed>=0) totalCount=parsed;
+    }
+
+    const blocks=xml.match(/<item>[\s\S]*?<\/item>/gi)||[];
+    const items=blocks.map(b=>({
+      code:decodeXml(xmlText(b,'jmcd')),
+      name:decodeXml(xmlText(b,'jmfldnm')),
+      qualgbCd:decodeXml(xmlText(b,'qualgbcd')),
+      qualgbNm:decodeXml(xmlText(b,'qualgbnm')),
+      seriesNm:decodeXml(xmlText(b,'seriesnm')),
+      fieldNm:decodeXml(xmlText(b,'mdobligfldnm'))
+    })).filter(x=>x.code&&x.name);
+
+    const exact=items.find(x=>clean(x.name)===q);
+    if(exact) return exact;
+    const partial=items.find(x=>clean(x.name).includes(q))||
+      items.find(x=>q.includes(clean(x.name)));
+    if(partial) return partial;
+
+    if(blocks.length===0) break;
+    if(totalCount!==null && pageNo*numOfRows>=totalCount) break;
+    if(totalCount===null && blocks.length<numOfRows) break;
+    pageNo++;
+  }
+  return null;
 }
 async function fetchOfficialSchedule(qual, year){
   const params=new URLSearchParams({
