@@ -822,19 +822,15 @@ async function loadLiveCertSchedule(){
       box.innerHTML=`<div class="card"><strong>올해 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
       return;
     }
-    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${
-      data.items.map(x=>`
+    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${(
+      data.rounds||[]).map(round=>`
       <div class="card">
-        <span class="tag">${esc(x.qualgbNm||'국가자격')} · ${esc(x.implSeq||'')}회</span>
-        <h3>${esc(x.description||data.qualification?.name||name)}</h3>
-        <p><strong>필기 접수</strong> ${fmtDate(x.docRegStartDt)} ~ ${fmtDate(x.docRegEndDt)}</p>
-        <p><strong>필기 시험</strong> ${fmtDate(x.docExamStartDt)} ~ ${fmtDate(x.docExamEndDt)}</p>
-        ${x.pracRegStartDt?`<p><strong>실기 접수</strong> ${fmtDate(x.pracRegStartDt)} ~ ${fmtDate(x.pracRegEndDt)}</p>`:''}
-        ${x.pracExamStartDt?`<p><strong>실기 시험</strong> ${fmtDate(x.pracExamStartDt)} ~ ${fmtDate(x.pracExamEndDt)}</p>`:''}
+        <h3>${esc(round.round)}</h3>
+        ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
       </div>`).join('')
     }</div>`;
   }catch(e){
-    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 DATA_GO_KR_SERVICE_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
+    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
   }
 }
 
