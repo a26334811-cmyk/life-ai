@@ -64,7 +64,7 @@ async function findQualification(key, name){
 }
 async function fetchOfficialSchedule(key, qual, year){
   const base='https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList';
-  const numOfRows=100;
+  const numOfRows=50;
   const rounds=[];
   let pageNo=1;
   let totalCount=null;
