@@ -30,37 +30,30 @@ function scheduleEvents(block){
     return [{type:label,label,startDate,endDate,raw:startDate===endDate?startDate:`${startDate} ~ ${endDate}`}];
   });
 }
-async function findQualification(key, name){
+function cleanName(s){ return String(s||'').replace(/\s+/g,'').replace(/[()（）]/g,'').toLowerCase(); }
+async function listQualifications(key){
   const base='http://openapi.q-net.or.kr/api/service/rest/InquiryListNationalQualifcationSVC/getList';
-  const clean=s=>String(s||'').replace(/\s+/g,'').replace(/[()（）]/g,'').toLowerCase();
-  const q=clean(name);
-  // Q-Net lists only serviceKey as an input for this endpoint. Use its official
-  // qualification code for the known item instead of relying on undocumented paging.
-  if(q==='설비보전산업기사') return {code:'2035',name:'설비보전산업기사'};
-
-  const qs=new URLSearchParams({serviceKey:key});
-  const r=await fetch(`${base}?${qs.toString()}`);
+  const r=await fetch(`${base}?serviceKey=${encodeURIComponent(key)}`);
   const xml=await r.text();
   if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
   const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
   const errMsg=xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg');
-  if(errCode&&!['00','0'].includes(errCode)) {
-    throw new Error(`Q-Net 종목 목록 API: ${errMsg||errCode}`);
-  }
+  if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 종목 목록 API: ${errMsg||errCode}`);
   const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
   if(!blocks.length) throw new Error('Q-Net 종목 목록 XML에서 항목을 읽지 못했어요.');
   const items=blocks.map(b=>({
-    code:decodeXml(xmlText(b,'jmcd')),
-    name:decodeXml(xmlText(b,'jmfldnm')),
-    qualgbCd:decodeXml(xmlText(b,'qualgbcd')),
-    qualgbNm:decodeXml(xmlText(b,'qualgbnm')),
-    seriesNm:decodeXml(xmlText(b,'seriesnm')),
-    fieldNm:decodeXml(xmlText(b,'mdobligfldnm'))
-  })).filter(x=>x.code&&x.name);
+    code:decodeXml(xmlText(b,'jmcd')),name:decodeXml(xmlText(b,'jmfldnm')),
+    qualgbCd:decodeXml(xmlText(b,'qualgbcd'))
+  })).filter(x=>x.code&&x.name&&x.qualgbCd==='T');
   if(!items.length) throw new Error('Q-Net 종목 목록 XML의 종목코드 또는 종목명을 읽지 못했어요.');
-  return items.find(x=>clean(x.name)===q)||
-    items.find(x=>clean(x.name).includes(q))||
-    items.find(x=>q.includes(clean(x.name)))||null;
+  return {items,totalCount:Number(xmlText(xml,'totalCount'))||items.length};
+}
+async function findQualification(key,name){
+  const q=cleanName(name);
+  if(q==='설비보전산업기사') return {code:'2035',name:'설비보전산업기사'};
+  const {items}=await listQualifications(key);
+  return items.find(x=>cleanName(x.name)===q)||
+    items.find(x=>cleanName(x.name).includes(q))||null;
 }
 async function fetchOfficialSchedule(key, qual, year){
   const base='https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList';
@@ -110,6 +103,17 @@ exports.handler=async(event)=>{
   const key=normalizeServiceKey(rawKey);
   const name=(event.queryStringParameters?.name||'').trim();
   const year=String(event.queryStringParameters?.year||new Date().getFullYear());
+  if(event.queryStringParameters?.mode==='search'){
+    const query=(event.queryStringParameters?.q||'').trim();
+    if(query.length<2) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'검색어를 두 글자 이상 입력해 주세요.'})};
+    try{
+      const {items,totalCount}=await listQualifications(key);
+      const matches=items.filter(x=>cleanName(x.name).includes(cleanName(query))).slice(0,30);
+      if(cleanName('설비보전산업기사').includes(cleanName(query))&&!matches.some(x=>x.code==='2035')) matches.unshift({code:'2035',name:'설비보전산업기사'});
+      return {statusCode:200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=3600'},body:JSON.stringify({items:matches,loadedCount:items.length,totalCount})};
+    }catch(e){ return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:e.message})}; }
+  }
+
   if(!name) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름이 필요해요.'})};
   try{
     const qual=await findQualification(key,name);
