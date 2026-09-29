@@ -296,11 +296,14 @@
   <section id="cert" class="screen">
     <div class="topbar"><button class="back" onclick="historyBack()">←</button><span class="tag">DEMO</span></div>
     <h2 id="certTitle">🏅 자격증 준비</h2>
-    <div id="liveCertStatus" class="card">
-      <strong>🔎 Q-Net 실제 시험일정 확인</strong>
-      <p class="meta">자격증 이름으로 종목을 찾고 실제 접수일·시험일을 불러옵니다.</p>
-      <button class="btn secondary" onclick="loadLiveCertSchedule()">실제 일정 불러오기</button>
+    <div class="card">
+      <label for="certSearchInput"><strong>🔎 자격증 종목 검색</strong></label>
+      <p class="meta">이름 일부를 입력하고 목록에서 종목을 선택하세요. 예: 설비보전, 전기, 산업안전</p>
+      <input id="certSearchInput" type="search" autocomplete="off" placeholder="자격증 이름 입력" style="width:100%;padding:13px;border:1px solid var(--line);border-radius:14px" oninput="searchCertNames()" onkeydown="if(event.key==='Enter'){event.preventDefault();loadLiveCertSchedule()}">
+      <div id="certSearchMatches" aria-live="polite"></div>
+      <button class="btn secondary" style="margin-top:12px" onclick="loadLiveCertSchedule()">시험일정 확인</button>
     </div>
+    <div id="liveCertStatus" class="card"><strong>종목을 선택하면 실제 접수일·시험일을 확인할 수 있어요.</strong></div>
     <div id="liveCertResults"></div>
     <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
     <div class="card"><strong>다음 원서접수</strong><p>실제 시험일정 API 연결 전 DEMO</p></div>
@@ -802,19 +805,50 @@ function certQueryName(){
   const raw=state.mainGoal||'';
   return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
 }
+let certSearchTimer;
+async function searchCertNames(){
+  const input=document.getElementById('certSearchInput');
+  const matches=document.getElementById('certSearchMatches');
+  if(!input||!matches) return;
+  input.dataset.code='';
+  clearTimeout(certSearchTimer);
+  const query=input.value.trim();
+  if(query.length<2){matches.innerHTML='';return;}
+  matches.innerHTML='<p class="meta">종목 검색 중…</p>';
+  certSearchTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch(`/.netlify/functions/qnet-schedule?mode=search&q=${encodeURIComponent(query)}`);
+      const data=await r.json();
+      if(input.value.trim()!==query) return;
+      if(!r.ok) throw new Error(data.message||'종목을 검색하지 못했어요.');
+      matches.innerHTML=data.items?.length?data.items.map(x=>`
+        <button type="button" class="btn ghost" style="display:block;width:100%;text-align:left;margin-top:6px" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="chooseCert(this)">${esc(x.name)} <span class="meta">· ${esc(x.code)}</span></button>`).join(''):
+        '<p class="meta">검색 결과가 없어요. 정확한 자격증 이름을 입력해 확인할 수도 있어요.</p>';
+    }catch(e){matches.innerHTML=`<p class="meta">${esc(e.message)}</p>`;}
+  },350);
+}
+function chooseCert(button){
+  const input=document.getElementById('certSearchInput');
+  input.value=button.dataset.name;
+  input.dataset.code=button.dataset.code;
+  document.getElementById('certSearchMatches').innerHTML='';
+  loadLiveCertSchedule();
+}
 async function loadLiveCertSchedule(){
   const status=document.getElementById('liveCertStatus');
   const box=document.getElementById('liveCertResults');
   if(!status||!box) return;
-  const name=certQueryName();
+  const input=document.getElementById('certSearchInput');
+  const name=input?.value.trim()||certQueryName();
+  const code=input?.dataset.code||'';
   if(!name){
-    status.innerHTML=`<strong>자격증 이름이 필요해요.</strong><p class="meta">예: 전기기사, 산업안전기사처럼 목표를 수정해주세요.</p>`;
+    status.innerHTML=`<strong>자격증 이름이 필요해요.</strong><p class="meta">위 검색창에 자격증 이름을 입력해 주세요.</p>`;
     return;
   }
   status.innerHTML=`<strong>⏳ Q-Net에서 찾는 중…</strong><p class="meta">${esc(name)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${new Date().getFullYear()}`);
+    const r=await fetch(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${new Date().getFullYear()}${code?`&code=${encodeURIComponent(code)}`:''}`);
     const data=await r.json();
     if(!r.ok) throw new Error(data.message||'시험일정을 불러오지 못했어요.');
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
