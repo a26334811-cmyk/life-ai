@@ -94,7 +94,15 @@ async function fetchOfficialSchedule(key, qual, year){
     pageNo++;
   }
   if(pageNo>20) throw new Error('Q-Net 시험일정 페이지 제한을 초과했어요.');
-  return {url:base,rounds};
+  const grouped=new Map();
+  for(const entry of rounds.sort((a,b)=>(a.events[0]?.startDate||'').localeCompare(b.events[0]?.startDate||''))){
+    const key=entry.round+JSON.stringify(entry.events.filter(e=>e.type!=='필기원서접수'));
+    const existing=grouped.get(key);
+    if(!existing){ grouped.set(key,entry); continue; }
+    const extra=entry.events.find(e=>e.type==='필기원서접수');
+    if(extra) existing.events.push({...extra,type:'필기빈자리접수',label:'필기 빈자리접수'});
+  }
+  return {url:base,rounds:[...grouped.values()]};
 }
 exports.handler=async(event)=>{
   const rawKey=process.env.DATA_GO_KR_SERVICE_KEY;
