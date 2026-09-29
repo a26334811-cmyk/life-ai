@@ -114,9 +114,10 @@ exports.handler=async(event)=>{
     }catch(e){ return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:e.message})}; }
   }
 
-  if(!name) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름이 필요해요.'})};
+  if(!name&&event.queryStringParameters?.mode!=='search') return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름이 필요해요.'})};
   try{
-    const qual=await findQualification(key,name);
+    const selectedCode=String(event.queryStringParameters?.code||'');
+    const qual=/^\d{4}$/.test(selectedCode)&&name?{code:selectedCode,name}:await findQualification(key,name);
     if(!qual) return {statusCode:404,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:`Q-Net 국가자격 종목 목록에서 “${name}”을 찾지 못했어요.`})};
     const official=await fetchOfficialSchedule(key,qual,year);
     const items=official.rounds.flatMap(r=>r.events.map(e=>({
