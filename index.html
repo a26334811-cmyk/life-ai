@@ -301,15 +301,16 @@
       <p class="meta">이름 일부를 입력하고 목록에서 종목을 선택하세요. 예: 설비보전, 전기, 산업안전</p>
       <input id="certSearchInput" type="search" autocomplete="off" placeholder="자격증 이름 입력" style="width:100%;padding:13px;border:1px solid var(--line);border-radius:14px" oninput="searchCertNames()" onkeydown="if(event.key==='Enter'){event.preventDefault();loadLiveCertSchedule()}">
       <div id="certSearchMatches" aria-live="polite"></div>
+      <div class="field"><label for="certYear">시행년도</label><select id="certYear" onchange="loadLiveCertSchedule()"></select></div>
       <button class="btn secondary" style="margin-top:12px" onclick="loadLiveCertSchedule()">시험일정 확인</button>
     </div>
     <div id="liveCertStatus" class="card"><strong>종목을 선택하면 실제 접수일·시험일을 확인할 수 있어요.</strong></div>
     <div id="liveCertResults"></div>
     <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
-    <div class="card"><strong>다음 원서접수</strong><p>실제 시험일정 API 연결 전 DEMO</p></div>
+    <p class="meta">조회한 일정은 이 기기에 저장돼요. 변경될 수 있으니 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener">Q-Net 공식 홈페이지</a>에서 최종 확인해 주세요.</p>
     <div class="actions">
-      <button class="btn ghost" onclick="toast('관심 목록에 저장했어요.')">♡ 관심 저장</button>
-      <button class="btn primary" onclick="state.goalType='cert'; if(!state.mainGoal.includes('자격')&&!state.mainGoal.includes('기사')) state.mainGoal='자격증 취득 준비'; toast('취득 준비 목표를 만들었어요.'); go('goals')">🎯 취득 준비</button>
+      <button class="btn ghost" onclick="state.favorite=true; persistState(); toast('관심 목록에 저장했어요.')">♡ 관심 저장</button>
+      <button class="btn primary" onclick="startCertGoal()">🎯 취득 준비</button>
     </div>
   </section>
 
@@ -358,7 +359,8 @@ const state = {
   parsedGoal:{},
   activity:[]
 };
-const savedState = localStorage.getItem('lifeAIPrototypeV5');
+let savedState;
+try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
 if(savedState){
   try { Object.assign(state, JSON.parse(savedState)); } catch(e) {}
 }
@@ -398,7 +400,7 @@ function editCurrentGoal(){
 }
 function resetPrototype(){
   if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
-  localStorage.removeItem('lifeAIPrototypeV5');
+  try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
   location.reload();
 }
 
@@ -473,6 +475,7 @@ function go(id){
   nav.classList.toggle('show', showNav);
   document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll(`.bottomnav button[data-target="${id}"]`).forEach(b=>b.classList.add('active'));
+  if(id==='cert') initCertSearch();
   if(id==='home') renderHome();
   if(id==='goals') renderGoals();
   if(id==='goalDetail') renderTasks();
@@ -716,7 +719,8 @@ function renderCalendar(){
   if(state.goalType==='job'){
     c.innerHTML=`<div class="card"><h3>다가오는 일정</h3><div class="timeline"><div class="event"><div class="dot"></div><div><strong>준비 권장일</strong><p class="meta">서류 초안 완료</p></div></div><div class="event"><div class="dot"></div><div><strong>DEMO 마감일</strong><p class="meta">${state.jobSubmitted?'✓ 지원 완료로 알림 종료':'지원 마감 일정'}</p></div></div></div></div>`;
   } else if(state.goalType==='cert'){
-    c.innerHTML=`<div class="card"><h3>자격증 일정</h3><p class="meta">실제 Q-Net 데이터 연결 전 DEMO 상태예요.</p><div class="timeline"><div class="event"><div class="dot"></div><div><strong>원서접수 확인</strong><p class="meta">다음 접수 일정 확인 필요</p></div></div></div></div>`;
+    const schedule=state.certSchedule;
+    c.innerHTML=schedule?.items?.length ? `<div class="card"><h3>${esc(schedule.qualification.name)} · ${esc(schedule.year)}년</h3><p class="meta">조회한 공식 일정 · 변경 여부는 Q-Net에서 확인하세요.</p>${[...schedule.items].sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('')}</div>` : `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
   } else if(state.goalType==='policy'){
     c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
   } else {
@@ -755,6 +759,9 @@ function renderMy(){
 function esc(s){
   return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 }
+function safeUrl(value){
+  try{const url=new URL(value);return ['https:','http:'].includes(url.protocol)?url.href:'';}catch{return '';}
+}
 function fmtDate(s){
   if(!s) return '미정';
   const t=String(s).replace(/\D/g,'');
@@ -792,8 +799,8 @@ async function loadLiveJobs(){
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="tag">${esc(x.company||'회사')}</span><strong>${esc(daysUntil(x.closeDt))}</strong></div>
         <h3>${esc(x.title||'채용공고')}</h3>
         <p class="meta">${esc(x.region||'지역 미정')} · ${esc(x.career||'경력 무관/미정')}</p>
-        <p><strong>지원기간</strong> ${fmtDate(x.regDt)} ~ ${fmtDate(x.closeDt)}</p>
-        ${x.url?`<button class="btn secondary" onclick="window.open('${esc(x.url)}','_blank','noopener')">고용24에서 확인</button>`:''}
+        <p><strong>지원기간</strong> ${esc(fmtDate(x.regDt))} ~ ${esc(fmtDate(x.closeDt))}</p>
+        ${safeUrl(x.url)?`<a class="btn secondary" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">고용24에서 확인</a>`:''}
       </div>`).join('')
     }</div>`;
   }catch(e){
@@ -805,29 +812,61 @@ function certQueryName(){
   const raw=state.mainGoal||'';
   return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
 }
-let certSearchTimer;
+function startCertGoal(){
+  const name=document.getElementById('certSearchInput').value.trim();
+  if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
+  state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
+  persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
+}
+function initCertSearch(){
+  const year=document.getElementById('certYear');
+  if(!year.options.length){
+    const current=new Date().getFullYear();
+    year.innerHTML=[current-1,current,current+1].map(y=>`<option value="${y}" ${y===current?'selected':''}>${y}년</option>`).join('');
+  }
+  const input=document.getElementById('certSearchInput');
+  if(!input.value) input.value=certQueryName();
+  if(input.value) searchCertNames();
+}
+async function fetchJson(url,signal){
+  const r=await fetch(url,{signal});
+  let data;
+  try{data=await r.json();}catch{throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');}
+  if(!r.ok) throw new Error(data.message||'정보를 불러오지 못했어요.');
+  return data;
+}
+let certSearchTimer, certSearchController, certScheduleController;
+let certSearchVersion=0, certScheduleVersion=0;
 async function searchCertNames(){
   const input=document.getElementById('certSearchInput');
   const matches=document.getElementById('certSearchMatches');
   if(!input||!matches) return;
   input.dataset.code='';
+  const version=++certSearchVersion;
+  ++certScheduleVersion;
+  certSearchController?.abort();
+  certScheduleController?.abort();
   clearTimeout(certSearchTimer);
+  document.getElementById('liveCertResults').innerHTML='';
+  document.getElementById('liveCertStatus').textContent='종목을 선택하면 시험일정을 확인할 수 있어요.';
   const query=input.value.trim();
   if(query.length<2){matches.innerHTML='';return;}
   matches.innerHTML='<p class="meta">종목 검색 중…</p>';
   certSearchTimer=setTimeout(async()=>{
     try{
-      const r=await fetch(`/.netlify/functions/qnet-schedule?mode=search&q=${encodeURIComponent(query)}`);
-      const data=await r.json();
-      if(input.value.trim()!==query) return;
-      if(!r.ok) throw new Error(data.message||'종목을 검색하지 못했어요.');
+      certSearchController=new AbortController();
+      const data=await fetchJson(`/.netlify/functions/qnet-schedule?mode=search&q=${encodeURIComponent(query)}`,certSearchController.signal);
+      if(version!==certSearchVersion) return;
       matches.innerHTML=data.items?.length?data.items.map(x=>`
         <button type="button" class="btn ghost" style="display:block;width:100%;text-align:left;margin-top:6px" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="chooseCert(this)">${esc(x.name)} <span class="meta">· ${esc(x.code)}</span></button>`).join(''):
         '<p class="meta">검색 결과가 없어요. 정확한 자격증 이름을 입력해 확인할 수도 있어요.</p>';
-    }catch(e){matches.innerHTML=`<p class="meta">${esc(e.message)}</p>`;}
+    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(e.message)}</p>`;}
   },350);
 }
 function chooseCert(button){
+  ++certSearchVersion;
+  clearTimeout(certSearchTimer);
+  certSearchController?.abort();
   const input=document.getElementById('certSearchInput');
   input.value=button.dataset.name;
   input.dataset.code=button.dataset.code;
@@ -840,6 +879,10 @@ async function loadLiveCertSchedule(){
   if(!status||!box) return;
   const input=document.getElementById('certSearchInput');
   const name=input?.value.trim()||certQueryName();
+  const year=document.getElementById('certYear').value||new Date().getFullYear();
+  const version=++certScheduleVersion;
+  certScheduleController?.abort();
+  certScheduleController=new AbortController();
   const code=input?.dataset.code||'';
   if(!name){
     status.innerHTML=`<strong>자격증 이름이 필요해요.</strong><p class="meta">위 검색창에 자격증 이름을 입력해 주세요.</p>`;
@@ -848,12 +891,13 @@ async function loadLiveCertSchedule(){
   status.innerHTML=`<strong>⏳ Q-Net에서 찾는 중…</strong><p class="meta">${esc(name)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${new Date().getFullYear()}${code?`&code=${encodeURIComponent(code)}`:''}`);
-    const data=await r.json();
-    if(!r.ok) throw new Error(data.message||'시험일정을 불러오지 못했어요.');
+    const data=await fetchJson(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${year}${code?`&code=${encodeURIComponent(code)}`:''}`,certScheduleController.signal);
+    if(version!==certScheduleVersion) return;
+    state.certSchedule=data;
+    persistState();
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
-      box.innerHTML=`<div class="card"><strong>올해 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
+      box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
       return;
     }
     box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${(
@@ -864,7 +908,8 @@ async function loadLiveCertSchedule(){
       </div>`).join('')
     }</div>`;
   }catch(e){
-    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
+    if(version!==certScheduleVersion||e.name==='AbortError') return;
+    status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
   }
 }
 
