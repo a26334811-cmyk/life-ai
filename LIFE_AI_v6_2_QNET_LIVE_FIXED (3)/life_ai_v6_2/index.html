@@ -284,12 +284,12 @@
       <h3>조건을 하나 더 확인하면 더 정확하게 볼 수 있어요.</h3>
       <p class="meta">이 정보는 이 지원사업의 소득조건 확인에 사용해요.</p>
       <select id="incomeSelect" style="width:100%;padding:13px;border:1px solid var(--line);border-radius:14px">
-        <option>기준 중위소득 100% 이하</option>
+        <option value="">소득 구간을 선택해 주세요</option><option>기준 중위소득 100% 이하</option>
         <option>100~150%</option>
         <option>150% 초과</option>
         <option>잘 모르겠어요</option>
       </select>
-      <button class="btn primary" style="margin-top:12px" onclick="saveIncome()">조건 확인</button>
+      <button class="btn primary" style="margin-top:12px" onclick="saveIncome()">정보 저장</button><p id="incomeResult" class="meta" aria-live="polite"></p>
     </div>
   </section>
 
@@ -309,7 +309,7 @@
     <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
     <p class="meta">조회한 일정은 이 기기에 저장돼요. 변경될 수 있으니 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener">Q-Net 공식 홈페이지</a>에서 최종 확인해 주세요.</p>
     <div class="actions">
-      <button class="btn ghost" onclick="state.favorite=true; persistState(); toast('관심 목록에 저장했어요.')">♡ 관심 저장</button>
+      <button class="btn ghost" onclick="saveFavoriteCert()">♡ 관심 저장</button>
       <button class="btn primary" onclick="startCertGoal()">🎯 취득 준비</button>
     </div>
   </section>
@@ -318,7 +318,7 @@
   <section id="opportunities" class="screen">
     <div class="topbar"><h2 style="margin:0">✨ 기회</h2></div>
     <p class="muted">현재 프로토타입에서는 예시 데이터로 추천 흐름을 테스트해요.</p>
-    <div class="pillbar"><button class="pill active">전체</button><button class="pill">취업</button><button class="pill">정책</button><button class="pill">자격증</button></div>
+    <div class="pillbar"><button class="pill active" data-filter="all" onclick="filterOpportunities('all')">전체</button><button class="pill" data-filter="job" onclick="filterOpportunities('job')">취업</button><button class="pill" data-filter="policy" onclick="filterOpportunities('policy')">정책</button><button class="pill" data-filter="cert" onclick="filterOpportunities('cert')">자격증</button></div>
     <div class="section-title">맞춤 추천</div>
     <div id="opportunityFeed"></div>
   </section>
@@ -376,17 +376,29 @@ function createAIFirstGoal(){
   const raw=(document.getElementById('aiFirstGoal')?.value||'').trim();
   if(!raw){ toast('하고 싶은 일을 한 문장으로 적어주세요.'); return; }
   state.nickname=getNick();
+  resetGoalProgress();
   state.parsedGoal=inferGoal(raw);
   state.goalType=state.parsedGoal.type;
   state.mainGoal=raw;
   addActivity('AI에게 새 목표를 말했어요');
   finishGoalCreation();
 }
+function resetGoalProgress(){
+  state.jobPreparationStarted=false;state.jobSubmitted=false;
+  state.completedTasks=[false,false,false,false,false];
+  state.policyIncomeAdded=false;state.policyIncome='';
+  ++certSearchVersion;++certScheduleVersion;
+  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
+  state.certSchedule=null;
+  const input=document.getElementById('certSearchInput');
+  if(input){input.value='';input.dataset.code='';}
+}
 function editCurrentGoal(){
   const next=prompt('현재 목표를 수정해보세요.', state.mainGoal || '');
   if(next===null) return;
   const value=next.trim();
   if(!value){ toast('목표는 비워둘 수 없어요.'); return; }
+  resetGoalProgress();
   state.mainGoal=value;
   state.parsedGoal=inferGoal(value);
   state.goalType=state.parsedGoal.type;
@@ -408,7 +420,7 @@ function inferGoal(text){
   const t=(text||'').trim();
   const out={raw:t, type:'custom', intent:'목표 실행', region:'', timing:'', subject:'', confidence:'low'};
   if(/취업|이직|입사|회사/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
-  if(/자격증|기사|기능사|컴활|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
+  if(/자격증|기사|기능사|기능장|기술사|컴활|컴퓨터활용|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
   if(/지원금|지원사업|혜택|보조금|정책/.test(t)){ out.type='policy'; out.intent='지원 찾기'; out.confidence='high'; }
   const regions=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주','광양','포항'];
   out.region=regions.find(r=>t.includes(r))||'';
@@ -449,6 +461,7 @@ function addActivity(text){
 function createCustomGoal(){
   const raw=(document.getElementById('customGoalInput').value||'').trim();
   if(!raw){ toast('목표를 한 문장으로 적어주세요.'); return; }
+  resetGoalProgress();
   state.parsedGoal=inferGoal(raw);
   state.goalType=state.parsedGoal.type;
   state.mainGoal=raw;
@@ -481,7 +494,8 @@ function go(id){
   if(id==='goalDetail') renderTasks();
   if(id==='calendar') renderCalendar();
   if(id==='my') renderMy();
-  if(id==='opportunities') document.getElementById('opportunityFeed').innerHTML=opportunityCards();
+  if(id==='opportunities') filterOpportunities('all');
+  if(id==='policy') renderIncomeState();
   requestAnimationFrame(() => {
     window.scrollTo(0,0);
     document.documentElement.scrollTop=0;
@@ -507,6 +521,7 @@ function selectJob(name){
   go('profile');
 }
 function createGoal(){
+  resetGoalProgress();
   state.nickname=getNick();
   state.goalType='job';
   state.employmentStatus=document.getElementById('employmentStatus')?.value || '';
@@ -521,13 +536,12 @@ function createGoal(){
   finishGoalCreation();
 }
 function quickGoal(title){
+  resetGoalProgress();
   state.nickname=getNick();
   state.mainGoal=(title||'새 목표').trim();
-  if(state.mainGoal.includes('자격') || state.mainGoal.includes('컴퓨터활용') || state.mainGoal.includes('전기기사')) state.goalType='cert';
-  else if(state.mainGoal.includes('지원') || state.mainGoal.includes('혜택') || state.mainGoal.includes('창업')) state.goalType='policy';
-  else if(state.mainGoal.includes('취업') || state.mainGoal.includes('이직')) state.goalType='job';
-  else state.goalType='custom';
-  state.parsedGoal={};
+  state.parsedGoal=inferGoal(state.mainGoal);
+  state.goalType=state.parsedGoal.type;
+  if(document.getElementById('certStart').classList.contains('active')) state.goalType='cert';
   addActivity('목표를 만들었어요');
   finishGoalCreation();
 }
@@ -578,7 +592,7 @@ function goalPlanCards(){
 
 function currentAction(){
   if(state.goalType==='job'){
-    if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 마감 알림은 종료했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
+    if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 완료를 기록했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
     if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
     return {title:'먼저 맞는 채용을 확인해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
   }
@@ -600,24 +614,41 @@ function renderHome(){
       <button class="btn primary" onclick="${state.goalType==='job' && state.jobPreparationStarted ? "go('goalDetail')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : "go('opportunities')"}">${a.cta}</button>
     </div>
     <div class="section-title">내 목표</div>
-    <div class="card"><strong>🎯 ${state.mainGoal || '아직 목표가 없어요'}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
+    <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표가 없어요')}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
     <div class="section-title">지금 볼 만한 기회</div>
     ${opportunityCards()}
   `;
 }
 
+function filterOpportunities(filter){
+  const feed=document.getElementById('opportunityFeed');
+  feed.innerHTML=opportunityCards();
+  let count=0;
+  feed.querySelectorAll('.opportunity').forEach(card=>{
+    const text=card.querySelector('.tag')?.textContent||'';
+    const kind=text.includes('자격증')?'cert':text.includes('취업')?'job':text.includes('정책')?'policy':'other';
+    const visible=filter==='all'||kind===filter;
+    card.style.display=visible?'':'none';
+    if(visible) count++;
+  });
+  document.querySelectorAll('[data-filter]').forEach(button=>{
+    button.classList.toggle('active',button.dataset.filter===filter);
+    button.setAttribute('aria-pressed',String(button.dataset.filter===filter));
+  });
+  if(!count) feed.innerHTML='<div class="card"><p class="meta">현재 목표에 연결된 해당 종류의 기회가 없어요.</p></div>';
+}
 function opportunityCards(){
   if(state.goalType==='cert'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${state.mainGoal.replace(' 준비','')}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
+        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${esc(state.mainGoal.replace(' 준비',''))}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
         <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="toast('외부 테스트 전에는 DEMO 기회만 보여줘요.')">둘러보기</button></div>
       </div>`;
   }
   if(state.goalType==='policy'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'현재 입력한 정보에서 확인 가능한 조건은 일치해요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
         <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
       </div>`;
   }
@@ -648,12 +679,16 @@ function favorite(){
   persistState();
   toast(state.favorite?'관심 목록에 저장했어요.':'관심 저장을 해제했어요.');
 }
+function renderIncomeState(){
+  document.getElementById('incomeSelect').value=state.policyIncome||'';
+  document.getElementById('incomeStatus').textContent=state.policyIncomeAdded?'소득 정보 입력 완료 · 자격 판정 전':'소득 정보를 선택해 주세요.';
+  document.getElementById('incomeResult').textContent=state.policyIncomeAdded?'정보를 저장했어요. 공식 정책 조건이 연결되기 전에는 신청 가능 여부를 판단할 수 없어요.':'';
+}
 function saveIncome(){
-  state.policyIncomeAdded=true;
-  addActivity('지원 조건 정보를 추가했어요');
-  document.getElementById('incomeStatus').textContent='🟢 소득';
-  document.getElementById('incomeBox').innerHTML='<h3 class="success">현재 입력한 정보에서 확인 가능한 조건은 일치해요.</h3><p class="muted">실제 신청 가능 여부는 공식 조건을 최종 확인해야 해요.</p>';
-  persistState();
+  const value=document.getElementById('incomeSelect').value;
+  if(!value){toast('소득 구간을 선택해 주세요.');return;}
+  state.policyIncome=value;state.policyIncomeAdded=true;
+  addActivity('소득 정보를 저장했어요');renderIncomeState();
 }
 function renderGoals(){
   const el=document.getElementById('goalsContent');
@@ -664,7 +699,7 @@ function renderGoals(){
     : '첫 행동 정리 중';
   el.innerHTML=`
     <div class="card">
-      <h3>${state.mainGoal || '새 목표'}</h3>
+      <h3>${esc(state.mainGoal || '새 목표')}</h3>
       <p class="meta">${status}</p>
       <button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>
     </div>`;
@@ -674,22 +709,22 @@ function renderTasks(){
   const box=document.getElementById('taskList');
   if(state.goalType==='cert'){
     document.getElementById('stageText').textContent='응시 준비';
-    box.innerHTML=['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    box.innerHTML=['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
     return;
   }
   if(state.goalType==='policy'){
     document.getElementById('stageText').textContent='조건 확인';
-    box.innerHTML=['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    box.innerHTML=['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
     return;
   }
   if(state.goalType!=='job'){
     document.getElementById('stageText').textContent='실행 준비';
-    box.innerHTML=['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox"><span><strong>${t}</strong></span></label>`).join('');
+    box.innerHTML=['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
     return;
   }
   if(state.jobSubmitted){
     document.getElementById('stageText').textContent='지원 완료 ✓';
-    box.innerHTML=`<div class="card"><h3 class="success">🎉 지원이 기록됐어요.</h3><p>마감 알림은 종료했어요.</p><div class="divider"></div><strong>다음 단계</strong><p>결과 일정이 생기면 추가해보세요.</p></div>`;
+    box.innerHTML=`<div class="card"><h3 class="success">🎉 지원이 기록됐어요.</h3><p>지원 완료를 기록했어요.</p><div class="divider"></div><strong>다음 단계</strong><p>결과 일정이 생기면 추가해보세요.</p></div>`;
     return;
   }
   document.getElementById('stageText').textContent=state.jobPreparationStarted?'지원 준비':'기회 탐색';
@@ -701,7 +736,7 @@ function renderTasks(){
     </label>`).join('');
 }
 function toggleTask(i){
-  if(i===4 && !state.completedTasks[i]){
+  if(state.goalType==='job' && i===4 && !state.completedTasks[i]){
     const ok=confirm('지원서를 실제로 제출했나요?');
     if(!ok) return;
     state.completedTasks[i]=true;
@@ -714,13 +749,22 @@ function toggleTask(i){
   persistState();
   renderTasks();
 }
+function koreaToday(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());}
+function certCalendarHTML(schedule){
+  if(!schedule?.items?.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
+  const today=koreaToday();
+  const items=[...schedule.items].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const future=items.filter(e=>(e.endDate||e.startDate)>=today),past=items.filter(e=>(e.endDate||e.startDate)<today);
+  const next=future.find(e=>e.type.includes('접수'));
+  const rows=list=>list.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('');
+  return `<div class="card"><h3>${esc(schedule.qualification?.name)} · ${esc(schedule.year)}년</h3><p class="meta">이 기기에 저장된 공식 일정 · ${schedule.fetchedAt?'조회일 '+esc(fmtDate(schedule.fetchedAt.slice(0,10))):'변경 여부는 Q-Net에서 확인하세요.'}</p>${next?`<h3>다음 접수${next.startDate<=today?' · 접수 기간 중':''}</h3>${rows([next])}`:'<p class="meta">조회한 연도에 남은 접수 일정이 없어요.</p>'}<h3>진행 중·앞으로의 일정</h3>${future.length?rows(future):'<p class="meta">남은 일정이 없어요. 다음 연도를 조회해 보세요.</p>'}${past.length?`<details><summary>지난 일정 ${past.length}개</summary>${rows(past)}</details>`:''}<button class="btn secondary" onclick="go('cert')">공식 일정 다시 조회</button></div>`;
+}
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   if(state.goalType==='job'){
     c.innerHTML=`<div class="card"><h3>다가오는 일정</h3><div class="timeline"><div class="event"><div class="dot"></div><div><strong>준비 권장일</strong><p class="meta">서류 초안 완료</p></div></div><div class="event"><div class="dot"></div><div><strong>DEMO 마감일</strong><p class="meta">${state.jobSubmitted?'✓ 지원 완료로 알림 종료':'지원 마감 일정'}</p></div></div></div></div>`;
   } else if(state.goalType==='cert'){
-    const schedule=state.certSchedule;
-    c.innerHTML=schedule?.items?.length ? `<div class="card"><h3>${esc(schedule.qualification.name)} · ${esc(schedule.year)}년</h3><p class="meta">조회한 공식 일정 · 변경 여부는 Q-Net에서 확인하세요.</p>${[...schedule.items].sort((a,b)=>a.startDate.localeCompare(b.startDate)).map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('')}</div>` : `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
+    c.innerHTML=certCalendarHTML(state.certSchedule);
   } else if(state.goalType==='policy'){
     c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
   } else {
@@ -730,9 +774,9 @@ function renderCalendar(){
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
-    <div class="card"><h3>${getNick()}님 👋</h3><p class="muted">지금 입력한 정보만 추천에 사용하고 있어요.</p></div>
+    <div class="card"><h3>${esc(getNick())}님 👋</h3><p class="muted">지금 입력한 정보만 추천에 사용하고 있어요.</p></div>
     <div class="section-title">현재 목표</div>
-    <div class="card"><strong>🎯 ${state.mainGoal || '아직 목표 없음'}</strong></div>
+    <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표 없음')}</strong></div>
     <div class="section-title">AI가 알고 있는 정보</div>
     <div class="stack">
       <div class="card"><strong>목표 유형</strong><p class="meta">${state.goalType || '미설정'}</p></div>
@@ -744,6 +788,7 @@ function renderMy(){
     </div>
     <div class="section-title">최근 활동</div>
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
@@ -815,8 +860,28 @@ function certQueryName(){
 function startCertGoal(){
   const name=document.getElementById('certSearchInput').value.trim();
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
+  const schedule=state.certSchedule;
+  if(state.mainGoal!==name+' 준비') resetGoalProgress();
+  if(schedule?.qualification?.name===name) state.certSchedule=schedule;
   state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
   persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
+}
+function saveFavoriteCert(){
+  const input=document.getElementById('certSearchInput');
+  if(!input.dataset.code){toast('검색 목록에서 자격증을 선택한 뒤 저장해 주세요.');return;}
+  state.favoriteCerts=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
+  if(state.favoriteCerts.some(x=>x.code===input.dataset.code)){toast('이미 관심 목록에 있어요.');return;}
+  state.favoriteCerts.push({name:input.value.trim(),code:input.dataset.code});
+  persistState();toast('관심 자격증 목록에 저장했어요.');
+}
+function openFavoriteCert(button){
+  go('cert');chooseCert(button);
+}
+function removeFavoriteCert(code){
+  state.favoriteCerts=(state.favoriteCerts||[]).filter(x=>x.code!==code);persistState();renderMy();
+}
+function favoriteCertHTML(){
+  return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" onclick="removeFavoriteCert(this.dataset.code)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
 }
 function initCertSearch(){
   const year=document.getElementById('certYear');
@@ -893,7 +958,7 @@ async function loadLiveCertSchedule(){
   try{
     const data=await fetchJson(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${year}${code?`&code=${encodeURIComponent(code)}`:''}`,certScheduleController.signal);
     if(version!==certScheduleVersion) return;
-    state.certSchedule=data;
+    state.certSchedule={...data,fetchedAt:new Date().toISOString()};
     persistState();
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
