@@ -1,11 +1,13 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm'),fs=require('node:fs');
-const script=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
-function app(saved){
+const html=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
+function app(saved,answer){
  const elements=new Map(),storage=new Map(saved?[['lifeAIPrototypeV5',saved]]:[]);
- const el=id=>{if(!elements.has(id)) elements.set(id,{value:'',dataset:{},innerHTML:'',textContent:'',style:{},classList:{add(){},remove(){},toggle(){},contains(){return false;}}});return elements.get(id);};
- const context=vm.createContext({document:{getElementById:el,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},Intl,Date,URL,AbortController,console,confirm:()=>true});
+ const el=id=>{if(!ids.has(id))return null;if(!elements.has(id)) elements.set(id,{value:'',dataset:{},innerHTML:'',textContent:'',style:{},classList:{add(){},remove(){},toggle(){},contains(){return false;}}});return elements.get(id);};
+ const context=vm.createContext({document:{getElementById:el,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},Intl,Date,URL,AbortController,console,confirm:()=>true,prompt:()=>answer});
  vm.runInContext(script,context);
  return {run:code=>vm.runInContext(code,context),el,storage};
 }
@@ -52,4 +54,22 @@ test('posting validation rejects unsafe links and invalid dates',()=>{
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);
+});
+
+test('returning-user initialization uses existing HTML ids',()=>{
+ const a=app(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
+ assert.equal(a.el('startBtn'),null);assert.match(a.el('homeContent').innerHTML,/전기기사/);
+});
+test('deadline today is shown as today, not D-1',()=>{
+ const a=app();assert.equal(a.run('daysUntil(koreaToday())'),'오늘 마감');assert.equal(a.run("daysUntil('2026-02-30')"),'');
+});
+test('interview date survives reload and appears in calendar',()=>{
+ const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs';a.run('savePosting();setInterviewDate(state.jobPostings[0].id,"2099-03-04")');
+ const b=app(a.storage.get('lifeAIPrototypeV5'));assert.match(b.run('jobCalendarHTML()'),/다가오는 면접/);assert.match(b.run('jobCalendarHTML()'),/2099.03.04/);
+});
+
+test('renaming preserves checklist and saved qualification schedule',()=>{
+ const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
+ const a=app(JSON.stringify(saved),'전기기사 올해 취득');a.run('editCurrentGoal()');
+ assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
 });
