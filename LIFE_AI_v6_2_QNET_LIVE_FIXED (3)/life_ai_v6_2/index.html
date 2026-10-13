@@ -25,11 +25,16 @@
       margin:0;background:var(--bg);color:var(--text);
       font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
     }
-    button,input,select{font:inherit}
+    button,input,select,textarea{font:inherit}
+    a.btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+    .company-links{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:14px 0}
+    #jobHub .card{min-width:0;overflow-wrap:anywhere}
+    #jobHub .card>.btn{margin-top:10px}
+    #jobHub textarea{border:1px solid var(--line);border-radius:14px;padding:14px}
     .app{
       width:min(430px,100%);min-height:100vh;margin:0 auto;background:#fff;
       position:relative;box-shadow:0 0 30px rgba(15,76,129,.08);
-      padding-bottom:88px;
+      padding-bottom:calc(160px + env(safe-area-inset-bottom,0px));
     }
     .screen{display:none;padding:24px 20px 36px}
     .screen.active{display:block}
@@ -74,7 +79,7 @@
     .event{display:flex;gap:12px}
     .dot{width:10px;height:10px;background:var(--primary);border-radius:50%;margin-top:6px;flex:0 0 auto}
     .bottomnav{
-      position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+      position:fixed;bottom:calc(52px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
       width:min(430px,100%);height:72px;background:rgba(255,255,255,.96);
       border-top:1px solid var(--line);display:none;grid-template-columns:repeat(5,1fr);
       backdrop-filter:blur(12px);z-index:20;
@@ -86,7 +91,7 @@
     .bottomnav button.active{color:var(--primary)}
     .navicon{display:block;font-size:21px;margin-bottom:4px}
     .toast{
-      position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(20px);
+      position:fixed;left:50%;bottom:calc(138px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
       width:min(390px,calc(100% - 36px));background:#17324a;color:#fff;padding:13px 16px;border-radius:14px;
       opacity:0;pointer-events:none;transition:.25s;z-index:30;font-size:14px;
     }
@@ -835,7 +840,7 @@ function jobCollections(){
 function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
   const query=encodeURIComponent(name+' 채용');
-  return `<a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener">잡코리아 검색</a>`;
+  return `<div class="company-links"><a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener">잡코리아 검색</a></div>`;
 }
 function addWatchCompany(){
   jobCollections();const name=document.getElementById('watchCompany').value.trim();
