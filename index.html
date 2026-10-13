@@ -315,12 +315,35 @@
   </section>
 
 
+  <section id="jobHub" class="screen">
+    <div class="topbar"><button class="back" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
+    <p class="meta">관심 회사와 공고를 이 기기에 저장해요. 새 공고 자동 감지·알림은 제공하지 않아요.</p>
+    <div class="card"><h3>관심 회사 등록</h3>
+      <div class="field"><label for="watchCompany">회사명</label><input id="watchCompany" placeholder="예: 삼천리"></div>
+      <div class="field"><label for="watchUrl">공식 채용 페이지 주소 (선택)</label><input id="watchUrl" type="url" placeholder="https://"></div>
+      <button class="btn primary" onclick="addWatchCompany()">관심 회사 저장</button>
+    </div>
+    <div id="watchCompanies" class="stack"></div>
+    <form id="postingForm" class="card" onsubmit="event.preventDefault();savePosting()">
+      <h3 id="postingFormTitle">관심 공고 저장</h3><input id="postingId" type="hidden">
+      <div class="field"><label for="postingCompany">회사명 *</label><input id="postingCompany" required></div>
+      <div class="field"><label for="postingTitle">공고명·직무 *</label><input id="postingTitle" required placeholder="예: 도시가스 시설관리 신입 채용"></div>
+      <div class="field"><label for="postingUrl">공고 링크 *</label><input id="postingUrl" type="url" required placeholder="https://"></div>
+      <div class="field"><label for="postingDeadline">지원 마감일 (미정·채용시 마감이면 비워두세요)</label><input id="postingDeadline" type="date"></div>
+      <div class="field"><label for="postingRegion">근무지역 (선택)</label><input id="postingRegion"></div>
+      <div class="field"><label for="postingNotes">필수·우대조건과 메모 (선택)</label><textarea id="postingNotes" style="width:100%;min-height:80px"></textarea></div>
+      <button class="btn primary" type="submit">공고 저장</button><button class="btn ghost" type="button" onclick="clearPostingForm()">입력 초기화</button>
+      <p class="meta">링크 내용을 자동으로 읽지 않아요. 공식 공고를 확인해 내용을 입력해 주세요.</p>
+    </form>
+    <div class="section-title">저장한 공고</div><div id="savedPostings" class="stack"></div>
+  </section>
+
   <section id="opportunities" class="screen">
     <div class="topbar"><h2 style="margin:0">✨ 기회</h2></div>
     <p class="muted">현재 프로토타입에서는 예시 데이터로 추천 흐름을 테스트해요.</p>
     <div class="pillbar"><button class="pill active" data-filter="all" onclick="filterOpportunities('all')">전체</button><button class="pill" data-filter="job" onclick="filterOpportunities('job')">취업</button><button class="pill" data-filter="policy" onclick="filterOpportunities('policy')">정책</button><button class="pill" data-filter="cert" onclick="filterOpportunities('cert')">자격증</button></div>
     <div class="section-title">맞춤 추천</div>
-    <div id="opportunityFeed"></div>
+    <button class="btn primary" onclick="go('jobHub')">💼 관심 회사·공고 관리</button><div id="opportunityFeed"></div>
   </section>
 
   <section id="my" class="screen">
@@ -484,7 +507,7 @@ function go(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
-  const showNav = ['home','opportunities','goals','goalDetail','calendar','my'].includes(id);
+  const showNav = ['home','opportunities','goals','goalDetail','calendar','my','jobHub'].includes(id);
   nav.classList.toggle('show', showNav);
   document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll(`.bottomnav button[data-target="${id}"]`).forEach(b=>b.classList.add('active'));
@@ -494,6 +517,7 @@ function go(id){
   if(id==='goalDetail') renderTasks();
   if(id==='calendar') renderCalendar();
   if(id==='my') renderMy();
+  if(id==='jobHub') renderJobHub();
   if(id==='opportunities') filterOpportunities('all');
   if(id==='policy') renderIncomeState();
   requestAnimationFrame(() => {
@@ -594,7 +618,7 @@ function currentAction(){
   if(state.goalType==='job'){
     if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 완료를 기록했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
     if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
-    return {title:'먼저 맞는 채용을 확인해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
+    return {title:'관심 회사와 공고를 관리해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
   }
   if(state.goalType==='cert') return {title:'다음 시험 일정을 먼저 확인해보세요', desc:'접수일과 시험일을 알면 준비 계획을 바로 만들 수 있어요.', cta:'자격증 기회 보기'};
   if(state.goalType==='policy') return {title:'내가 받을 수 있는 지원부터 확인해보세요', desc:'현재 정보로 확인하고, 부족한 조건만 추가로 물어볼게요.', cta:'지원 조건 보기'};
@@ -611,7 +635,7 @@ function renderHome(){
       <h2 style="margin:12px 0 6px">${a.title}</h2>
       <p class="muted">${a.desc}</p>
       <p class="meta">✨ ${priorityReason()}</p>
-      <button class="btn primary" onclick="${state.goalType==='job' && state.jobPreparationStarted ? "go('goalDetail')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : "go('opportunities')"}">${a.cta}</button>
+      <button class="btn primary" onclick="${state.goalType==='job' && state.jobPreparationStarted ? "go('goalDetail')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : state.goalType==='job' ? "go('jobHub')" : "go('opportunities')"}">${a.cta}</button>
     </div>
     <div class="section-title">내 목표</div>
     <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표가 없어요')}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
@@ -762,7 +786,7 @@ function certCalendarHTML(schedule){
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   if(state.goalType==='job'){
-    c.innerHTML=`<div class="card"><h3>다가오는 일정</h3><div class="timeline"><div class="event"><div class="dot"></div><div><strong>준비 권장일</strong><p class="meta">서류 초안 완료</p></div></div><div class="event"><div class="dot"></div><div><strong>DEMO 마감일</strong><p class="meta">${state.jobSubmitted?'✓ 지원 완료로 알림 종료':'지원 마감 일정'}</p></div></div></div></div>`;
+    c.innerHTML=jobCalendarHTML();
   } else if(state.goalType==='cert'){
     c.innerHTML=certCalendarHTML(state.certSchedule);
   } else if(state.goalType==='policy'){
@@ -770,6 +794,7 @@ function renderCalendar(){
   } else {
     c.innerHTML=`<div class="card"><h3>아직 등록된 일정이 없어요.</h3><p class="meta">목표에서 첫 행동을 정하면 여기에 일정이 생겨요.</p></div>`;
   }
+  if(state.goalType!=='job'&&state.jobPostings?.length) c.innerHTML+=jobCalendarHTML();
 }
 function renderMy(){
   const c=document.getElementById('myContent');
@@ -788,6 +813,7 @@ function renderMy(){
     </div>
     <div class="section-title">최근 활동</div>
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
@@ -800,6 +826,80 @@ function renderMy(){
 }
 
 // Make the DEMO job detail reflect the user's chosen company/job.
+
+const postingStages=['관심','준비 중','지원 완료','면접','합격','불합격','지원 취소'];
+function jobCollections(){
+  if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
+  if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
+}
+function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
+function companySearchLinks(name){
+  const query=encodeURIComponent(name+' 채용');
+  return `<a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener">잡코리아 검색</a>`;
+}
+function addWatchCompany(){
+  jobCollections();const name=document.getElementById('watchCompany').value.trim();
+  const raw=document.getElementById('watchUrl').value.trim(),url=raw?safeUrl(raw):'';
+  if(!name){toast('회사명을 입력해 주세요.');return;}
+  if(raw&&!url){toast('http 또는 https 주소를 입력해 주세요.');return;}
+  const existing=state.watchCompanies.find(x=>x.name.replace(/\s/g,'')===name.replace(/\s/g,''));
+  if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
+  persistState();renderJobHub();toast('관심 회사를 저장했어요.');
+}
+function removeWatchCompany(id){
+  state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
+}
+function clearPostingForm(){
+  ['postingId','postingCompany','postingTitle','postingUrl','postingDeadline','postingRegion','postingNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('postingFormTitle').textContent='관심 공고 저장';
+}
+function validDeadline(value){
+  if(!value)return true;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const date=new Date(value+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+function savePosting(){
+  jobCollections();const value=id=>document.getElementById(id).value.trim();
+  const company=value('postingCompany'),title=value('postingTitle'),url=safeUrl(value('postingUrl')),deadline=value('postingDeadline');
+  if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
+  if(!validDeadline(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
+  const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
+  if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
+  const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
+  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
+  persistState();clearPostingForm();renderJobHub();toast('공고와 마감일을 저장했어요.');
+}
+function editPosting(id){
+  const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
+  const fields={postingId:p.id,postingCompany:p.company,postingTitle:p.title,postingUrl:p.url,postingDeadline:p.deadline,postingRegion:p.region,postingNotes:p.notes};
+  Object.entries(fields).forEach(([id,value])=>document.getElementById(id).value=value||'');
+  document.getElementById('postingFormTitle').textContent='공고 수정';document.getElementById('postingForm').scrollIntoView({behavior:'smooth'});
+}
+function deletePosting(id){
+  if(!confirm('이 공고와 지원 준비 기록을 삭제할까요?'))return;
+  state.jobPostings=state.jobPostings.filter(x=>x.id!==id);persistState();renderJobHub();
+}
+function setPostingStage(id,stage){
+  const p=state.jobPostings.find(x=>x.id===id);if(!p||!postingStages.includes(stage))return;
+  p.stage=stage;persistState();renderJobHub();
+}
+function setPostingTask(id,index,checked){
+  const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
+  p.tasks[index]=checked;persistState();
+}
+function jobCalendarHTML(){
+  jobCollections();if(!state.jobPostings.length)return '<div class="card"><p>저장한 취업 공고가 없어요.</p><button class="btn secondary" onclick="go(\'jobHub\')">공고 저장하기</button></div>';
+  const today=koreaToday(),active=state.jobPostings.filter(x=>['관심','준비 중'].includes(x.stage));
+  const future=active.filter(x=>x.deadline&&x.deadline>=today).sort((a,b)=>a.deadline.localeCompare(b.deadline));
+  const past=active.filter(x=>x.deadline&&x.deadline<today),unknown=active.filter(x=>!x.deadline);
+  const rows=list=>list.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${p.deadline?esc(fmtDate(p.deadline))+' · '+esc(daysUntil(p.deadline)):'마감일 미정 · 공식 공고 확인 필요'}</p>`).join('');
+  return `<div class="card"><h3>취업 지원 마감</h3>${future.length?rows(future):'<p class="meta">다가오는 지원 마감이 없어요.</p>'}${unknown.length?`<h3>마감일 확인 필요</h3>${rows(unknown)}`:''}${past.length?`<details><summary>마감된 공고 ${past.length}개</summary>${rows(past)}</details>`:''}<p class="meta">지원 완료·면접·결과를 기록한 공고는 지원 마감 목록에서 제외해요.</p><button class="btn secondary" onclick="go('jobHub')">공고 관리</button></div>`;
+}
+function renderJobHub(){
+  jobCollections();
+  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
+  document.getElementById('savedPostings').innerHTML=state.jobPostings.map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p><a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+}
 
 function esc(s){
   return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
