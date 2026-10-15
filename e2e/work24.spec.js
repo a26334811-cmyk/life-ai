@@ -32,7 +32,10 @@ test('legacy Work24 button opens the results screen and displays returned jobs',
   await page.goto('/');
   await page.evaluate(() => go('jobDetail'));
 
-  await page.getByRole('button', { name: '실제 공고 불러오기' }).click();
+  await expect(page.locator('#jobDetail')).toHaveClass(/active/);
+  const legacyButton = page.locator('#jobDetail button').filter({ hasText: '실제 공고 불러오기' });
+  await expect(legacyButton).toBeVisible();
+  await legacyButton.click();
 
   await expect(page.locator('#liveJobs')).toHaveClass(/active/);
   await expect(page.locator('#liveJobStatus')).toContainText('고용24 실제 데이터');
