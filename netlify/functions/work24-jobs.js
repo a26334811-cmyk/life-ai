@@ -1,6 +1,6 @@
 
 function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`,'i'));
+  const m = String(block||'').match(new RegExp(`<${tag}\\b[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}\\s*>`,'i'));
   return m ? m[1].trim() : '';
 }
 function decodeXml(s){
