@@ -4,10 +4,10 @@ const vm=require('node:vm'),fs=require('node:fs');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
-function app(saved,answer){
+function app(saved,answer,fetchImpl=async()=>{throw new Error('unexpected fetch')}){
  const elements=new Map(),storage=new Map(saved?[['lifeAIPrototypeV5',saved]]:[]);
  const el=id=>{if(!ids.has(id))return null;if(!elements.has(id)) elements.set(id,{value:'',dataset:{},innerHTML:'',textContent:'',style:{},classList:{add(){},remove(){},toggle(){},contains(){return false;}}});return elements.get(id);};
- const context=vm.createContext({document:{getElementById:el,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},Intl,Date,URL,AbortController,console,confirm:()=>true,prompt:()=>answer});
+ const context=vm.createContext({document:{getElementById:el,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},Intl,Date,URL,AbortController,console,fetch:fetchImpl,confirm:()=>true,prompt:()=>answer});
  vm.runInContext(script,context);
  return {run:code=>vm.runInContext(code,context),el,storage};
 }
@@ -72,4 +72,31 @@ test('renaming preserves checklist and saved qualification schedule',()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');a.run('editCurrentGoal()');
  assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
+});
+
+test('legacy and current Work24 buttons load jobs into the visible results elements',async()=>{
+ const xmlResponse={ok:true,json:async()=>({source:'고용24',items:[{company:'광양정비',title:'설비 정비원',region:'전남 광양',career:'경력무관',regDt:'20261001',closeDt:'20991231',url:'https://example.com/job'}]})};
+ for(const [screenId,buttonLabel] of [['jobDetail','실제 공고 불러오기'],['liveJobs','공고 조회']]){
+  let requested='';
+  const a=app(undefined,undefined,async url=>{requested=url;return xmlResponse;});
+  a.run("state.mainGoal='광양 설비 정비직 취업'");
+  const section=html.match(new RegExp('<section id="'+screenId+'"[\\s\\S]*?<\\/section>'))?.[0];
+  assert.ok(section,screenId+' screen exists');
+  const button=section.match(new RegExp('<button\\b[^>]*onclick="([^"]*)"[^>]*>'+buttonLabel+'<\\/button>'));
+  assert.ok(button,screenId+' Work24 button exists');
+  await a.run(button[1]);
+  assert.match(requested,/keyword=%EA%B4%91%EC%96%91/);
+  assert.match(a.el('liveJobStatus').innerHTML,/고용24 실제 데이터/);
+  assert.match(a.el('liveJobResults').innerHTML,/설비 정비원/);
+ }
+});
+test('Work24 empty and failed responses show recoverable status',async()=>{
+ const empty=app(undefined,undefined,async()=>({ok:true,json:async()=>({items:[]})}));
+ await empty.run('loadLiveJobs()');
+ assert.match(empty.el('liveJobStatus').innerHTML,/검색 결과가 없어요/);
+ assert.match(empty.el('liveJobStatus').innerHTML,/다시 확인/);
+ const failed=app(undefined,undefined,async()=>({ok:false,json:async()=>({message:'고용24 연결 오류'})}));
+ await failed.run('loadLiveJobs()');
+ assert.match(failed.el('liveJobStatus').innerHTML,/고용24 연결 오류/);
+ assert.match(failed.el('liveJobStatus').innerHTML,/다시 시도/);
 });
