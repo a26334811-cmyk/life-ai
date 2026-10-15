@@ -27,17 +27,15 @@ async function mockResponses(page, responses) {
   return () => requestCount;
 }
 
-test('legacy Work24 button opens the results screen and displays returned jobs', async ({ page }) => {
+test('job hub Work24 button opens the results screen and displays returned jobs', async ({ page }) => {
   await mockResponses(page, [{ body: goodResponse }]);
   await page.goto('/');
-  await page.evaluate(() => go('jobDetail'));
+  await page.evaluate(() => go('jobHub'));
 
-  await expect(page.locator('#jobDetail')).toHaveClass(/active/);
-  const legacyButton = page.locator('#jobDetail button').filter({ hasText: '실제 공고 불러오기' });
-  await expect(legacyButton).toBeVisible();
-  await legacyButton.click();
-
+  await page.getByRole('button', { name: '고용24 공고 조회' }).click();
   await expect(page.locator('#liveJobs')).toHaveClass(/active/);
+  await page.getByRole('button', { name: '공고 조회' }).click();
+
   await expect(page.locator('#liveJobStatus')).toContainText('고용24 실제 데이터');
   await expect(page.locator('#liveJobResults')).toContainText('설비 정비원');
 });
