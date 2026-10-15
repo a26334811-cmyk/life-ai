@@ -100,3 +100,18 @@ test('Work24 empty and failed responses show recoverable status',async()=>{
  assert.match(failed.el('liveJobStatus').innerHTML,/고용24 연결 오류/);
  assert.match(failed.el('liveJobStatus').innerHTML,/다시 시도/);
 });
+test('slower earlier Work24 response cannot overwrite a newer search',async()=>{
+ const pending=[];
+ const a=app(undefined,undefined,()=>new Promise(resolve=>pending.push(resolve)));
+ a.run("state.mainGoal='첫 검색어'");
+ const first=a.run('loadLiveJobs()');
+ a.run("state.mainGoal='두 번째 검색어'");
+ const second=a.run('loadLiveJobs()');
+ const response=title=>({ok:true,json:async()=>({source:'고용24',items:[{company:'광양정비',title,region:'전남 광양',career:'경력무관',regDt:'20261001',closeDt:'20991231'}]})});
+ pending[1](response('두 번째 공고'));
+ await second;
+ pending[0](response('첫 공고'));
+ await first;
+ assert.match(a.el('liveJobResults').innerHTML,/두 번째 공고/);
+ assert.doesNotMatch(a.el('liveJobResults').innerHTML,/첫 공고/);
+});
