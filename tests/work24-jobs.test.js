@@ -68,3 +68,19 @@ test('reports missing key, upstream HTTP errors, and Work24 error XML',async t=>
   assert.equal(xmlError.statusCode,502);
   assert.match(JSON.parse(xmlError.body).message,/인증키 오류/);
 });
+
+
+test('parses wanted and field tags when XML attributes are present',async t=>{
+  restoreGlobals(t);
+  process.env.WORK24_AUTH_KEY='test-key';
+  const xml='<wantedRoot version="1"><wanted seq="1"><wantedAuthNo>W-456</wantedAuthNo><company lang="ko"><![CDATA[광양 정비]]></company><title category="공고"><![CDATA[설비 정비원]]></title><region>전남 광양</region><wantedMobileInfoUrl>https://example.com/mobile/456</wantedMobileInfoUrl></wanted></wantedRoot>';
+  global.fetch=async()=>({ok:true,text:async()=>xml});
+
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  assert.equal(result.statusCode,200);
+  const data=JSON.parse(result.body);
+  assert.equal(data.items.length,1);
+  assert.equal(data.items[0].company,'광양 정비');
+  assert.equal(data.items[0].title,'설비 정비원');
+  assert.equal(data.items[0].url,'https://example.com/mobile/456');
+});
