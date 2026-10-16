@@ -40,16 +40,17 @@ test('job hub Work24 button opens the results screen and displays returned jobs'
   await expect(page.locator('#liveJobResults')).toContainText('설비 정비원');
 });
 
-test('live jobs button retries a failed request and then displays results', async ({ page }) => {
+test('live jobs button retries a timed-out request and then displays results', async ({ page }) => {
   const requestCount = await mockResponses(page, [
-    { status: 502, body: { message: '고용24 연결 오류' } },
+    { status: 502, body: { message: '고용24 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.' } },
     { body: goodResponse }
   ]);
   await page.goto('/');
   await page.evaluate(() => go('liveJobs'));
 
   await page.getByRole('button', { name: '공고 조회' }).click();
-  await expect(page.locator('#liveJobStatus')).toContainText('고용24 연결 오류');
+  await expect(page.locator('#liveJobStatus')).toContainText('응답 시간이 초과');
+  await expect(page.getByRole('button', { name: '다시 시도' })).toBeVisible();
   await page.getByRole('button', { name: '다시 시도' }).click();
 
   await expect(page.locator('#liveJobResults')).toContainText('설비 정비원');
