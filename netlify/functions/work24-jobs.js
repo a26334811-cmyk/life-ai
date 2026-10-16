@@ -21,8 +21,8 @@ exports.handler = async (event) => {
     if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
     const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
     if(error) throw new Error(`고용24: ${decodeXml(error)}`);
-    if(!/<(?:wantedRoot|wantedList|wanted|total)\\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
-    const blocks = xml.match(/<wanted\\b[^>]*>[\\s\\S]*?<\\/wanted\\s*>/gi) || [];
+    if(!/<(?:wantedRoot|wantedList|wanted|total)\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
+    const blocks = xml.match(/<wanted\b[^>]*>[\s\S]*?<\/wanted\s*>/gi) || [];
     const items = blocks.map(b=>({
       wantedAuthNo:decodeXml(xmlText(b,'wantedAuthNo')),
       company:decodeXml(xmlText(b,'company')),
