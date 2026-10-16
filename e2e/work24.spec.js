@@ -7,6 +7,7 @@ const goodResponse = {
     title: '설비 정비원',
     region: '전남 광양',
     career: '경력무관',
+    salary: '연봉 5000만원',
     regDt: '20261001',
     closeDt: '20991231',
     url: 'https://example.com/job'
@@ -38,6 +39,7 @@ test('job hub Work24 button opens the results screen and displays returned jobs'
 
   await expect(page.locator('#liveJobStatus')).toContainText('고용24 실제 데이터');
   await expect(page.locator('#liveJobResults')).toContainText('설비 정비원');
+  await expect(page.locator('#liveJobResults')).toContainText('연봉 5000만원');
 });
 
 test('live jobs button retries a timed-out request and then displays results', async ({ page }) => {
