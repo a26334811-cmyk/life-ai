@@ -1,5 +1,5 @@
 function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(\`<${tag}\\\\b[^>]*>(?:<!\\\\[CDATA\\\\[)?([\\\\s\\\\S]*?)(?:\\\\]\\\\]>)?</${tag}\\\\s*>\`,'i'));
+  const m = String(block||'').match(new RegExp(`<${tag}\\b[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}\\s*>`,'i'));
   return m ? m[1].trim() : '';
 }
 function decodeXml(s){
@@ -14,13 +14,13 @@ exports.handler = async (event) => {
     authKey:key, callTp:'L', returnType:'XML', startPage:'1', display:'20',
     keyword, sortOrderBy:'DESC'
   });
-  const url = \`https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do?${qs}\`;
+  const url = `https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do?${qs}`;
   try{
     const r = await fetch(url,{signal:AbortSignal.timeout(8000)});
     const xml = await r.text();
-    if(!r.ok) throw new Error(\`고용24 응답 오류 ${r.status}\`);
+    if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
     const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
-    if(error) throw new Error(\`고용24: ${decodeXml(error)}\`);
+    if(error) throw new Error(`고용24: ${decodeXml(error)}`);
     if(!/<(?:wantedRoot|wantedList|wanted|total)\\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
     const blocks = xml.match(/<wanted\\b[^>]*>[\\s\\S]*?<\\/wanted\\s*>/gi) || [];
     const items = blocks.map(b=>({
