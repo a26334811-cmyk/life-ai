@@ -1,6 +1,5 @@
-
 function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(`<${tag}\\b[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}\\s*>`,'i'));
+  const m = String(block||'').match(new RegExp(`<${tag}\\\\b[^>]*>(?:<!\\\\[CDATA\\\\[)?([\\\\s\\\\S]*?)(?:\\\\]\\\\]>)?</${tag}\\\\s*>`,'i'));
   return m ? m[1].trim() : '';
 }
 function decodeXml(s){
@@ -22,8 +21,8 @@ exports.handler = async (event) => {
     if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
     const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
     if(error) throw new Error(`고용24: ${decodeXml(error)}`);
-    if(!/<(?:wantedRoot|wantedList|wanted|total)\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
-    const blocks = xml.match(/<wanted\b[^>]*>[\s\S]*?<\/wanted\s*>/gi) || [];
+    if(!/<(?:wantedRoot|wantedList|wanted|total)\\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
+    const blocks = xml.match(/<wanted\\b[^>]*>[\\s\\S]*?<\\/wanted\\s*>/gi) || [];
     const items = blocks.map(b=>({
       wantedAuthNo:decodeXml(xmlText(b,'wantedAuthNo')),
       company:decodeXml(xmlText(b,'company')),
@@ -41,6 +40,9 @@ exports.handler = async (event) => {
       body:JSON.stringify({source:'고용노동부 고용24', keyword, items:items.slice(0,10)})
     };
   }catch(e){
-    return {statusCode:502,headers:{'content-type':'application/json'},body:JSON.stringify({message:e.message||'고용24 호출에 실패했어요.'})};
+    const message = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+      ? '고용24 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.'
+      : e.message||'고용24 호출에 실패했어요.';
+    return {statusCode:502,headers:{'content-type':'application/json'},body:JSON.stringify({message})};
   }
 };
