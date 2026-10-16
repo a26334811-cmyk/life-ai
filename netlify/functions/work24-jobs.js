@@ -40,6 +40,7 @@ exports.handler = async (event) => {
       title:xmlText(b,'title'),
       region:xmlText(b,'region'),
       career:xmlText(b,'career'),
+      salary:[xmlText(b,'salTpNm'),xmlText(b,'sal')].filter(Boolean).join(' '),
       regDt:xmlText(b,'regDt'),
       closeDt:xmlText(b,'closeDt'),
       url:xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl'),
