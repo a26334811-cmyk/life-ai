@@ -12,10 +12,10 @@ function restoreGlobals(t){
   });
 }
 
-test('maps a Work24 wanted XML item including CDATA and XML entities',async t=>{
+test('preserves CDATA text and decodes XML character references',async t=>{
   restoreGlobals(t);
   process.env.WORK24_AUTH_KEY='test-key';
-  const xml='<wantedRoot><wanted><wantedAuthNo>W-123</wantedAuthNo><company><![CDATA[광양 &amp; 정비]]></company><title><![CDATA[설비 정비 &amp; 보전]]></title><region>전남 광양</region><career>경력무관</career><regDt>20261001</regDt><closeDt>20261031</closeDt><wantedInfoUrl>https://example.com/jobs/123</wantedInfoUrl><infoSvc>고용24</infoSvc></wanted></wantedRoot>';
+  const xml='<wantedRoot><wanted><wantedAuthNo>W-123</wantedAuthNo><company><![CDATA[광양 &amp; 정비]]></company><title>설비 정비 &#38; 보전</title><region>전남 광양</region><career>경력무관</career><regDt>20261001</regDt><closeDt>20261031</closeDt><wantedInfoUrl>https://example.com/jobs/123</wantedInfoUrl><infoSvc>고용24</infoSvc></wanted></wantedRoot>';
   let requestedUrl;
   global.fetch=async url=>{requestedUrl=url;return {ok:true,text:async()=>xml};};
 
@@ -27,7 +27,7 @@ test('maps a Work24 wanted XML item including CDATA and XML entities',async t=>{
   assert.equal(data.keyword,'설비 정비');
   assert.deepEqual(data.items,[{
     wantedAuthNo:'W-123',
-    company:'광양 & 정비',
+    company:'광양 &amp; 정비',
     title:'설비 정비 & 보전',
     region:'전남 광양',
     career:'경력무관',
