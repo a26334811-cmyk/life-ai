@@ -1,13 +1,13 @@
 function xmlText(block, tag){
   const m = String(block||'').match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}\\s*>`,'i'));
   if(!m) return '';
-  return [...m[1].matchAll(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]+)/gi)]
+  return [...m[1].matchAll(/<!\[CDATA\[([\s\S]*?)\]\]>|([^<]+)/gi)]
     .map(([,cdata,text])=>cdata!==undefined?cdata:decodeXml(text))
     .join('').trim();
 }
 function decodeXml(s){
   const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'"};
-  return String(s||'').replace(/&(#x[0-9a-f]+|#\\d+|amp|lt|gt|quot|apos);/gi,(entity,reference)=>{
+  return String(s||'').replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi,(entity,reference)=>{
     if(reference[0]!=='#') return entities[reference.toLowerCase()]||entity;
     const codePoint=reference[1].toLowerCase()==='x'
       ? parseInt(reference.slice(2),16)
@@ -32,8 +32,8 @@ exports.handler = async (event) => {
     if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
     const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
     if(error) throw new Error(`고용24: ${error}`);
-    if(!/<(?:wantedRoot|wantedList|wanted|total)\\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
-    const blocks = xml.match(/<wanted\\b[^>]*>[\\s\\S]*?<\\/wanted\\s*>/gi) || [];
+    if(!/<(?:wantedRoot|wantedList|wanted|total)\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
+    const blocks = xml.match(/<wanted\b[^>]*>[\s\S]*?<\/wanted\s*>/gi) || [];
     const items = blocks.map(b=>({
       wantedAuthNo:xmlText(b,'wantedAuthNo'),
       company:xmlText(b,'company'),
