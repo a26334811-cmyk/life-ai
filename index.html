@@ -962,6 +962,7 @@ async function loadLiveJobs(){
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="tag">${esc(x.company||'회사')}</span><strong>${esc(daysUntil(x.closeDt))}</strong></div>
         <h3>${esc(x.title||'채용공고')}</h3>
         <p class="meta">${esc(x.region||'지역 미정')} · ${esc(x.career||'경력 무관/미정')}</p>
+        ${x.salary?`<p class="meta"><strong>임금</strong> ${esc(x.salary)}</p>`:''}
         <p><strong>지원기간</strong> ${esc(fmtDate(x.regDt))} ~ ${esc(fmtDate(x.closeDt))}</p>
         ${safeUrl(x.url)?`<a class="btn secondary" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">고용24에서 확인</a>`:''}
       </div>`).join('')
