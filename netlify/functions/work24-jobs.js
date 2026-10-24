@@ -1,46 +1,19 @@
-
-function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`,'i'));
-  return m ? m[1].trim() : '';
-}
-function decodeXml(s){
-  return String(s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-}
-exports.handler = async (event) => {
-  const key = process.env.WORK24_AUTH_KEY;
-  if(!key) return {statusCode:503,headers:{'content-type':'application/json'},body:JSON.stringify({message:'고용24 인증키가 아직 설정되지 않았어요.'})};
-  const keyword = (event.queryStringParameters?.keyword||'').trim();
-  if(!keyword) return {statusCode:400,headers:{'content-type':'application/json'},body:JSON.stringify({message:'검색어가 필요해요.'})};
-  const qs = new URLSearchParams({
-    authKey:key, callTp:'L', returnType:'XML', startPage:'1', display:'20',
-    keyword, sortOrderBy:'DESC'
-  });
-  const url = `https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do?${qs}`;
+const {parseXml,text,reply,readText,failure,safeUrl}=require('./lib/job-data');
+exports.handler=async event=>{
+  const key=process.env.WORK24_AUTH_KEY;
+  if(!key)return reply(503,{code:'NOT_CONFIGURED',message:'고용24 직접 연결은 승인된 기업회원 인증키가 필요해요. 블로그 새 글이나 외부 검색을 이용해 주세요.'});
+  const keyword=(event.queryStringParameters?.keyword||'').trim();
+  if(!keyword || keyword.length>120)return reply(400,{code:'INVALID_QUERY',message:'검색어를 1~120자로 입력해 주세요.'});
   try{
-    const r = await fetch(url,{signal:AbortSignal.timeout(8000)});
-    const xml = await r.text();
-    if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
-    const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
-    if(error) throw new Error(`고용24: ${decodeXml(error)}`);
-    if(!/<(?:wantedRoot|wantedList|wanted|total)\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
-    const blocks = xml.match(/<wanted>[\s\S]*?<\/wanted>/gi) || [];
-    const items = blocks.map(b=>({
-      wantedAuthNo:decodeXml(xmlText(b,'wantedAuthNo')),
-      company:decodeXml(xmlText(b,'company')),
-      title:decodeXml(xmlText(b,'title')),
-      region:decodeXml(xmlText(b,'region')),
-      career:decodeXml(xmlText(b,'career')),
-      regDt:decodeXml(xmlText(b,'regDt')),
-      closeDt:decodeXml(xmlText(b,'closeDt')),
-      url:decodeXml(xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl')),
-      infoSvc:decodeXml(xmlText(b,'infoSvc'))
-    })).filter(x=>x.title);
-    return {
-      statusCode:200,
-      headers:{'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=600'},
-      body:JSON.stringify({source:'고용노동부 고용24', keyword, items:items.slice(0,10)})
-    };
-  }catch(e){
-    return {statusCode:502,headers:{'content-type':'application/json'},body:JSON.stringify({message:e.message||'고용24 호출에 실패했어요.'})};
-  }
+    const qs=new URLSearchParams({authKey:key,callTp:'L',returnType:'XML',startPage:'1',display:'20',keyword,sortOrderBy:'DESC'});
+    const response=await fetch('https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do?'+qs,{signal:AbortSignal.timeout(8000)});
+    if(!response.ok)throw new Error('UPSTREAM_ERROR');
+    const root=parseXml(await readText(response),'wantedRoot');
+    if(root.errorMsg||root.message)throw new Error('UPSTREAM_ERROR');
+    if(root.total===undefined || !/^\d+$/.test(text(root.total)))throw new Error('INVALID_RESPONSE');
+    const blocks=root.wanted===undefined?[]:Array.isArray(root.wanted)?root.wanted:[root.wanted];
+    const items=blocks.map(x=>({id:text(x.wantedAuthNo),wantedAuthNo:text(x.wantedAuthNo),company:text(x.company),title:text(x.title),region:text(x.region),career:text(x.career),regDt:text(x.regDt),closeDt:text(x.closeDt),url:safeUrl(text(x.wantedInfoUrl)||text(x.wantedMobileInfoUrl)),source:'고용노동부 고용24',kind:'job'})).filter(x=>x.title);
+    if(Number(root.total)>0&&!items.length)throw new Error('INVALID_RESPONSE');
+    return reply(200,{source:'고용노동부 고용24',mode:'live',keyword,fetchedAt:new Date().toISOString(),items:items.slice(0,10)});
+  }catch(error){return failure(error);}
 };
