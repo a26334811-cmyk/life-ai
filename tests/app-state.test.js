@@ -73,3 +73,15 @@ test('renaming preserves checklist and saved qualification schedule',()=>{
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');a.run('editCurrentGoal()');
  assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
 });
+
+test('backup merges records while retaining stages, interview date and source',()=>{
+ const a=app();a.el('postingCompany').value='회사';a.el('postingTitle').value='정비';a.el('postingUrl').value='https://example.com/1';a.el('postingSource').value='블로그';a.el('postingSourceUrl').value='https://blog.naver.com/dodam852/1';a.run('savePosting();setInterviewDate(state.jobPostings[0].id,"2099-01-01");setPostingStage(state.jobPostings[0].id,"면접")');
+ const backup=a.run('JSON.stringify(jobBackupData())');
+ const b=app();b.run(`restoreJobBackup(${backup});restoreJobBackup(${backup})`);
+ assert.equal(b.run('state.jobPostings.length'),1);assert.equal(b.run('state.jobPostings[0].stage'),'면접');assert.equal(b.run('state.jobPostings[0].interviewDate'),'2099-01-01');assert.equal(b.run('state.jobPostings[0].source'),'블로그');
+});
+test('backup validation rejects invalid dates and unsafe links before mutation',()=>{
+ const a=app();const base={format:'life-ai-jobs',version:1,watchCompanies:[],jobPostings:[{company:'회사',title:'정비',url:'https://example.com',stage:'관심',tasks:[false,false,false,false],deadline:'2026-02-30'}]};
+ assert.throws(()=>a.run(`restoreJobBackup(${JSON.stringify(base)})`));assert.equal(a.run('(state.jobPostings||[]).length'),0);
+ base.jobPostings[0].deadline='';base.jobPostings[0].url='javascript:alert(1)';assert.throws(()=>a.run(`restoreJobBackup(${JSON.stringify(base)})`));
+});
