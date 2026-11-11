@@ -48,3 +48,10 @@ test('planner editor starts collapsed and supports explicit add/edit/cancel',()=
   assert.match(html,/id="plannerEditor"/);
   assert.match(html,/aria-expanded=/);
 });
+
+test('day view hides weekday grid and weekly report starts on Sunday',()=>{
+  assert.match(html,/plannerView==='day'\s*\?/);
+  assert.match(html,/planner-day-summary/);
+  assert.match(html,/이번 주 실천 리포트/);
+  assert.match(html,/weekStart=plannerDateOffset\(today,-new Date\(today\+'T12:00:00Z'\).getUTCDay\(\)\)/);
+});
