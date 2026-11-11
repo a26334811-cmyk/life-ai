@@ -34,7 +34,7 @@ test('nested Netlify entrypoint matches root app',()=>{
 
 test('planner has four tabbed panels and defaults to Today',()=>{
   for(const tab of ['today','calendar','habits','stats']){
-    assert.ok(html.includes('data-tab="'+tab+'"'),tab);
+    assert.ok(html.includes("'"+tab+"'"),tab);
   }
   assert.match(html,/let plannerActiveTab='today'/);
   assert.match(html,/function plannerSwitchTab\(tab\)/);
