@@ -16,3 +16,12 @@ test('modern blue dashboard and navigation targets exist',()=>{
     assert.ok(html.includes(marker),marker);
   }
 });
+
+test('planner, focus and habit integration markers are present',()=>{
+  for(const fn of ['plannerSave','plannerOccurs','plannerForDate','habitToggle','habitStreak','focusStartPause','focusRecordCompletion','progressInsightsHTML','focusNotify']){
+    assert.match(html,new RegExp('function '+fn+'\\('),fn);
+  }
+  for(const token of ["alarm:'vibrate'","navigator.vibrate","focus-flash","visibilitychange","focusHistoryHTML()","habitPanelHTML()","progressInsightsHTML()"]){
+    assert.ok(html.includes(token),token);
+  }
+});
