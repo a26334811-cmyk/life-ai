@@ -234,6 +234,15 @@
 .insights-bar-track{height:70px;display:flex;align-items:end;justify-content:center}
 .recovery-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}
 .recovery-choices button.btn{width:100%;min-width:0;padding:9px 4px;font-size:13px}
+.insights-heatmap{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:14px 0}
+.insights-weekday{text-align:center;font-size:12px;color:var(--muted)}
+.insights-day{aspect-ratio:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.insights-day.low{background:#dbeafe;color:#17324a}
+.insights-day.medium{background:#93c5fd;color:#17324a}
+.insights-day.high{background:#3b82f6;color:white}
+.insights-day.max{background:#1d4ed8;color:white}
+.insights-day.future{opacity:.45}
+.insights-day.selected{outline:2px solid var(--primary);outline-offset:2px}
   </style>
 </head>
 <body>
@@ -1159,6 +1168,8 @@ function focusChangeCategory(value){
   focusSettings().category=value;persistState();
 }
 let insightsPeriod='week';
+let insightsSelectedDate='';
+function insightsSelectDate(date){insightsSelectedDate=date;const target=document.getElementById('progressInsights');if(target)target.outerHTML=progressInsightsHTML();}
 function insightsSetPeriod(period){
   if(period!=='week'&&period!=='month')return;
   insightsPeriod=period;
@@ -1187,11 +1198,16 @@ function progressInsightsHTML(){
   const rate=totalPossible?Math.round(checked/totalPossible*100):0;
   const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
   const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
-  const buckets=monthly?Array.from({length:Math.ceil(days.length/7)},(_,i)=>{
-    const chunk=days.slice(i*7,(i+1)*7);
-    return {label:(i+1)+'주',minutes:chunk.reduce((sum,d)=>sum+d.minutes,0)};
-  }):days.map((d,i)=>({label:['일','월','화','수','목','금','토'][i],minutes:d.minutes}));
+  const buckets=days.map((d,i)=>({label:['일','월','화','수','목','금','토'][i],minutes:d.minutes}));
   const maxMinutes=Math.max(25,...buckets.map(d=>d.minutes));
+  const monthOffset=new Date(start+'T12:00:00Z').getUTCDay();
+  const selectedDay=insightsSelectedDate&&insightsSelectedDate>=start&&insightsSelectedDate<=end?insightsSelectedDate:today;
+  const selected=days.find(d=>d.date===selectedDay);
+  const maxDayMinutes=Math.max(1,...days.map(d=>d.minutes));
+  const heatmap=Array.from({length:monthOffset},()=>'<span aria-hidden="true"></span>').concat(days.map(d=>{
+    const level=d.date>today?'future':d.minutes===0?'none':d.minutes/maxDayMinutes<.25?'low':d.minutes/maxDayMinutes<.5?'medium':d.minutes/maxDayMinutes<.75?'high':'max';
+    return `<button type="button" class="insights-day ${level} ${selectedDay===d.date?'selected':''}" aria-label="${d.date} 집중 ${d.minutes}분" aria-pressed="${selectedDay===d.date}" onclick="insightsSelectDate('${d.date}')">${Number(d.date.slice(8))}</button>`;
+  })).join('');
   return `<div class="card" id="progressInsights">
     <div class="insights-heading"><h3>📈 ${monthly?'이번 달':'이번 주'} 실천 리포트</h3>
       <div class="insights-switch" role="group" aria-label="리포트 기간">
@@ -1205,11 +1221,15 @@ function progressInsightsHTML(){
       <div><strong>${activeDays}/${days.length}일</strong><p class="meta">활동한 날</p></div>
       <div><strong>${minutes}분</strong><p class="meta">집중 시간</p></div>
     </div>
-    <div class="insights-bars" role="img" aria-label="${monthly?'이번 달 주차별':'이번 주 요일별'} 집중 시간">
-      ${buckets.map(d=>`<div class="insights-bar"><div class="insights-bar-track"><div style="width:65%;height:${Math.max(3,Math.round(d.minutes/maxMinutes*70))}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    ${monthly?`<div class="insights-heatmap" aria-label="월간 날짜별 집중 시간">
+      ${['일','월','화','수','목','금','토'].map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
+      ${heatmap}
     </div>
+    <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="img" aria-label="이번 주 요일별 집중 시간">
+      ${buckets.map(d=>`<div class="insights-bar"><div class="insights-bar-track"><div style="width:65%;height:${d.minutes?Math.max(3,Math.round(d.minutes/maxMinutes*70)):0}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    </div>`}
     <p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p>
-    <p class="meta">습관 달성률은 등록일 이후 오늘까지 집계합니다. 집중 시간은 완료한 세션만 포함합니다. 월간 그래프는 1~7일, 8~14일 순서로 묶어 표시합니다.</p>
+    <p class="meta">습관 달성률은 등록일 이후 오늘까지 집계합니다. 집중 시간은 완료한 세션만 포함합니다. 월간은 날짜별 집중 시간을 색상으로 보여주며 날짜를 누르면 상세 기록을 확인할 수 있습니다.</p>
   </div>`;
 }
 function focusHistoryHTML(){
