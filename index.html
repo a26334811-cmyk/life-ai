@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f4c81" />
-  <title>LIFE AI Prototype</title>
+  <meta name="theme-color" content="#1763db" />
+  <title>life-ai | 나의 목표와 일정</title>
   <link rel="manifest" href="manifest.json" />
   <style>
     :root{
@@ -102,6 +102,71 @@
     .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
     .big-status{padding:16px;border-radius:18px;background:#f2f7fb;margin:14px 0}
     .divider{height:1px;background:var(--line);margin:20px 0}
+
+
+    /* Modern Blue responsive design: visual-only overrides; app logic remains unchanged. */
+    :root{
+      --primary:#1763db;--primary2:#4d8df2;--bg:#f3f7ff;--card:#fff;
+      --text:#172b4d;--muted:#64748b;--line:#e2eaf7;
+      --success:#16825b;--radius:20px;
+    }
+    body{background:linear-gradient(140deg,#edf4ff 0%,#f7faff 45%,#eef4ff 100%);min-height:100vh}
+    .app{background:transparent;box-shadow:none}
+    .screen{animation:modernEnter .2s ease-out}
+    @keyframes modernEnter{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:none}}
+    h1,h2,h3{letter-spacing:-.035em;color:#162b4d}
+    h1{font-size:clamp(27px,3vw,36px)}
+    .logo{color:var(--primary);letter-spacing:.08em}
+    .card,.choice{border:1px solid #e1eaf8;box-shadow:0 9px 26px rgba(28,71,133,.055);background:#fff}
+    .card{border-radius:20px}
+    .choice{transition:border-color .18s,transform .18s,box-shadow .18s}
+    .choice:hover{border-color:#9ec0f7;box-shadow:0 10px 24px rgba(35,99,190,.10);transform:translateY(-1px)}
+    .btn{border-radius:13px;transition:filter .15s,transform .15s}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:scale(.99)}
+    .btn.primary{background:linear-gradient(120deg,#1763db,#397de8);box-shadow:0 5px 14px rgba(23,99,219,.16)}
+    .btn.secondary,.big-status{background:#eaf2ff;color:#1756ae}
+    .tag{background:#eaf2ff;color:#1557bd}
+    .field input,.field select,#jobHub textarea{border-color:#d8e5f6;background:#fff}
+    :is(button,input,select,textarea,a):focus-visible{outline:3px solid #83b4ff;outline-offset:3px}
+    .bottomnav{border:1px solid #dce7f8;border-bottom:0;box-shadow:0 -8px 24px rgba(28,71,133,.06)}
+    .bottomnav button.active{color:#1763db;background:#eaf2ff}
+    .pill.active{background:#1763db;border-color:#1763db}
+    @media(max-width:767px){
+      .app{width:100%;max-width:520px;background:#f8fbff}
+      .screen{padding:24px 18px 36px}
+      .bottomnav{width:min(520px,100%);border-radius:18px 18px 0 0;overflow:hidden}
+      .card{padding:17px}
+    }
+    @media(min-width:768px){
+      .app{width:min(1480px,100%);min-height:100vh;margin:0 auto;padding:0 28px 40px 272px;box-shadow:none}
+      .screen{padding:42px 28px 55px;max-width:1180px;margin:0 auto}
+      .screen.hero{max-width:900px}
+      .screen.hero.active{min-height:85vh}
+      .bottomnav,.bottomnav.show{
+        display:flex;position:fixed;left:max(0px,calc((100vw - 1480px)/2));top:0;bottom:0;
+        transform:none;width:250px;height:100vh;padding:30px 14px;
+        flex-direction:column;gap:9px;background:#fff;border:0;border-right:1px solid #e0e9f8;
+        border-radius:0;box-shadow:8px 0 28px rgba(23,69,133,.035);
+        backdrop-filter:none;z-index:20
+      }
+      .bottomnav:before{content:"life-ai";display:block;font-size:30px;font-weight:900;letter-spacing:-.06em;color:#1763db;padding:8px 15px 24px}
+      .bottomnav button{
+        display:flex;align-items:center;gap:14px;text-align:left;min-height:52px;
+        border-radius:13px;padding:0 15px;font-size:15px;font-weight:750
+      }
+      .bottomnav .navicon{display:inline-block;font-size:24px;margin:0;width:26px;text-align:center}
+      .bottomnav button:hover{background:#f1f6ff;color:#1763db}
+      .stack{gap:14px}
+      .card{padding:24px}
+      .topbar{margin-bottom:24px}
+      h2{font-size:clamp(24px,2.4vw,32px)}
+      .actions{max-width:680px}
+      .toast{left:calc(50% + 120px)}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .screen,.choice,.btn{animation:none;transition:none}
+    }
   </style>
 </head>
 <body>
