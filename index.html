@@ -1011,6 +1011,23 @@ function plannerRemove(id){
 }
 function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
 function plannerEscapeAttr(s){return esc(String(s||''));}
+function plannerAgenda(){
+  const today=koreaToday();
+  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
+  return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
+    .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function plannerFocusHTML(){
+  const agenda=plannerAgenda();
+  const urgent=agenda.filter(e=>e.priority==='high'||e.origin==='external');
+  return `<div class="card"><h3>✨ 앞으로 7일 · AI 실행 브리핑</h3>
+    <p class="meta">내 일정과 저장한 채용 마감일을 바탕으로 중요한 일을 정리했어요. AI 서버 분석이 아닌 일정 기반 추천입니다.</p>
+    ${urgent.length?`<strong>먼저 확인할 일정</strong><div class="stack">${urgent.slice(0,5).map(e=>`<p>🔔 ${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}</div>`:'<p class="meta">우선 확인할 마감일이나 높은 우선순위 일정이 없어요.</p>'}
+    <strong>7일간 예정된 일정 ${agenda.length}건</strong>
+    ${agenda.slice(0,8).map(e=>`<p class="meta">${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}
+    <button class="btn secondary" onclick="plannerSelect(koreaToday())">오늘 일정 보기</button>
+  </div>`;
+}
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
