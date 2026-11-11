@@ -31,3 +31,12 @@ test('nested Netlify entrypoint matches root app',()=>{
   const nested=fs.readFileSync(path.join(__dirname,'..','LIFE_AI_v6_2_QNET_LIVE_FIXED (3)','life_ai_v6_2','index.html'),'utf8');
   assert.equal(nested,html,'nested deployment directory must not serve a stale app');
 });
+
+test('planner has four tabbed panels and defaults to Today',()=>{
+  for(const tab of ['today','calendar','habits','stats']){
+    assert.ok(html.includes('data-tab="'+tab+'"'),tab);
+  }
+  assert.match(html,/let plannerActiveTab='today'/);
+  assert.match(html,/function plannerSwitchTab\(tab\)/);
+  assert.match(html,/planner-tabpanel\[hidden\]/);
+});
