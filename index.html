@@ -1065,7 +1065,7 @@ function focusReset(){
   focusRunning=false;clearInterval(focusInterval);focusInterval=null;
   focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
 function focusChangeMinutes(value){
   focusSettings().minutes=Number(value);persistState();focusReset();
 }
