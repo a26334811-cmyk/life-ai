@@ -25,3 +25,9 @@ test('planner, focus and habit integration markers are present',()=>{
     assert.ok(html.includes(token),token);
   }
 });
+
+test('nested Netlify entrypoint matches root app',()=>{
+  const path=require('node:path');
+  const nested=fs.readFileSync(path.join(__dirname,'..','LIFE_AI_v6_2_QNET_LIVE_FIXED (3)','life_ai_v6_2','index.html'),'utf8');
+  assert.equal(nested,html,'nested deployment directory must not serve a stale app');
+});
