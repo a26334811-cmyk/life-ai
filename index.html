@@ -196,6 +196,15 @@
 .planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .planner-item .btn{width:auto}
 @media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
+
+.focus-timer{text-align:center;padding:16px 4px}
+.focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
+.focus-options{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}
+.focus-options label{display:flex;align-items:center;gap:5px}
+.focus-options select{padding:9px;border:1px solid var(--line);border-radius:10px}
+.focus-flash{animation:focus-flash .45s ease-in-out 8}
+@keyframes focus-flash{0%,100%{background:var(--card)}50%{background:#ffe48a}}
+@media(prefers-reduced-motion:reduce){.focus-flash{animation:none;outline:4px solid #e6a600}}
   </style>
 </head>
 <body>
@@ -1011,6 +1020,112 @@ function plannerRemove(id){
 }
 function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
 function plannerEscapeAttr(s){return esc(String(s||''));}
+let focusInterval=null;
+let focusDeadline=0;
+let focusRemaining=25*60;
+let focusRunning=false;
+let focusAudioContext=null;
+function focusSettings(){
+  if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
+  if(![5,10,15,25,30,45,50,60].includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
+  if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
+  return state.focusSettings;
+}
+function focusFormat(seconds){
+  const n=Math.max(0,Math.ceil(seconds));
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function focusUpdateUI(){
+  const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
+  if(clock)clock.textContent=focusFormat(focusRemaining);
+  if(button)button.textContent=focusRunning?'일시정지':'시작';
+}
+function focusTick(){
+  if(!focusRunning)return;
+  focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
+  focusUpdateUI();
+  if(focusRemaining===0){
+    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+    focusNotify();toast('집중 시간이 끝났어요!');
+  }
+}
+function focusStartPause(){
+  if(focusRunning){
+    focusTick();
+    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  }else{
+    if(focusRemaining<=0)focusRemaining=Number(focusSettings().minutes)*60;
+    focusDeadline=Date.now()+focusRemaining*1000;
+    focusRunning=true;
+    focusInterval=setInterval(focusTick,500);
+  }
+  focusUpdateUI();
+}
+function focusReset(){
+  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
+}
+function focusChangeMinutes(value){
+  focusSettings().minutes=Number(value);persistState();focusReset();
+}
+function focusChangeAlarm(value){
+  focusSettings().alarm=value;persistState();
+  const note=document.getElementById('focusAlarmNote');
+  if(note)note.textContent=focusAlarmDescription();
+}
+function focusAlarmDescription(){
+  const alarm=focusSettings().alarm;
+  return alarm==='vibrate'?'진동이 지원되지 않는 기기에서는 화면 안내만 표시됩니다.':
+    alarm==='sound'?'소리는 브라우저의 오디오 재생 정책과 음량 설정에 영향을 받습니다.':
+    alarm==='flash'?'타이머 카드가 깜빡입니다. 화면이 꺼져 있으면 보이지 않습니다.':'완료 메시지만 표시합니다.';
+}
+function focusPrimeSound(){
+  if(focusSettings().alarm!=='sound')return;
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    focusAudioContext=focusAudioContext||new AudioCtx();
+    if(focusAudioContext.state==='suspended')focusAudioContext.resume().catch(()=>{});
+  }catch(e){}
+}
+function focusNotify(){
+  const mode=focusSettings().alarm;
+  const panel=document.getElementById('focusPanel');
+  if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
+  if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+  if(mode==='sound'){
+    try{
+      const ctx=focusAudioContext;
+      if(ctx&&ctx.state==='running'){
+        const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+        oscillator.type='sine';oscillator.frequency.value=740;
+        gain.gain.setValueAtTime(.001,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.18,ctx.currentTime+.03);
+        gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.7);
+        oscillator.connect(gain).connect(ctx.destination);
+        oscillator.start();oscillator.stop(ctx.currentTime+.72);
+      }
+    }catch(e){}
+  }
+}
+function focusPanelHTML(){
+  const cfg=focusSettings();
+  return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
+    <p class="meta">짧고 깊게 집중해 보세요. 기본 알림은 진동입니다.</p>
+    <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
+      <button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button>
+      <button class="btn secondary" onclick="focusReset()">초기화</button>
+    </div>
+    <div class="focus-options"><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+      ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
+    </select></label>
+    <label>완료 알림<select onchange="focusChangeAlarm(this.value)">
+      ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
+    </select></label></div>
+    <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
+    <p class="meta">앱이 열려 있는 동안 작동합니다. 브라우저를 종료하거나 기기가 절전 상태가 되면 완료 알림이 보장되지 않습니다.</p>
+  </div>`;
+}
 function habitEntries(){
   if(!Array.isArray(state.habits))state.habits=[];
   return state.habits;
@@ -1086,7 +1201,7 @@ function renderCalendar(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  c.innerHTML=`\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
+  c.innerHTML=`\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
     <div class="card">
       <div class="planner-controls">
         <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
