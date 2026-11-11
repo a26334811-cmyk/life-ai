@@ -1124,6 +1124,36 @@ function focusChangeCategory(value){
   if(!['study','job','personal'].includes(value))return;
   focusSettings().category=value;persistState();
 }
+function progressInsightsHTML(){
+  const today=koreaToday();
+  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i-6));
+  const habits=habitEntries();
+  const history=focusHistory();
+  const days=dates.map(date=>{
+    const done=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(date)).length;
+    const minutes=history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0);
+    return {date,done,minutes};
+  });
+  const totalPossible=habits.length*7;
+  const checked=days.reduce((sum,d)=>sum+d.done,0);
+  const rate=totalPossible?Math.round(checked/totalPossible*100):0;
+  const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
+  const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
+  const maxMinutes=Math.max(25,...days.map(d=>d.minutes));
+  return `<div class="card"><h3>📈 7일간의 실천 리포트</h3>
+    <p class="meta">최근 7일 동안의 습관 달성과 집중 세션을 함께 보여줘요.</p>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${habits.length?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
+      <div><strong>${activeDays}/7일</strong><p class="meta">활동한 날</p></div>
+      <div><strong>${minutes}분</strong><p class="meta">집중 시간</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;margin:18px 0 8px" role="img" aria-label="최근 7일간 날짜별 집중 시간">
+      ${days.map(d=>`<div style="text-align:center;min-width:0"><div style="height:70px;display:flex;align-items:end;justify-content:center"><div style="width:65%;height:${Math.max(3,Math.round(d.minutes/maxMinutes*70))}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.date.slice(5)}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    </div>
+    <p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p>
+    <p class="meta">습관 달성률은 현재 등록된 습관이 최근 7일 모두 존재했다고 가정해 계산합니다. 집중 시간은 완료한 세션만 집계합니다.</p>
+  </div>`;
+}
 function focusHistoryHTML(){
   const history=focusHistory();
   const today=koreaToday(),weekStart=plannerDateOffset(today,-6);
@@ -1237,7 +1267,7 @@ function renderCalendar(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  c.innerHTML=`\n    ${focusHistoryHTML()}\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
+  c.innerHTML=`\n    ${progressInsightsHTML()}\n    ${focusHistoryHTML()}\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
     <div class="card">
       <div class="planner-controls">
         <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
