@@ -63,3 +63,10 @@ test('weekly insights is default and monthly insights has calendar month bounds'
   assert.match(html,/월간/);
   assert.match(html,/id="progressInsights"/);
 });
+
+test('recovery mode is opt-in and does not suppress critical reminders',()=>{
+  assert.match(html,/function recoverySetMode\(mode\)/);
+  assert.match(html,/function recoveryPanelHTML\(\)/);
+  assert.match(html,/state.recoveryMode=mode;persistState\(\)/);
+  assert.match(html,/시험·면접 일정을 숨기지 않아요/);
+});
