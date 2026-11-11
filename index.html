@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f4c81" />
-  <title>LIFE AI Prototype</title>
+  <meta name="theme-color" content="#1763db" />
+  <title>life-ai | 나의 목표와 일정</title>
   <link rel="manifest" href="manifest.json" />
   <style>
     :root{
@@ -102,6 +102,109 @@
     .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
     .big-status{padding:16px;border-radius:18px;background:#f2f7fb;margin:14px 0}
     .divider{height:1px;background:var(--line);margin:20px 0}
+
+
+    /* Modern Blue responsive design: visual-only overrides; app logic remains unchanged. */
+    :root{
+      --primary:#1763db;--primary2:#4d8df2;--bg:#f3f7ff;--card:#fff;
+      --text:#172b4d;--muted:#64748b;--line:#e2eaf7;
+      --success:#16825b;--radius:20px;
+    }
+    body{background:linear-gradient(140deg,#edf4ff 0%,#f7faff 45%,#eef4ff 100%);min-height:100vh}
+    .app{background:transparent;box-shadow:none}
+    .screen{animation:modernEnter .2s ease-out}
+    @keyframes modernEnter{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:none}}
+    h1,h2,h3{letter-spacing:-.035em;color:#162b4d}
+    h1{font-size:clamp(27px,3vw,36px)}
+    .logo{color:var(--primary);letter-spacing:.08em}
+    .card,.choice{border:1px solid #e1eaf8;box-shadow:0 9px 26px rgba(28,71,133,.055);background:#fff}
+    .card{border-radius:20px}
+    .choice{transition:border-color .18s,transform .18s,box-shadow .18s}
+    .choice:hover{border-color:#9ec0f7;box-shadow:0 10px 24px rgba(35,99,190,.10);transform:translateY(-1px)}
+    .btn{border-radius:13px;transition:filter .15s,transform .15s}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:scale(.99)}
+    .btn.primary{background:linear-gradient(120deg,#1763db,#397de8);box-shadow:0 5px 14px rgba(23,99,219,.16)}
+    .btn.secondary,.big-status{background:#eaf2ff;color:#1756ae}
+    .tag{background:#eaf2ff;color:#1557bd}
+    .field input,.field select,#jobHub textarea{border-color:#d8e5f6;background:#fff}
+    :is(button,input,select,textarea,a):focus-visible{outline:3px solid #83b4ff;outline-offset:3px}
+    .bottomnav{border:1px solid #dce7f8;border-bottom:0;box-shadow:0 -8px 24px rgba(28,71,133,.06)}
+    .bottomnav button.active{color:#1763db;background:#eaf2ff}
+    .pill.active{background:#1763db;border-color:#1763db}
+    @media(max-width:767px){
+      .app{width:100%;max-width:520px;background:#f8fbff}
+      .screen{padding:24px 18px 36px}
+      .bottomnav{width:min(520px,100%);border-radius:18px 18px 0 0;overflow:hidden}
+      .card{padding:17px}
+    }
+    @media(min-width:768px){
+      .app{width:min(1480px,100%);min-height:100vh;margin:0 auto;padding:0 28px 40px 272px;box-shadow:none}
+      .screen{padding:42px 28px 55px;max-width:1180px;margin:0 auto}
+      .screen.hero{max-width:900px}
+      .screen.hero.active{min-height:85vh}
+      .bottomnav.show{
+        display:flex;position:fixed;left:max(0px,calc((100vw - 1480px)/2));top:0;bottom:0;
+        transform:none;width:250px;height:100vh;padding:30px 14px;
+        flex-direction:column;gap:9px;background:#fff;border:0;border-right:1px solid #e0e9f8;
+        border-radius:0;box-shadow:8px 0 28px rgba(23,69,133,.035);
+        backdrop-filter:none;z-index:20
+      }
+      .bottomnav:before{content:"life-ai";display:block;font-size:30px;font-weight:900;letter-spacing:-.06em;color:#1763db;padding:8px 15px 24px}
+      .bottomnav button{
+        display:flex;align-items:center;gap:14px;text-align:left;min-height:52px;
+        border-radius:13px;padding:0 15px;font-size:15px;font-weight:750
+      }
+      .bottomnav .navicon{display:inline-block;font-size:24px;margin:0;width:26px;text-align:center}
+      .bottomnav button:hover{background:#f1f6ff;color:#1763db}
+      .stack{gap:14px}
+      .card{padding:24px}
+      .topbar{margin-bottom:24px}
+      h2{font-size:clamp(24px,2.4vw,32px)}
+      .actions{max-width:680px}
+      .toast{left:calc(50% + 120px)}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .screen,.choice,.btn{animation:none;transition:none}
+    }
+
+    .dashboard-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+    .dashboard-stat{padding:18px;border:1px solid #dce7fa;background:#fff;border-radius:18px;box-shadow:0 6px 20px rgba(30,80,140,.05);min-width:0}
+    .dashboard-stat .metric{font-size:25px;font-weight:850;letter-spacing:-.04em;color:#175ac5;margin:7px 0}
+    .dashboard-stat .meta{font-size:12px}
+    .dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:18px 0}
+    .dashboard-panel{min-width:0}
+    .dashboard-panel .card{height:100%}
+    .dashboard-panel .btn{margin-top:12px}
+    .dashboard-panel h3{font-size:18px}
+    .dashboard-progress{height:9px;background:#e7effc;border-radius:999px;overflow:hidden;margin-top:12px}
+    .dashboard-progress>span{display:block;height:100%;background:linear-gradient(90deg,#1763db,#67a2ff);border-radius:inherit}
+    @media(min-width:1100px){.dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.planner-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.planner-controls button{width:auto}
+.planner-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.planner-day{min-height:75px;padding:7px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);text-align:left;cursor:pointer;min-width:0}
+.planner-day.today{border:2px solid var(--primary)}
+.planner-day.selected{background:#e8f1ff}
+.planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
+.planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.planner-form label{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.planner-form input,.planner-form select{width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#17253c}
+.planner-form .wide{grid-column:1/-1}
+.planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.planner-item .btn{width:auto}
+@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
+
+.focus-timer{text-align:center;padding:16px 4px}
+.focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
+.focus-options{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}
+.focus-options label{display:flex;align-items:center;gap:5px}
+.focus-options select{padding:9px;border:1px solid var(--line);border-radius:10px}
+.focus-flash{animation:focus-flash .45s ease-in-out 8}
+@keyframes focus-flash{0%,100%{background:var(--card)}50%{background:#ffe48a}}
+@media(prefers-reduced-motion:reduce){.focus-flash{animation:none;outline:4px solid #e6a600}}
   </style>
 </head>
 <body>
@@ -436,6 +539,51 @@ function editCurrentGoal(){
   renderMy();
   toast('목표를 수정했어요.');
 }
+
+const LIFE_AI_BACKUP_FORMAT='life-ai-backup';
+const LIFE_AI_BACKUP_VERSION=1;
+function exportLifeAIBackup(){
+  try{
+    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
+  }catch(e){toast('백업 파일을 만들지 못했어요.');}
+}
+function openLifeAIBackup(){
+  const input=document.getElementById('lifeAIBackupFile');
+  if(!input)return;
+  input.value='';
+  input.click();
+}
+async function importLifeAIBackup(input){
+  const file=input.files?.[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
+  try{
+    const backup=JSON.parse(await file.text());
+    if(!backup||backup.format!==LIFE_AI_BACKUP_FORMAT||backup.version!==LIFE_AI_BACKUP_VERSION||
+       !backup.state||typeof backup.state!=='object'||Array.isArray(backup.state)||
+       typeof backup.state.mainGoal!=='string'||typeof backup.state.nickname!=='string'||
+       !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
+      throw new Error('올바른 life-ai 백업 파일이 아니에요.');
+    }
+    if(!confirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요? 기존 데이터는 덮어써집니다.'))return;
+    const safe={};
+    for(const [key,value] of Object.entries(backup.state)){
+      if(['__proto__','prototype','constructor'].includes(key))continue;
+      safe[key]=value;
+    }
+    localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
+    alert('복원이 완료됐어요. 앱을 새로고침합니다.');
+    location.reload();
+  }catch(e){toast(e.message||'백업 파일을 읽지 못했어요.');}
+}
+
 function resetPrototype(){
   if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
   try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
@@ -633,16 +781,45 @@ function renderHome(){
   const c=document.getElementById('homeContent');
   document.getElementById('hello').textContent=`안녕하세요, ${getNick()}님 👋`;
   const a=currentAction();
+  const completed=Array.isArray(state.completedTasks)?state.completedTasks.filter(Boolean).length:0;
+  const taskTotal=Array.isArray(state.completedTasks)?state.completedTasks.length:0;
+  const progress=taskTotal?Math.round(completed/taskTotal*100):0;
+  const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
+  const favorites=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
+  const savedSchedule=Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[];
+  const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
+    .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
-    <div class="card" style="padding:22px">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="tag">오늘 가장 먼저</span><span class="meta">PROTOTYPE</span></div>
-      <h2 style="margin:12px 0 6px">${a.title}</h2>
-      <p class="muted">${a.desc}</p>
-      <p class="meta">✨ ${priorityReason()}</p>
-      <button class="btn primary" onclick="${state.goalType==='job' ? "go('jobHub')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : state.goalType==='job' ? "go('jobHub')" : "go('opportunities')"}">${a.cta}</button>
+    <div class="dashboard-stats">
+      <div class="dashboard-stat"><span class="meta">💼 저장한 채용공고</span><div class="metric">${jobs.length}건</div><span class="meta">내가 등록한 공고 기준</span></div>
+      <div class="dashboard-stat"><span class="meta">🏅 관심 자격증</span><div class="metric">${favorites.length}개</div><span class="meta">관심 목록에 저장됨</span></div>
+      <div class="dashboard-stat"><span class="meta">☑ 목표 진행률</span><div class="metric">${progress}%</div><span class="meta">${completed}/${taskTotal}개 단계 완료</span></div>
+      <div class="dashboard-stat"><span class="meta">📅 다음 시험 일정</span><div class="metric" style="font-size:17px">${nextEvent?esc(fmtDate(nextEvent.date)):'미등록'}</div><span class="meta">${nextEvent?esc(nextEvent.name):'Q-Net에서 일정 확인 필요'}</span></div>
     </div>
-    <div class="section-title">내 목표</div>
-    <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표가 없어요')}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
+    <div class="dashboard-grid">
+      <div class="dashboard-panel"><div class="card">
+        <span class="tag">✨ 오늘 가장 먼저</span><h2 style="margin:12px 0 8px">${esc(a.title)}</h2>
+        <p class="muted">${esc(a.desc)}</p><p class="meta">${esc(priorityReason())}</p>
+        <button class="btn primary" onclick="go('${state.goalType==='job'?'jobHub':state.goalType==='cert'?'cert':state.goalType==='policy'?'policy':'goals'}')">${esc(a.cta)}</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>🎯 내 목표</h3><p><strong>${esc(state.mainGoal||'아직 목표가 없어요')}</strong></p>
+        <p class="meta">완료한 준비 단계 ${completed} / ${taskTotal}</p>
+        <div class="dashboard-progress" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="목표 진행률"><span style="width:${progress}%"></span></div>
+        <button class="btn secondary" onclick="go('goals')">목표·할 일 보기</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>💼 채용공고 관리</h3><p class="meta">저장한 공고 ${jobs.length}건 · 지원 현황과 마감일을 확인하세요.</p>
+        <button class="btn secondary" onclick="go('jobHub')">관심 회사·지원 현황</button>
+        <button class="btn ghost" onclick="go('liveJobs')">고용24 실제 공고 조회</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>🏅 자격증·시험일정</h3>
+        <p class="meta">${nextEvent?esc(nextEvent.name+' · '+fmtDate(nextEvent.date)):'아직 저장된 향후 시험일정이 없어요. Q-Net에서 확인해 주세요.'}</p>
+        <button class="btn secondary" onclick="go('cert')">Q-Net 시험일정 조회</button>
+        <button class="btn ghost" onclick="go('calendar')">내 캘린더 열기</button>
+      </div></div>
+    </div>
     <div class="section-title">지금 볼 만한 기회</div>
     ${opportunityCards()}
   `;
@@ -792,19 +969,344 @@ function certCalendarHTML(schedule){
   const rows=list=>list.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('');
   return `<div class="card"><h3>${esc(schedule.qualification?.name)} · ${esc(schedule.year)}년</h3><p class="meta">이 기기에 저장된 공식 일정 · ${schedule.fetchedAt?'조회일 '+esc(fmtDate(schedule.fetchedAt.slice(0,10))):'변경 여부는 Q-Net에서 확인하세요.'}</p>${next?`<h3>다음 접수${next.startDate<=today?' · 접수 기간 중':''}</h3>${rows([next])}`:'<p class="meta">조회한 연도에 남은 접수 일정이 없어요.</p>'}<h3>진행 중·앞으로의 일정</h3>${future.length?rows(future):'<p class="meta">남은 일정이 없어요. 다음 연도를 조회해 보세요.</p>'}${past.length?`<details><summary>지난 일정 ${past.length}개</summary>${rows(past)}</details>`:''}<button class="btn secondary" onclick="go('cert')">공식 일정 다시 조회</button></div>`;
 }
+let plannerView='month';
+let plannerSelected=koreaToday();
+let plannerEditing='';
+function plannerEntries(){
+  if(!Array.isArray(state.plannerEntries))state.plannerEntries=[];
+  return state.plannerEntries;
+}
+function plannerDateOffset(date,days){
+  const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
+}
+function plannerOccurs(item,date){
+  if(!item||!validDeadline(item.date)||date<item.date)return false;
+  if(item.until&&date>item.until)return false;
+  if(item.repeat==='daily')return true;
+  if(item.repeat==='weekly')return Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(item.date+'T00:00:00Z'))/86400000)%7===0;
+  if(item.repeat==='monthly')return date.slice(8)===item.date.slice(8);
+  return item.date===date;
+}
+function plannerForDate(date){
+  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal'}));
+  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
+  return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
+}
+function plannerNavigate(days){
+  if(plannerView==='month'){
+    const [year,month]=plannerSelected.split('-').map(Number);
+    const d=new Date(Date.UTC(year,month-1+(days>0?1:-1),1,12));
+    plannerSelected=d.toISOString().slice(0,10);
+  } else plannerSelected=plannerDateOffset(plannerSelected,days);
+  renderCalendar();
+}
+function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
+function plannerSetView(view){plannerView=view;renderCalendar();}
+function plannerEdit(id){plannerEditing=id;renderCalendar();}
+function plannerSave(){
+  const get=id=>document.getElementById(id)?.value.trim()||'';
+  const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
+  if(!title||title.length>120||!validDeadline(date)||!date){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
+  if(until&&(!validDeadline(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  const entries=plannerEntries();
+  const item={id:plannerEditing||newJobId(),title,date,time,category,repeat,until,priority,done:false};
+  const index=entries.findIndex(e=>e.id===plannerEditing);
+  if(index>=0){item.done=Boolean(entries[index].done);entries[index]=item;}else entries.push(item);
+  plannerEditing='';plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
+}
+function plannerRemove(id){
+  if(!confirm('이 일정과 반복 일정을 삭제할까요?'))return;
+  state.plannerEntries=plannerEntries().filter(x=>x.id!==id);plannerEditing='';persistState();renderCalendar();
+}
+function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
+function plannerEscapeAttr(s){return esc(String(s||''));}
+let focusInterval=null;
+let focusDeadline=0;
+let focusRemaining=25*60;
+let focusRunning=false;
+let focusAudioContext=null;
+function focusSettings(){
+  if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
+  if(![5,10,15,25,30,45,50,60].includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
+  if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
+  return state.focusSettings;
+}
+function focusFormat(seconds){
+  const n=Math.max(0,Math.ceil(seconds));
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function focusUpdateUI(){
+  const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
+  if(clock)clock.textContent=focusFormat(focusRemaining);
+  if(button)button.textContent=focusRunning?'일시정지':'시작';
+}
+function focusTick(){
+  if(!focusRunning)return;
+  focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
+  focusUpdateUI();
+  if(focusRemaining===0){
+    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+    focusRecordCompletion();focusNotify();toast('집중 시간이 끝났어요!');
+  }
+}
+function focusStartPause(){
+  if(focusRunning){
+    focusTick();
+    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  }else{
+    if(focusRemaining<=0)focusRemaining=Number(focusSettings().minutes)*60;
+    focusDeadline=Date.now()+focusRemaining*1000;
+    focusRunning=true;
+    focusInterval=setInterval(focusTick,500);
+  }
+  focusUpdateUI();
+}
+function focusReset(){
+  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
+}
+function focusChangeMinutes(value){
+  focusSettings().minutes=Number(value);persistState();focusReset();
+}
+function focusChangeAlarm(value){
+  focusSettings().alarm=value;persistState();
+  const note=document.getElementById('focusAlarmNote');
+  if(note)note.textContent=focusAlarmDescription();
+}
+function focusAlarmDescription(){
+  const alarm=focusSettings().alarm;
+  return alarm==='vibrate'?'진동이 지원되지 않는 기기에서는 화면 안내만 표시됩니다.':
+    alarm==='sound'?'소리는 브라우저의 오디오 재생 정책과 음량 설정에 영향을 받습니다.':
+    alarm==='flash'?'타이머 카드가 깜빡입니다. 화면이 꺼져 있으면 보이지 않습니다.':'완료 메시지만 표시합니다.';
+}
+function focusPrimeSound(){
+  if(focusSettings().alarm!=='sound')return;
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    focusAudioContext=focusAudioContext||new AudioCtx();
+    if(focusAudioContext.state==='suspended')focusAudioContext.resume().catch(()=>{});
+  }catch(e){}
+}
+function focusNotify(){
+  const mode=focusSettings().alarm;
+  const panel=document.getElementById('focusPanel');
+  if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
+  if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+  if(mode==='sound'){
+    try{
+      const ctx=focusAudioContext;
+      if(ctx&&ctx.state==='running'){
+        const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+        oscillator.type='sine';oscillator.frequency.value=740;
+        gain.gain.setValueAtTime(.001,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.18,ctx.currentTime+.03);
+        gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.7);
+        oscillator.connect(gain).connect(ctx.destination);
+        oscillator.start();oscillator.stop(ctx.currentTime+.72);
+      }
+    }catch(e){}
+  }
+}
+function focusHistory(){
+  if(!Array.isArray(state.focusHistory))state.focusHistory=[];
+  return state.focusHistory;
+}
+function focusRecordCompletion(){
+  const minutes=Number(focusSettings().minutes);
+  const category=focusSettings().category||'study';
+  focusHistory().unshift({date:koreaToday(),minutes,category,completedAt:new Date().toISOString()});
+  if(state.focusHistory.length>500)state.focusHistory.length=500;
+  persistState();
+  if(document.getElementById('calendarContent'))renderCalendar();
+}
+function focusChangeCategory(value){
+  if(!['study','job','personal'].includes(value))return;
+  focusSettings().category=value;persistState();
+}
+function progressInsightsHTML(){
+  const today=koreaToday();
+  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i-6));
+  const habits=habitEntries();
+  const history=focusHistory();
+  const days=dates.map(date=>{
+    const done=habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length;
+    const minutes=history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0);
+    const possible=habits.filter(h=>!h.createdAt||h.createdAt<=date).length;
+    return {date,done,possible,minutes};
+  });
+  const totalPossible=days.reduce((sum,d)=>sum+d.possible,0);
+  const checked=days.reduce((sum,d)=>sum+d.done,0);
+  const rate=totalPossible?Math.round(checked/totalPossible*100):0;
+  const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
+  const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
+  const maxMinutes=Math.max(25,...days.map(d=>d.minutes));
+  return `<div class="card"><h3>📈 7일간의 실천 리포트</h3>
+    <p class="meta">최근 7일 동안의 습관 달성과 집중 세션을 함께 보여줘요.</p>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${totalPossible?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
+      <div><strong>${activeDays}/7일</strong><p class="meta">활동한 날</p></div>
+      <div><strong>${minutes}분</strong><p class="meta">집중 시간</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;margin:18px 0 8px" role="img" aria-label="최근 7일간 날짜별 집중 시간">
+      ${days.map(d=>`<div style="text-align:center;min-width:0"><div style="height:70px;display:flex;align-items:end;justify-content:center"><div style="width:65%;height:${Math.max(3,Math.round(d.minutes/maxMinutes*70))}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.date.slice(5)}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    </div>
+    <p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p>
+    <p class="meta">습관 달성률은 각 습관의 등록일 이후 날짜만 집계합니다. 집중 시간은 완료한 세션만 집계합니다.</p>
+  </div>`;
+}
+function focusHistoryHTML(){
+  const history=focusHistory();
+  const today=koreaToday(),weekStart=plannerDateOffset(today,-6);
+  const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
+  const categories={study:'📚 자격증·공부',job:'💼 취업 준비',personal:'🌿 개인 목표'};
+  const breakdown=Object.entries(categories).map(([key,label])=>({label,minutes:history.filter(x=>x.category===key).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  return `<div class="card"><h3>📊 집중 기록</h3>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
+      <div><strong>${weekMin}분</strong><p class="meta">최근 7일</p></div>
+      <div><strong>${Math.floor(allMin/60)}시간 ${allMin%60}분</strong><p class="meta">전체</p></div>
+    </div>
+    <h4>목표별 누적 집중</h4>
+    ${breakdown.map(x=>`<p class="meta">${x.label}: ${Math.floor(x.minutes/60)}시간 ${x.minutes%60}분</p>`).join('')}
+    <p class="meta">타이머가 0초까지 완료된 세션만 기록합니다. 중간에 종료한 시간은 포함하지 않습니다.</p>
+    ${history.slice(0,5).map(x=>`<p class="meta">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>`).join('')}
+  </div>`;
+}
+function focusPanelHTML(){
+  const cfg=focusSettings();
+  return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
+    <p class="meta">짧고 깊게 집중해 보세요. 기본 알림은 진동입니다.</p>
+    <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
+      <button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button>
+      <button class="btn secondary" onclick="focusReset()">초기화</button>
+    </div>
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study">📚 자격증·공부</option><option value="job">💼 취업 준비</option><option value="personal">🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+      ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
+    </select></label>
+    <label>완료 알림<select onchange="focusChangeAlarm(this.value)">
+      ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
+    </select></label></div>
+    <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
+    <p class="meta">앱이 열려 있는 동안 작동합니다. 브라우저를 종료하거나 기기가 절전 상태가 되면 완료 알림이 보장되지 않습니다.</p>
+  </div>`;
+}
+function habitEntries(){
+  if(!Array.isArray(state.habits))state.habits=[];
+  return state.habits;
+}
+function habitAdd(){
+  const input=document.getElementById('habitName');
+  const name=input?.value.trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
+  persistState();renderCalendar();toast('습관을 추가했어요.');
+}
+function habitToggle(id,date){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  if(!Array.isArray(habit.checks))habit.checks=[];
+  if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
+  else habit.checks.push(date);
+  persistState();renderCalendar();
+}
+function habitRemove(id){
+  if(!confirm('습관과 완료 기록을 삭제할까요?'))return;
+  state.habits=habitEntries().filter(x=>x.id!==id);
+  persistState();renderCalendar();
+}
+function habitStreak(habit){
+  const checks=new Set(Array.isArray(habit.checks)?habit.checks:[]);
+  let date=koreaToday();
+  if(!checks.has(date))date=plannerDateOffset(date,-1);
+  let streak=0;
+  while(checks.has(date)&&streak<3650){streak++;date=plannerDateOffset(date,-1);}
+  return streak;
+}
+function habitPanelHTML(){
+  const today=koreaToday(),habits=habitEntries();
+  const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
+  return `<div class="card"><h3>🌱 오늘의 습관</h3>
+    <p class="meta">오늘 달성 ${completed}/${habits.length}개 · 완료 기록은 이 브라우저에 저장됩니다.</p>
+    ${habits.map(h=>`<div class="planner-item"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    <div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">＋ 습관 추가</button></div>
+  </div>`;
+}
+function plannerAgenda(){
+  const today=koreaToday();
+  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
+  return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
+    .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function plannerFocusHTML(){
+  const agenda=plannerAgenda();
+  const urgent=agenda.filter(e=>e.priority==='high'||e.origin==='external');
+  return `<div class="card"><h3>✨ 앞으로 7일 · AI 실행 브리핑</h3>
+    <p class="meta">내 일정과 저장한 채용 마감일을 바탕으로 중요한 일을 정리했어요. AI 서버 분석이 아닌 일정 기반 추천입니다.</p>
+    ${urgent.length?`<strong>먼저 확인할 일정</strong><div class="stack">${urgent.slice(0,5).map(e=>`<p>🔔 ${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}</div>`:'<p class="meta">우선 확인할 마감일이나 높은 우선순위 일정이 없어요.</p>'}
+    <strong>7일간 예정된 일정 ${agenda.length}건</strong>
+    ${agenda.slice(0,8).map(e=>`<p class="meta">${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}
+    <button class="btn secondary" onclick="plannerSelect(koreaToday())">오늘 일정 보기</button>
+  </div>`;
+}
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
-  if(state.goalType==='job'){
-    c.innerHTML=jobCalendarHTML();
-  } else if(state.goalType==='cert'){
-    c.innerHTML=certCalendarHTML(state.certSchedule);
-  } else if(state.goalType==='policy'){
-    c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
-  } else {
-    c.innerHTML=`<div class="card"><h3>아직 등록된 일정이 없어요.</h3><p class="meta">목표에서 첫 행동을 정하면 여기에 일정이 생겨요.</p></div>`;
+  const today=koreaToday();
+  if(!validDeadline(plannerSelected)||!plannerSelected)plannerSelected=today;
+  const startOfWeek=date=>plannerDateOffset(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
+  let dates=[];
+  if(plannerView==='day')dates=[plannerSelected];
+  else if(plannerView==='week')dates=Array.from({length:7},(_,i)=>plannerDateOffset(startOfWeek(plannerSelected),i));
+  else {
+    const first=plannerSelected.slice(0,7)+'-01',start=startOfWeek(first);
+    dates=Array.from({length:42},(_,i)=>plannerDateOffset(start,i));
   }
-  if(state.goalType!=='job'&&state.jobPostings?.length) c.innerHTML+=jobCalendarHTML();
+  const existing=plannerEntries().find(e=>e.id===plannerEditing);
+  const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
+  const dayList=plannerForDate(plannerSelected);
+  const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+  c.innerHTML=`\n    ${progressInsightsHTML()}\n    ${focusHistoryHTML()}\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
+    <div class="card">
+      <div class="planner-controls">
+        <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
+        <strong>${esc(dateLabel)}</strong>
+        <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?28:plannerView==='week'?7:1})">→</button>
+        <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
+        <button class="btn ${plannerView==='month'?'primary':'secondary'}" onclick="plannerSetView('month')">월</button>
+        <button class="btn ${plannerView==='week'?'primary':'secondary'}" onclick="plannerSetView('week')">주</button>
+        <button class="btn ${plannerView==='day'?'primary':'secondary'}" onclick="plannerSetView('day')">일</button>
+      </div>
+      <div class="planner-grid">${['월','화','수','목','금','토','일'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
+      ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}</button>`).join('')}
+      </div>
+    </div>
+    <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
+      ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
+      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+    </div>
+    <div class="card"><h3>${existing?'✏️ 일정 수정':'＋ 일정 추가'}</h3><div class="planner-form">
+      <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing?.date||plannerSelected)}"></label>
+      <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
+      <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
+      <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
+      <label>반복<select id="plannerRepeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>
+      <label>반복 종료일 (선택)<input id="plannerUntil" type="date" value="${plannerEscapeAttr(existing?.until)}"></label>
+      <button class="btn primary wide" onclick="plannerSave()">${existing?'변경 저장':'일정 저장'}</button>
+    </div></div>
+    ${upcoming.length?`<div class="card"><h3>✨ 우선 준비할 일정</h3>${upcoming.map(e=>`<p>🔔 ${esc(e.date)} · ${esc(e.title)}</p>`).join('')}</div>`:''}
+    ${state.goalType==='cert'?certCalendarHTML(state.certSchedule):''}
+    <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
+  `;
+  document.getElementById('focusCategory').value=focusSettings().category||'study';
+  document.getElementById('plannerCategory').value=existing?.category||'personal';
+  document.getElementById('plannerPriority').value=existing?.priority||'normal';
+  document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
+
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
@@ -824,6 +1326,8 @@ function renderMy(){
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
+    <div class="section-title">내 데이터 백업·복원</div>
+    <div class="card"><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
@@ -937,16 +1441,27 @@ function daysUntil(s){
   const n=Math.round((Date.parse(iso+'T00:00:00Z')-Date.parse(koreaToday()+'T00:00:00Z'))/86400000);
   return n<0?'마감':n===0?'오늘 마감':`D-${n}`;
 }
+let liveJobsController;
+let liveJobsRequestVersion=0;
 async function loadLiveJobs(){
   const status=document.getElementById('liveJobStatus');
   const box=document.getElementById('liveJobResults');
   if(!status||!box) return;
-  const keyword=[state.selectedCompany,state.selectedJob].filter(Boolean).join(' ') || state.parsedGoal?.raw || state.mainGoal || '';
+  const keyword=([state.selectedCompany,state.selectedJob].filter(Boolean).join(' ') || state.parsedGoal?.raw || state.mainGoal || '').trim();
+  const version=++liveJobsRequestVersion;
+  liveJobsController?.abort();
+  liveJobsController=new AbortController();
+  if(!keyword||keyword.length>100){
+    status.innerHTML='<strong>검색어를 확인해 주세요.</strong><p class="meta">회사 또는 관심 직무를 1~100자로 설정해 주세요.</p>';
+    box.innerHTML='';
+    return;
+  }
   status.innerHTML=`<strong>⏳ 고용24에서 찾는 중…</strong><p class="meta">검색어: ${esc(keyword)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`);
+    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,{signal:liveJobsController.signal});
     const data=await r.json();
+    if(version!==liveJobsRequestVersion) return;
     if(!r.ok) throw new Error(data.message||'채용정보를 불러오지 못했어요.');
     if(!data.items?.length){
       status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
@@ -964,6 +1479,7 @@ async function loadLiveJobs(){
       </div>`).join('')
     }</div>`;
   }catch(e){
+    if(version!==liveJobsRequestVersion||e.name==='AbortError') return;
     status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
   }
 }
