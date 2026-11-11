@@ -213,9 +213,9 @@
 
 /* Compact mobile calendar toolbar: override global full-width button rules. */
 .planner-toolbar{display:flex;flex-direction:column;gap:8px;margin:12px 0}
-.planner-toolbar .planner-date-nav{display:grid;grid-template-columns:42px minmax(0,1fr) 42px 54px;gap:6px;align-items:center}
+.planner-toolbar .planner-date-nav{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;gap:6px;align-items:center}
 .planner-toolbar .planner-date-nav strong{text-align:center;font-size:15px;min-width:0}
-.planner-toolbar .planner-view-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.planner-toolbar .planner-view-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 58px;gap:6px}
 .planner-toolbar button.btn{display:inline-flex;justify-content:center;align-items:center;width:100%;min-width:0;min-height:38px;padding:7px 6px;margin:0;font-size:13px;line-height:1.2}
 .planner-toolbar .planner-date-nav button.btn{height:38px}
   </style>
@@ -1313,15 +1313,15 @@ function renderCalendar(){
     <div class="card">
       <div class="planner-toolbar">
         <div class="planner-date-nav">
-          <button class="btn secondary" aria-label="이전 기간" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
+          <button class="btn secondary" aria-label="이전 기간" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">〈 이전</button>
           <strong>${esc(dateLabel)}</strong>
-          <button class="btn secondary" aria-label="다음 기간" onclick="plannerNavigate(${plannerView==='month'?28:plannerView==='week'?7:1})">→</button>
-          <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
+          <button class="btn secondary" aria-label="다음 기간" onclick="plannerNavigate(${plannerView==='month'?28:plannerView==='week'?7:1})">다음 〉</button>
         </div>
         <div class="planner-view-switch" role="group" aria-label="캘린더 보기">
           <button class="btn ${plannerView==='month'?'primary':'secondary'}" aria-pressed="${plannerView==='month'}" onclick="plannerSetView('month')">월</button>
           <button class="btn ${plannerView==='week'?'primary':'secondary'}" aria-pressed="${plannerView==='week'}" onclick="plannerSetView('week')">주</button>
           <button class="btn ${plannerView==='day'?'primary':'secondary'}" aria-pressed="${plannerView==='day'}" onclick="plannerSetView('day')">일</button>
+          <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
         </div>
       </div>
       <div class="planner-grid">${['월','화','수','목','금','토','일'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
