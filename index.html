@@ -1012,8 +1012,8 @@ async function loadLiveJobs(){
   const version=++liveJobsRequestVersion;
   liveJobsController?.abort();
   liveJobsController=new AbortController();
-  if(!keyword){
-    status.innerHTML='<strong>검색어가 필요해요.</strong><p class="meta">먼저 회사 또는 관심 직무를 설정해 주세요.</p>';
+  if(!keyword||keyword.length>100){
+    status.innerHTML='<strong>검색어를 확인해 주세요.</strong><p class="meta">회사 또는 관심 직무를 1~100자로 설정해 주세요.</p>';
     box.innerHTML='';
     return;
   }
