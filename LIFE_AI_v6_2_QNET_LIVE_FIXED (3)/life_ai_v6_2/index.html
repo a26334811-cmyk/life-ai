@@ -225,6 +225,13 @@
 #plannerEditor[hidden]{display:none!important}
 #plannerEditor{margin-top:14px}
 .planner-day-summary{margin:12px 0 2px;font-weight:600;color:var(--text);font-size:15px}
+.insights-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.insights-heading h3{margin:0}
+.insights-switch{display:flex;gap:5px}
+.insights-switch button.btn{width:auto;min-width:54px;padding:7px 10px;font-size:13px}
+.insights-bars{display:flex;gap:8px;align-items:end;justify-content:space-around;margin:18px 0 8px}
+.insights-bar{flex:1;text-align:center;min-width:0}
+.insights-bar-track{height:70px;display:flex;align-items:end;justify-content:center}
   </style>
 </head>
 <body>
@@ -1149,16 +1156,28 @@ function focusChangeCategory(value){
   if(!['study','job','personal'].includes(value))return;
   focusSettings().category=value;persistState();
 }
+let insightsPeriod='week';
+function insightsSetPeriod(period){
+  if(period!=='week'&&period!=='month')return;
+  insightsPeriod=period;
+  const target=document.getElementById('progressInsights');
+  if(target)target.outerHTML=progressInsightsHTML();
+}
 function progressInsightsHTML(){
   const today=koreaToday();
+  const monthly=insightsPeriod==='month';
   const weekStart=plannerDateOffset(today,-new Date(today+'T12:00:00Z').getUTCDay());
-  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(weekStart,i));
+  const monthStart=today.slice(0,7)+'-01';
+  const monthEnd=plannerDateOffset(new Date(Date.UTC(Number(today.slice(0,4)),Number(today.slice(5,7)),1,12)).toISOString().slice(0,10),-1);
+  const start=monthly?monthStart:weekStart;
+  const end=monthly?monthEnd:plannerDateOffset(weekStart,6);
+  const dates=Array.from({length:Math.round((new Date(end+'T12:00:00Z')-new Date(start+'T12:00:00Z'))/86400000)+1},(_,i)=>plannerDateOffset(start,i));
   const habits=habitEntries();
   const history=focusHistory();
   const days=dates.map(date=>{
-    const done=habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length;
-    const minutes=history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0);
     const possible=date<=today?habits.filter(h=>!h.createdAt||h.createdAt<=date).length:0;
+    const done=date<=today?habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length:0;
+    const minutes=date<=today?history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0):0;
     return {date,done,possible,minutes};
   });
   const totalPossible=days.reduce((sum,d)=>sum+d.possible,0);
@@ -1166,19 +1185,29 @@ function progressInsightsHTML(){
   const rate=totalPossible?Math.round(checked/totalPossible*100):0;
   const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
   const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
-  const maxMinutes=Math.max(25,...days.map(d=>d.minutes));
-  return `<div class="card"><h3>📈 이번 주 실천 리포트</h3>
-    <p class="meta">일요일부터 토요일까지 한 주의 습관 달성과 집중 세션을 보여줘요. (${dates[0].slice(5)} ~ ${dates[6].slice(5)})</p>
+  const buckets=monthly?Array.from({length:Math.ceil(days.length/7)},(_,i)=>{
+    const chunk=days.slice(i*7,(i+1)*7);
+    return {label:(i+1)+'주',minutes:chunk.reduce((sum,d)=>sum+d.minutes,0)};
+  }):days.map((d,i)=>({label:['일','월','화','수','목','금','토'][i],minutes:d.minutes}));
+  const maxMinutes=Math.max(25,...buckets.map(d=>d.minutes));
+  return `<div class="card" id="progressInsights">
+    <div class="insights-heading"><h3>📈 ${monthly?'이번 달':'이번 주'} 실천 리포트</h3>
+      <div class="insights-switch" role="group" aria-label="리포트 기간">
+        <button type="button" class="btn ${monthly?'secondary':'primary'}" aria-pressed="${!monthly}" onclick="insightsSetPeriod('week')">주간</button>
+        <button type="button" class="btn ${monthly?'primary':'secondary'}" aria-pressed="${monthly}" onclick="insightsSetPeriod('month')">월간</button>
+      </div>
+    </div>
+    <p class="meta">${monthly?'매월 1일부터 말일까지':'일요일부터 토요일까지'} · ${start} ~ ${end}</p>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${totalPossible?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
-      <div><strong>${activeDays}/7일</strong><p class="meta">활동한 날</p></div>
+      <div><strong>${activeDays}/${days.length}일</strong><p class="meta">활동한 날</p></div>
       <div><strong>${minutes}분</strong><p class="meta">집중 시간</p></div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;margin:18px 0 8px" role="img" aria-label="이번 주 일요일부터 토요일까지 날짜별 집중 시간">
-      ${days.map(d=>`<div style="text-align:center;min-width:0"><div style="height:70px;display:flex;align-items:end;justify-content:center"><div style="width:65%;height:${Math.max(3,Math.round(d.minutes/maxMinutes*70))}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${['일','월','화','수','목','금','토'][days.indexOf(d)]}</small><div class="meta">${d.date.slice(5)}</div><div class="meta">${d.minutes}분</div></div>`).join('')}
+    <div class="insights-bars" role="img" aria-label="${monthly?'이번 달 주차별':'이번 주 요일별'} 집중 시간">
+      ${buckets.map(d=>`<div class="insights-bar"><div class="insights-bar-track"><div style="width:65%;height:${Math.max(3,Math.round(d.minutes/maxMinutes*70))}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
     </div>
     <p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p>
-    <p class="meta">습관 달성률은 각 습관의 등록일 이후 날짜만 집계합니다. 집중 시간은 완료한 세션만 집계합니다.</p>
+    <p class="meta">습관 달성률은 등록일 이후 오늘까지 집계합니다. 집중 시간은 완료한 세션만 포함합니다. 월간 그래프는 1~7일, 8~14일 순서로 묶어 표시합니다.</p>
   </div>`;
 }
 function focusHistoryHTML(){
