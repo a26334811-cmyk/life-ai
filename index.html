@@ -1114,8 +1114,7 @@ function focusHistory(){
 }
 function focusRecordCompletion(){
   const minutes=Number(focusSettings().minutes);
-  const category=document.getElementById('focusCategory')?.value||focusSettings().category||'study';
-  focusSettings().category=category;
+  const category=focusSettings().category||'study';
   focusHistory().unshift({date:koreaToday(),minutes,category,completedAt:new Date().toISOString()});
   if(state.focusHistory.length>500)state.focusHistory.length=500;
   persistState();
