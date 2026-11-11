@@ -1086,7 +1086,7 @@ function renderCalendar(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  c.innerHTML=`
+  c.innerHTML=`\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
     <div class="card">
       <div class="planner-controls">
         <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
