@@ -55,3 +55,11 @@ test('day view hides weekday grid and weekly report starts on Sunday',()=>{
   assert.match(html,/이번 주 실천 리포트/);
   assert.match(html,/weekStart=plannerDateOffset\(today,-new Date\(today\+'T12:00:00Z'\).getUTCDay\(\)\)/);
 });
+
+test('weekly insights is default and monthly insights has calendar month bounds',()=>{
+  assert.match(html,/let insightsPeriod='week'/);
+  assert.match(html,/function insightsSetPeriod\(period\)/);
+  assert.match(html,/monthStart=today.slice\(0,7\)\+'-01'/);
+  assert.match(html,/월간/);
+  assert.match(html,/id="progressInsights"/);
+});
