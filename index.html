@@ -980,7 +980,7 @@ function plannerDateOffset(date,days){
   const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
 }
 function plannerOccurs(item,date){
-  if(!item||!validDeadline(item.date)||date<item.date)return false;
+  if(!item||!validDeadline(item.date)||!item.date||date<item.date)return false;
   if(item.until&&date>item.until)return false;
   if(item.repeat==='daily')return true;
   if(item.repeat==='weekly')return Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(item.date+'T00:00:00Z'))/86400000)%7===0;
@@ -1065,6 +1065,7 @@ function focusReset(){
   focusRunning=false;clearInterval(focusInterval);focusInterval=null;
   focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
 }
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
 function focusChangeMinutes(value){
   focusSettings().minutes=Number(value);persistState();focusReset();
 }
