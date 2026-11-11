@@ -205,6 +205,11 @@
 .focus-flash{animation:focus-flash .45s ease-in-out 8}
 @keyframes focus-flash{0%,100%{background:var(--card)}50%{background:#ffe48a}}
 @media(prefers-reduced-motion:reduce){.focus-flash{animation:none;outline:4px solid #e6a600}}
+
+.planner-tabbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;position:sticky;top:0;z-index:8;padding:8px 0;background:var(--bg)}
+.planner-tabbar button{min-width:0;padding:11px 3px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:13px;font-weight:700}
+.planner-tabbar button[aria-selected="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
+.planner-tabpanel[hidden]{display:none!important}
   </style>
 </head>
 <body>
@@ -1002,8 +1007,8 @@ function plannerNavigate(days){
   renderCalendar();
 }
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
-function plannerSetView(view){plannerView=view;renderCalendar();}
-function plannerEdit(id){plannerEditing=id;renderCalendar();}
+function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
+function plannerEdit(id){plannerEditing=id;plannerActiveTab='calendar';renderCalendar();}
 function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
@@ -1254,6 +1259,17 @@ function plannerFocusHTML(){
     <button class="btn secondary" onclick="plannerSelect(koreaToday())">오늘 일정 보기</button>
   </div>`;
 }
+let plannerActiveTab='today';
+function plannerSwitchTab(tab){
+  if(!['today','calendar','habits','stats'].includes(tab))return;
+  plannerActiveTab=tab;
+  document.querySelectorAll('#calendarContent .planner-tabpanel').forEach(panel=>{panel.hidden=panel.dataset.tab!==tab;});
+  document.querySelectorAll('#calendarContent .planner-tabbar button').forEach(button=>{
+    const selected=button.dataset.tab===tab;
+    button.setAttribute('aria-selected',String(selected));
+    button.tabIndex=selected?0:-1;
+  });
+}
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
@@ -1270,7 +1286,22 @@ function renderCalendar(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  c.innerHTML=`\n    ${progressInsightsHTML()}\n    ${focusHistoryHTML()}\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
+  c.innerHTML=`
+    <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
+      ${[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']].map(([tab,label])=>`<button type="button" role="tab" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" onclick="plannerSwitchTab('${tab}')">${label}</button>`).join('')}
+    </div>
+    <section class="planner-tabpanel" data-tab="today" role="tabpanel" ${plannerActiveTab==='today'?'':'hidden'}>
+      ${plannerFocusHTML()}
+      ${focusPanelHTML()}
+    </section>
+    <section class="planner-tabpanel" data-tab="habits" role="tabpanel" ${plannerActiveTab==='habits'?'':'hidden'}>
+      ${habitPanelHTML()}
+    </section>
+    <section class="planner-tabpanel" data-tab="stats" role="tabpanel" ${plannerActiveTab==='stats'?'':'hidden'}>
+      ${progressInsightsHTML()}
+      ${focusHistoryHTML()}
+    </section>
+    <section class="planner-tabpanel" data-tab="calendar" role="tabpanel" ${plannerActiveTab==='calendar'?'':'hidden'}>
     <div class="card">
       <div class="planner-controls">
         <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
@@ -1302,6 +1333,7 @@ function renderCalendar(){
     ${upcoming.length?`<div class="card"><h3>✨ 우선 준비할 일정</h3>${upcoming.map(e=>`<p>🔔 ${esc(e.date)} · ${esc(e.title)}</p>`).join('')}</div>`:''}
     ${state.goalType==='cert'?certCalendarHTML(state.certSchedule):''}
     <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
+    </section>
   `;
   document.getElementById('focusCategory').value=focusSettings().category||'study';
   document.getElementById('plannerCategory').value=existing?.category||'personal';
