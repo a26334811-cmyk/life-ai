@@ -56,6 +56,7 @@ async function loadQualifications(key){
     const r=await fetchWithTimeout(`${base}?${params}`);
     const xml=await r.text();
     if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
+    if(/<html[\\s>]/i.test(xml)) throw new Error('Q-Net 종목 목록 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
     const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
     if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 종목 목록 API: ${xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg')||errCode}`);
     const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
@@ -97,6 +98,7 @@ async function fetchOfficialSchedule(key, qual, year){
     const r=await fetchWithTimeout(`${base}?${params.toString()}`);
     const xml=await r.text();
     if(!r.ok) throw new Error(`Q-Net 시험일정 API 오류 ${r.status}`);
+    if(/<html[\\s>]/i.test(xml)) throw new Error('Q-Net 시험일정 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
     const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
     const errMsg=xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg');
     if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 시험일정 API: ${errMsg||errCode}`);
