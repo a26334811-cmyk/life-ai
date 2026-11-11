@@ -761,7 +761,7 @@ function renderHome(){
   const progress=taskTotal?Math.round(completed/taskTotal*100):0;
   const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
   const favorites=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
-  const savedSchedule=state.certSchedule?.rounds||[];
+  const savedSchedule=Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[];
   const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
     .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
