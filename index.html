@@ -501,6 +501,51 @@ function editCurrentGoal(){
   renderMy();
   toast('목표를 수정했어요.');
 }
+
+const LIFE_AI_BACKUP_FORMAT='life-ai-backup';
+const LIFE_AI_BACKUP_VERSION=1;
+function exportLifeAIBackup(){
+  try{
+    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
+  }catch(e){toast('백업 파일을 만들지 못했어요.');}
+}
+function openLifeAIBackup(){
+  const input=document.getElementById('lifeAIBackupFile');
+  if(!input)return;
+  input.value='';
+  input.click();
+}
+async function importLifeAIBackup(input){
+  const file=input.files?.[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
+  try{
+    const backup=JSON.parse(await file.text());
+    if(!backup||backup.format!==LIFE_AI_BACKUP_FORMAT||backup.version!==LIFE_AI_BACKUP_VERSION||
+       !backup.state||typeof backup.state!=='object'||Array.isArray(backup.state)||
+       typeof backup.state.mainGoal!=='string'||typeof backup.state.nickname!=='string'||
+       !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
+      throw new Error('올바른 life-ai 백업 파일이 아니에요.');
+    }
+    if(!confirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요? 기존 데이터는 덮어써집니다.'))return;
+    const safe={};
+    for(const [key,value] of Object.entries(backup.state)){
+      if(['__proto__','prototype','constructor'].includes(key))continue;
+      safe[key]=value;
+    }
+    localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
+    alert('복원이 완료됐어요. 앱을 새로고침합니다.');
+    location.reload();
+  }catch(e){toast(e.message||'백업 파일을 읽지 못했어요.');}
+}
+
 function resetPrototype(){
   if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
   try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
@@ -889,6 +934,8 @@ function renderMy(){
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
+    <div class="section-title">내 데이터 백업·복원</div>
+    <div class="card"><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
