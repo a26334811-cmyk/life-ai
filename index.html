@@ -983,7 +983,7 @@ function plannerForDate(date){
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
   return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
-function plannerNavigate(days){plannerSelected=plannerDateOffset(plannerSelected,days);renderCalendar();}
+function plannerNavigate(days){\n  if(plannerView==='month'){const [year,month]=plannerSelected.split('-').map(Number);const d=new Date(Date.UTC(year,month-1+(days>0?1:-1),1,12));plannerSelected=d.toISOString().slice(0,10);}\n  else plannerSelected=plannerDateOffset(plannerSelected,days);\n  renderCalendar();\n}
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
 function plannerSetView(view){plannerView=view;renderCalendar();}
 function plannerEdit(id){plannerEditing=id;renderCalendar();}
