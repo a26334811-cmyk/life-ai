@@ -382,7 +382,7 @@
 
   <section id="calendar" class="screen">
     <div class="topbar"><h2 style="margin:0">📅 일정</h2></div>
-    <div id="calendarContent"></div>
+    <p class="meta">집중 타이머 · 습관 · 7일 리포트가 이 화면에 표시됩니다.</p><div id="calendarContent"></div>
   </section>
 
   <section id="policy" class="screen">
@@ -790,6 +790,7 @@ function renderHome(){
   const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
     .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
+    <div class="card" style="border:2px solid var(--primary)"><strong>🧪 새 기능 미리보기 · 2026-11-12</strong><p class="meta">집중 타이머, 진동 알림, 습관, 7일 리포트를 일정 화면에서 확인하세요.</p><button class="btn primary" onclick="go('calendar')">⏱ 집중 타이머 바로 확인</button></div>
     <div class="dashboard-stats">
       <div class="dashboard-stat"><span class="meta">💼 저장한 채용공고</span><div class="metric">${jobs.length}건</div><span class="meta">내가 등록한 공고 기준</span></div>
       <div class="dashboard-stat"><span class="meta">🏅 관심 자격증</span><div class="metric">${favorites.length}개</div><span class="meta">관심 목록에 저장됨</span></div>
@@ -1627,7 +1628,8 @@ go=function(id){
   _go(id);
 };
 
-if(state.mainGoal) go('home');
+if(new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
+else if(state.mainGoal)go('home');
 else renderHome();
 </script>
 </body>
