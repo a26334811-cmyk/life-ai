@@ -180,6 +180,22 @@
     .dashboard-progress{height:9px;background:#e7effc;border-radius:999px;overflow:hidden;margin-top:12px}
     .dashboard-progress>span{display:block;height:100%;background:linear-gradient(90deg,#1763db,#67a2ff);border-radius:inherit}
     @media(min-width:1100px){.dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.planner-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.planner-controls button{width:auto}
+.planner-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.planner-day{min-height:75px;padding:7px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);text-align:left;cursor:pointer;min-width:0}
+.planner-day.today{border:2px solid var(--primary)}
+.planner-day.selected{background:#e8f1ff}
+.planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
+.planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.planner-form label{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.planner-form input,.planner-form select{width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#17253c}
+.planner-form .wide{grid-column:1/-1}
+.planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.planner-item .btn{width:auto}
+@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -944,19 +960,104 @@ function certCalendarHTML(schedule){
   const rows=list=>list.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('');
   return `<div class="card"><h3>${esc(schedule.qualification?.name)} · ${esc(schedule.year)}년</h3><p class="meta">이 기기에 저장된 공식 일정 · ${schedule.fetchedAt?'조회일 '+esc(fmtDate(schedule.fetchedAt.slice(0,10))):'변경 여부는 Q-Net에서 확인하세요.'}</p>${next?`<h3>다음 접수${next.startDate<=today?' · 접수 기간 중':''}</h3>${rows([next])}`:'<p class="meta">조회한 연도에 남은 접수 일정이 없어요.</p>'}<h3>진행 중·앞으로의 일정</h3>${future.length?rows(future):'<p class="meta">남은 일정이 없어요. 다음 연도를 조회해 보세요.</p>'}${past.length?`<details><summary>지난 일정 ${past.length}개</summary>${rows(past)}</details>`:''}<button class="btn secondary" onclick="go('cert')">공식 일정 다시 조회</button></div>`;
 }
+let plannerView='month';
+let plannerSelected=koreaToday();
+let plannerEditing='';
+function plannerEntries(){
+  if(!Array.isArray(state.plannerEntries))state.plannerEntries=[];
+  return state.plannerEntries;
+}
+function plannerDateOffset(date,days){
+  const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
+}
+function plannerOccurs(item,date){
+  if(!item||!validDeadline(item.date)||date<item.date)return false;
+  if(item.until&&date>item.until)return false;
+  if(item.repeat==='daily')return true;
+  if(item.repeat==='weekly')return Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(item.date+'T00:00:00Z'))/86400000)%7===0;
+  if(item.repeat==='monthly')return date.slice(8)===item.date.slice(8);
+  return item.date===date;
+}
+function plannerForDate(date){
+  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal'}));
+  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
+  return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
+}
+function plannerNavigate(days){plannerSelected=plannerDateOffset(plannerSelected,days);renderCalendar();}
+function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
+function plannerSetView(view){plannerView=view;renderCalendar();}
+function plannerEdit(id){plannerEditing=id;renderCalendar();}
+function plannerSave(){
+  const get=id=>document.getElementById(id)?.value.trim()||'';
+  const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
+  if(!title||title.length>120||!validDeadline(date)||!date){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
+  if(until&&(!validDeadline(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  const entries=plannerEntries();
+  const item={id:plannerEditing||newJobId(),title,date,time,category,repeat,until,priority,done:false};
+  const index=entries.findIndex(e=>e.id===plannerEditing);
+  if(index>=0){item.done=Boolean(entries[index].done);entries[index]=item;}else entries.push(item);
+  plannerEditing='';plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
+}
+function plannerRemove(id){
+  if(!confirm('이 일정과 반복 일정을 삭제할까요?'))return;
+  state.plannerEntries=plannerEntries().filter(x=>x.id!==id);plannerEditing='';persistState();renderCalendar();
+}
+function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
+function plannerEscapeAttr(s){return esc(String(s||''));}
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
-  if(state.goalType==='job'){
-    c.innerHTML=jobCalendarHTML();
-  } else if(state.goalType==='cert'){
-    c.innerHTML=certCalendarHTML(state.certSchedule);
-  } else if(state.goalType==='policy'){
-    c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
-  } else {
-    c.innerHTML=`<div class="card"><h3>아직 등록된 일정이 없어요.</h3><p class="meta">목표에서 첫 행동을 정하면 여기에 일정이 생겨요.</p></div>`;
+  const today=koreaToday();
+  if(!validDeadline(plannerSelected)||!plannerSelected)plannerSelected=today;
+  const startOfWeek=date=>plannerDateOffset(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
+  let dates=[];
+  if(plannerView==='day')dates=[plannerSelected];
+  else if(plannerView==='week')dates=Array.from({length:7},(_,i)=>plannerDateOffset(startOfWeek(plannerSelected),i));
+  else {
+    const first=plannerSelected.slice(0,7)+'-01',start=startOfWeek(first);
+    dates=Array.from({length:42},(_,i)=>plannerDateOffset(start,i));
   }
-  if(state.goalType!=='job'&&state.jobPostings?.length) c.innerHTML+=jobCalendarHTML();
+  const existing=plannerEntries().find(e=>e.id===plannerEditing);
+  const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
+  const dayList=plannerForDate(plannerSelected);
+  const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+  c.innerHTML=`
+    <div class="card">
+      <div class="planner-controls">
+        <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
+        <strong>${esc(dateLabel)}</strong>
+        <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?28:plannerView==='week'?7:1})">→</button>
+        <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
+        <button class="btn ${plannerView==='month'?'primary':'secondary'}" onclick="plannerSetView('month')">월</button>
+        <button class="btn ${plannerView==='week'?'primary':'secondary'}" onclick="plannerSetView('week')">주</button>
+        <button class="btn ${plannerView==='day'?'primary':'secondary'}" onclick="plannerSetView('day')">일</button>
+      </div>
+      <div class="planner-grid">${['월','화','수','목','금','토','일'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
+      ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}</button>`).join('')}
+      </div>
+    </div>
+    <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
+      ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
+      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+    </div>
+    <div class="card"><h3>${existing?'✏️ 일정 수정':'＋ 일정 추가'}</h3><div class="planner-form">
+      <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing?.date||plannerSelected)}"></label>
+      <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
+      <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
+      <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
+      <label>반복<select id="plannerRepeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>
+      <label>반복 종료일 (선택)<input id="plannerUntil" type="date" value="${plannerEscapeAttr(existing?.until)}"></label>
+      <button class="btn primary wide" onclick="plannerSave()">${existing?'변경 저장':'일정 저장'}</button>
+    </div></div>
+    ${upcoming.length?`<div class="card"><h3>✨ 우선 준비할 일정</h3>${upcoming.map(e=>`<p>🔔 ${esc(e.date)} · ${esc(e.title)}</p>`).join('')}</div>`:''}
+    ${state.goalType==='cert'?certCalendarHTML(state.certSchedule):''}
+    <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
+  `;
+  document.getElementById('plannerCategory').value=existing?.category||'personal';
+  document.getElementById('plannerPriority').value=existing?.priority||'normal';
+  document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
+
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
