@@ -1282,7 +1282,7 @@ function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
   if(!validDeadline(plannerSelected)||!plannerSelected)plannerSelected=today;
-  const startOfWeek=date=>plannerDateOffset(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
+  const startOfWeek=date=>plannerDateOffset(date,-new Date(date+'T12:00:00Z').getUTCDay());
   let dates=[];
   if(plannerView==='day')dates=[plannerSelected];
   else if(plannerView==='week')dates=Array.from({length:7},(_,i)=>plannerDateOffset(startOfWeek(plannerSelected),i));
@@ -1324,7 +1324,7 @@ function renderCalendar(){
           <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
         </div>
       </div>
-      <div class="planner-grid">${['월','화','수','목','금','토','일'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
+      <div class="planner-grid">${['일','월','화','수','목','금','토'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
       ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}</button>`).join('')}
       </div>
     </div>
