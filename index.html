@@ -232,6 +232,8 @@
 .insights-bars{display:flex;gap:8px;align-items:end;justify-content:space-around;margin:18px 0 8px}
 .insights-bar{flex:1;text-align:center;min-width:0}
 .insights-bar-track{height:70px;display:flex;align-items:end;justify-content:center}
+.recovery-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}
+.recovery-choices button.btn{width:100%;min-width:0;padding:9px 4px;font-size:13px}
   </style>
 </head>
 <body>
@@ -1296,6 +1298,24 @@ function plannerAgenda(){
   return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
     .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
 }
+/* life-ai principle: encourage progress while allowing rest without judgment. */
+function recoveryMode(){return state.recoveryMode==='rest'?'rest':state.recoveryMode==='gentle'?'gentle':'normal';}
+function recoverySetMode(mode){
+  if(!['normal','gentle','rest'].includes(mode))return;
+  state.recoveryMode=mode;persistState();renderCalendar();
+}
+function recoveryPanelHTML(){
+  const mode=recoveryMode();
+  return `<div class="card" id="recoveryPanel">
+    <h3>🌿 오늘의 페이스</h3>
+    <p class="meta">열심히 살아갈 수 있도록 돕되, 힘든 날에는 쉬어갈 수 있도록 배려할게요.</p>
+    <div class="recovery-choices" role="group" aria-label="오늘의 페이스">
+      ${[['normal','평소대로'],['gentle','천천히'],['rest','쉬어가기']].map(([value,label])=>`<button type="button" class="btn ${mode===value?'primary':'secondary'}" aria-pressed="${mode===value}" onclick="recoverySetMode('${value}')">${label}</button>`).join('')}
+    </div>
+    <p class="meta" aria-live="polite">${mode==='rest'?'숨을 천천히 들이쉬고 내쉬어 보세요. 오늘은 쉬어가도 괜찮아요.':mode==='gentle'?'오늘은 작은 일 하나면 충분해요. 준비되면 5분부터 시작해 보세요.':'오늘도 내 속도에 맞춰 한 걸음씩 나아가요.'}</p>
+    <p class="meta">페이스 선택은 기록을 삭제하거나 중요한 시험·면접 일정을 숨기지 않아요. 알림 설정도 변경하지 않아요.</p>
+  </div>`;
+}
 function plannerFocusHTML(){
   const agenda=plannerAgenda();
   const urgent=agenda.filter(e=>e.priority==='high'||e.origin==='external');
@@ -1339,6 +1359,7 @@ function renderCalendar(){
       ${[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']].map(([tab,label])=>`<button type="button" role="tab" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" onclick="plannerSwitchTab('${tab}')">${label}</button>`).join('')}
     </div>
     <section class="planner-tabpanel" data-tab="today" role="tabpanel" ${plannerActiveTab==='today'?'':'hidden'}>
+      ${recoveryPanelHTML()}
       ${plannerFocusHTML()}
       ${focusPanelHTML()}
     </section>
