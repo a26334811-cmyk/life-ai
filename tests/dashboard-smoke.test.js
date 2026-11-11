@@ -70,3 +70,11 @@ test('recovery mode is opt-in and does not suppress critical reminders',()=>{
   assert.match(html,/state.recoveryMode=mode;persistState\(\)/);
   assert.match(html,/시험·면접 일정을 숨기지 않아요/);
 });
+
+test('monthly heatmap displays daily focus and selectable dates',()=>{
+  assert.match(html,/function insightsSelectDate\(date\)/);
+  assert.match(html,/class="insights-heatmap"/);
+  assert.match(html,/aria-label="월간 날짜별 집중 시간"/);
+  assert.match(html,/d\.minutes\/maxDayMinutes/);
+  assert.match(html,/selected\.minutes/);
+});
