@@ -1011,6 +1011,48 @@ function plannerRemove(id){
 }
 function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
 function plannerEscapeAttr(s){return esc(String(s||''));}
+function habitEntries(){
+  if(!Array.isArray(state.habits))state.habits=[];
+  return state.habits;
+}
+function habitAdd(){
+  const input=document.getElementById('habitName');
+  const name=input?.value.trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
+  persistState();renderCalendar();toast('습관을 추가했어요.');
+}
+function habitToggle(id,date){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  if(!Array.isArray(habit.checks))habit.checks=[];
+  if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
+  else habit.checks.push(date);
+  persistState();renderCalendar();
+}
+function habitRemove(id){
+  if(!confirm('습관과 완료 기록을 삭제할까요?'))return;
+  state.habits=habitEntries().filter(x=>x.id!==id);
+  persistState();renderCalendar();
+}
+function habitStreak(habit){
+  const checks=new Set(Array.isArray(habit.checks)?habit.checks:[]);
+  let date=koreaToday();
+  if(!checks.has(date))date=plannerDateOffset(date,-1);
+  let streak=0;
+  while(checks.has(date)&&streak<3650){streak++;date=plannerDateOffset(date,-1);}
+  return streak;
+}
+function habitPanelHTML(){
+  const today=koreaToday(),habits=habitEntries();
+  const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
+  return `<div class="card"><h3>🌱 오늘의 습관</h3>
+    <p class="meta">오늘 달성 ${completed}/${habits.length}개 · 완료 기록은 이 브라우저에 저장됩니다.</p>
+    ${habits.map(h=>`<div class="planner-item"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    <div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">＋ 습관 추가</button></div>
+  </div>`;
+}
 function plannerAgenda(){
   const today=koreaToday();
   const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
