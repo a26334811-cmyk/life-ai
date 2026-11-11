@@ -1046,7 +1046,7 @@ function focusTick(){
   focusUpdateUI();
   if(focusRemaining===0){
     focusRunning=false;clearInterval(focusInterval);focusInterval=null;
-    focusNotify();toast('집중 시간이 끝났어요!');
+    focusRecordCompletion();focusNotify();toast('집중 시간이 끝났어요!');
   }
 }
 function focusStartPause(){
@@ -1108,6 +1108,43 @@ function focusNotify(){
     }catch(e){}
   }
 }
+function focusHistory(){
+  if(!Array.isArray(state.focusHistory))state.focusHistory=[];
+  return state.focusHistory;
+}
+function focusRecordCompletion(){
+  const minutes=Number(focusSettings().minutes);
+  const category=document.getElementById('focusCategory')?.value||focusSettings().category||'study';
+  focusSettings().category=category;
+  focusHistory().unshift({date:koreaToday(),minutes,category,completedAt:new Date().toISOString()});
+  if(state.focusHistory.length>500)state.focusHistory.length=500;
+  persistState();
+  if(document.getElementById('calendarContent'))renderCalendar();
+}
+function focusChangeCategory(value){
+  if(!['study','job','personal'].includes(value))return;
+  focusSettings().category=value;persistState();
+}
+function focusHistoryHTML(){
+  const history=focusHistory();
+  const today=koreaToday(),weekStart=plannerDateOffset(today,-6);
+  const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
+  const categories={study:'📚 자격증·공부',job:'💼 취업 준비',personal:'🌿 개인 목표'};
+  const breakdown=Object.entries(categories).map(([key,label])=>({label,minutes:history.filter(x=>x.category===key).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  return `<div class="card"><h3>📊 집중 기록</h3>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
+      <div><strong>${weekMin}분</strong><p class="meta">최근 7일</p></div>
+      <div><strong>${Math.floor(allMin/60)}시간 ${allMin%60}분</strong><p class="meta">전체</p></div>
+    </div>
+    <h4>목표별 누적 집중</h4>
+    ${breakdown.map(x=>`<p class="meta">${x.label}: ${Math.floor(x.minutes/60)}시간 ${x.minutes%60}분</p>`).join('')}
+    <p class="meta">타이머가 0초까지 완료된 세션만 기록합니다. 중간에 종료한 시간은 포함하지 않습니다.</p>
+    ${history.slice(0,5).map(x=>`<p class="meta">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>`).join('')}
+  </div>`;
+}
 function focusPanelHTML(){
   const cfg=focusSettings();
   return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
@@ -1116,7 +1153,7 @@ function focusPanelHTML(){
       <button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button>
       <button class="btn secondary" onclick="focusReset()">초기화</button>
     </div>
-    <div class="focus-options"><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study">📚 자격증·공부</option><option value="job">💼 취업 준비</option><option value="personal">🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
       ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
     <label>완료 알림<select onchange="focusChangeAlarm(this.value)">
@@ -1201,7 +1238,7 @@ function renderCalendar(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  c.innerHTML=`\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
+  c.innerHTML=`\n    ${focusHistoryHTML()}\n    ${focusPanelHTML()}\n    ${plannerFocusHTML()}\n    ${habitPanelHTML()}
     <div class="card">
       <div class="planner-controls">
         <button class="btn secondary" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">←</button>
@@ -1234,6 +1271,7 @@ function renderCalendar(){
     ${state.goalType==='cert'?certCalendarHTML(state.certSchedule):''}
     <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
   `;
+  document.getElementById('focusCategory').value=focusSettings().category||'study';
   document.getElementById('plannerCategory').value=existing?.category||'personal';
   document.getElementById('plannerPriority').value=existing?.priority||'normal';
   document.getElementById('plannerRepeat').value=existing?.repeat||'none';
