@@ -10,7 +10,7 @@ exports.handler = async (event) => {
   const key = process.env.WORK24_AUTH_KEY;
   if(!key) return {statusCode:503,headers:{'content-type':'application/json'},body:JSON.stringify({message:'고용24 인증키가 아직 설정되지 않았어요.'})};
   const keyword = (event.queryStringParameters?.keyword||'').trim();
-  if(!keyword) return {statusCode:400,headers:{'content-type':'application/json'},body:JSON.stringify({message:'검색어가 필요해요.'})};
+  if(!keyword || keyword.length>100) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'검색어는 1~100자로 입력해 주세요.'})};
   const qs = new URLSearchParams({
     authKey:key, callTp:'L', returnType:'XML', startPage:'1', display:'20',
     keyword, sortOrderBy:'DESC'
@@ -20,10 +20,11 @@ exports.handler = async (event) => {
     const r = await fetch(url,{signal:AbortSignal.timeout(8000)});
     const xml = await r.text();
     if(!r.ok) throw new Error(`고용24 응답 오류 ${r.status}`);
+    if(/<html[\s>]/i.test(xml)) throw new Error('고용24에서 XML 대신 HTML을 반환했어요. 인증 및 서비스 상태를 확인해 주세요.');
     const error=xmlText(xml,'errorMsg')||xmlText(xml,'message');
     if(error) throw new Error(`고용24: ${decodeXml(error)}`);
     if(!/<(?:wantedRoot|wantedList|wanted|total)\b/i.test(xml)) throw new Error('고용24 응답을 읽지 못했어요. 인증 및 서비스 상태를 확인해 주세요.');
-    const blocks = xml.match(/<wanted>[\s\S]*?<\/wanted>/gi) || [];
+    const blocks = xml.match(/<wanted(?:\s[^>]*)?>[\s\S]*?<\/wanted\s*>/gi) || [];
     const items = blocks.map(b=>({
       wantedAuthNo:decodeXml(xmlText(b,'wantedAuthNo')),
       company:decodeXml(xmlText(b,'company')),
@@ -32,7 +33,7 @@ exports.handler = async (event) => {
       career:decodeXml(xmlText(b,'career')),
       regDt:decodeXml(xmlText(b,'regDt')),
       closeDt:decodeXml(xmlText(b,'closeDt')),
-      url:decodeXml(xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl')),
+      url:(()=>{const candidate=decodeXml(xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl'));try{const parsed=new URL(candidate);return ['https:','http:'].includes(parsed.protocol)?candidate:'';}catch{return '';}})(),
       infoSvc:decodeXml(xmlText(b,'infoSvc'))
     })).filter(x=>x.title);
     return {
