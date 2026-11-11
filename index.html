@@ -1628,7 +1628,7 @@ go=function(id){
   _go(id);
 };
 
-if(new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
+if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
 else if(state.mainGoal)go('home');
 else renderHome();
 </script>
