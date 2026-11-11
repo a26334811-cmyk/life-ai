@@ -934,7 +934,9 @@ function renderMy(){
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
-    <div class="section-title">내 데이터 백업·복원</div>\n    <div class="card"><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>\n    <div class="section-title">목표 관리</div>
+    <div class="section-title">내 데이터 백업·복원</div>
+    <div class="card"><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
+    <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
       <button class="btn ghost" onclick="editCurrentGoal()">✏️ 현재 목표 수정</button>
