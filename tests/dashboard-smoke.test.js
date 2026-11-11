@@ -40,3 +40,11 @@ test('planner has four tabbed panels and defaults to Today',()=>{
   assert.match(html,/function plannerSwitchTab\(tab\)/);
   assert.match(html,/planner-tabpanel\[hidden\]/);
 });
+
+test('planner editor starts collapsed and supports explicit add/edit/cancel',()=>{
+  assert.match(html,/let plannerFormOpen=false/);
+  assert.match(html,/function plannerOpenForm\(\)/);
+  assert.match(html,/function plannerCancelForm\(\)/);
+  assert.match(html,/id="plannerEditor"/);
+  assert.match(html,/aria-expanded=/);
+});
