@@ -281,6 +281,19 @@ h3{font-size:16px;line-height:1.4}
 @media(max-width:767px){.screen{padding:18px 14px 28px}.card{padding:15px}.dashboard-stats{gap:8px}.dashboard-stat{padding:13px;border-radius:13px;box-shadow:none}}
 @media(min-width:768px){.app{background:transparent}.screen{padding-top:36px}.card{padding:22px}}
 
+/* Compact timer actions and optional controls */
+#focusPanel .focus-timer{padding:8px 0 4px}
+#focusPanel .focus-clock{font-size:clamp(52px,12vw,68px);margin:18px 0 20px}
+#focusPanel .focus-actions{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:8px}
+#focusPanel .focus-actions button{min-height:48px;padding:11px 8px}
+#focusPanel .focus-actions .btn.ghost{background:#fff;color:var(--muted);font-size:13px;border:1px solid var(--line)}
+#focusPanel .focus-options{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:14px 0 8px}
+#focusPanel .focus-options label{display:flex;flex-direction:column;align-items:stretch;gap:5px;font-size:12px;color:var(--muted);min-width:0}
+#focusPanel .focus-options select{width:100%;min-width:0;padding:10px 8px;font-size:13px;background:var(--card);color:var(--text)}
+#focusPanel .focus-more{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+#focusPanel .focus-more summary{font-size:12px;color:var(--muted);cursor:pointer}
+#focusPanel .focus-alarm-options{grid-template-columns:minmax(0,1fr);max-width:240px}
+#focusPanel .focus-more p.meta{font-size:12px;margin:8px 0}
   </style>
 </head>
 <body>
@@ -1142,11 +1155,14 @@ function focusStartPause(){
   focusUpdateUI();
 }
 function focusReset(){
+  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){if(!confirm("진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요."))return;}
   focusRunning=false;clearInterval(focusInterval);focusInterval=null;
   focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
 }
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
 function focusChangeMinutes(value){
+  const previous=Number(focusSettings().minutes);
+  if((focusRunning||focusRemaining<previous*60)&&!confirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?')){renderCalendar();return;}
   focusSettings().minutes=Number(value);persistState();focusReset();
 }
 function focusChangeAlarm(value){
@@ -1292,19 +1308,18 @@ function focusHistoryHTML(){
 function focusPanelHTML(){
   const cfg=focusSettings();
   return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
-    <p class="meta">짧고 깊게 집중해 보세요. 기본 알림은 진동입니다.</p>
+    <p class="meta">지금 할 수 있는 만큼, 차분하게 집중해요.</p>
     <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
-      <button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button>
-      <button class="btn secondary" onclick="focusReset()">초기화</button>
+      <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
-    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study">📚 자격증·공부</option><option value="job">💼 취업 준비</option><option value="personal">🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study" ${(!cfg.category||cfg.category==='study')?'selected':''}>📚 자격증·공부</option><option value="job" ${cfg.category==='job'?'selected':''}>💼 취업 준비</option><option value="personal" ${cfg.category==='personal'?'selected':''}>🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
       ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
-    <label>완료 알림<select onchange="focusChangeAlarm(this.value)">
+    </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
       ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
     </select></label></div>
     <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
-    <p class="meta">앱이 열려 있는 동안 작동합니다. 브라우저를 종료하거나 기기가 절전 상태가 되면 완료 알림이 보장되지 않습니다.</p>
+    <p class="meta">앱이 열려 있는 동안 작동합니다. 브라우저를 종료하거나 기기가 절전 상태가 되면 완료 알림이 보장되지 않습니다.</p></details>
   </div>`;
 }
 function habitEntries(){
