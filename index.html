@@ -1161,6 +1161,8 @@ function focusReset(){
 }
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
 function focusChangeMinutes(value){
+  const previous=Number(focusSettings().minutes);
+  if((focusRunning||focusRemaining<previous*60)&&!confirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?')){renderCalendar();return;}
   focusSettings().minutes=Number(value);persistState();focusReset();
 }
 function focusChangeAlarm(value){
@@ -1310,7 +1312,7 @@ function focusPanelHTML(){
     <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
       <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
-    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study">📚 자격증·공부</option><option value="job">💼 취업 준비</option><option value="personal">🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study" ${(!cfg.category||cfg.category==='study')?'selected':''}>📚 자격증·공부</option><option value="job" ${cfg.category==='job'?'selected':''}>💼 취업 준비</option><option value="personal" ${cfg.category==='personal'?'selected':''}>🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
       ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
     </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
