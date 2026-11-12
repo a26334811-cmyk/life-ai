@@ -294,6 +294,26 @@ h3{font-size:16px;line-height:1.4}
 #focusPanel .focus-more summary{font-size:12px;color:var(--muted);cursor:pointer}
 #focusPanel .focus-alarm-options{grid-template-columns:minmax(0,1fr);max-width:240px}
 #focusPanel .focus-more p.meta{font-size:12px;margin:8px 0}
+
+/* Quiet secondary cards: consistent density and progressive disclosure */
+.dashboard-stats{gap:8px;margin:12px 0}
+.dashboard-stat{border:1px solid var(--line);border-radius:14px;padding:13px;box-shadow:none;background:var(--card)}
+.dashboard-stat .metric{font-size:23px;color:var(--text);margin:6px 0 3px;overflow-wrap:anywhere}
+.dashboard-stat .meta{line-height:1.4}
+.dashboard-grid{gap:10px;margin:12px 0}
+.dashboard-panel .card{display:flex;flex-direction:column;gap:7px}
+.dashboard-panel .card h3,.dashboard-panel .card h2{margin:0}
+.dashboard-panel .card p{margin:0 0 4px}
+.dashboard-panel .btn{margin-top:auto;min-height:42px;padding:10px 12px;font-size:13px}
+.habit-row{align-items:center;border-bottom:1px solid var(--line);padding:5px 0}
+.habit-row .check{border:0;padding:10px 0}
+.habit-row p.meta{margin:0 0 8px 30px}
+.habit-row .habit-remove{width:auto;min-width:58px;padding:8px;font-size:12px;color:var(--muted)}
+.habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
+.habit-add .planner-form{margin-top:12px}
+.focus-history-more h4{margin:12px 0 8px}
+.focus-history-more p.meta{margin:6px 0}
   </style>
 </head>
 <body>
@@ -879,7 +899,6 @@ function renderHome(){
   const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
     .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
-    <div class="card" style="border:2px solid var(--primary)"><strong>🧪 새 기능 미리보기 · 2026-11-12</strong><p class="meta">집중 타이머, 진동 알림, 습관, 7일 리포트를 일정 화면에서 확인하세요.</p><button class="btn primary" onclick="go('calendar')">⏱ 집중 타이머 바로 확인</button></div>
     <div class="dashboard-stats">
       <div class="dashboard-stat"><span class="meta">💼 저장한 채용공고</span><div class="metric">${jobs.length}건</div><span class="meta">내가 등록한 공고 기준</span></div>
       <div class="dashboard-stat"><span class="meta">🏅 관심 자격증</span><div class="metric">${favorites.length}개</div><span class="meta">관심 목록에 저장됨</span></div>
@@ -1287,7 +1306,7 @@ function progressInsightsHTML(){
 }
 function focusHistoryHTML(){
   const history=focusHistory();
-  const today=koreaToday(),weekStart=plannerDateOffset(today,-6);
+  const today=koreaToday(),weekStart=plannerDateOffset(today,-new Date(today+'T12:00:00Z').getUTCDay());
   const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
@@ -1296,13 +1315,13 @@ function focusHistoryHTML(){
   return `<div class="card"><h3>📊 집중 기록</h3>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
-      <div><strong>${weekMin}분</strong><p class="meta">최근 7일</p></div>
+      <div><strong>${weekMin}분</strong><p class="meta">이번 주</p></div>
       <div><strong>${Math.floor(allMin/60)}시간 ${allMin%60}분</strong><p class="meta">전체</p></div>
     </div>
-    <h4>목표별 누적 집중</h4>
+    <details class="focus-history-more"><summary>목표별 기록·최근 활동 보기</summary><h4>목표별 누적 집중</h4>
     ${breakdown.map(x=>`<p class="meta">${x.label}: ${Math.floor(x.minutes/60)}시간 ${x.minutes%60}분</p>`).join('')}
     <p class="meta">타이머가 0초까지 완료된 세션만 기록합니다. 중간에 종료한 시간은 포함하지 않습니다.</p>
-    ${history.slice(0,5).map(x=>`<p class="meta">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>`).join('')}
+    ${history.slice(0,5).map(x=>`<p class="meta">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>`).join('')}</details>
   </div>`;
 }
 function focusPanelHTML(){
@@ -1359,9 +1378,9 @@ function habitPanelHTML(){
   const today=koreaToday(),habits=habitEntries();
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
-    <p class="meta">오늘 달성 ${completed}/${habits.length}개 · 완료 기록은 이 브라우저에 저장됩니다.</p>
-    ${habits.map(h=>`<div class="planner-item"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
-    <div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">＋ 습관 추가</button></div>
+    <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
 function plannerAgenda(){
