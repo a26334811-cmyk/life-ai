@@ -1164,7 +1164,7 @@ function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)ret
 function plannerEscapeAttr(s){return esc(String(s||''));}
 let focusInterval=null;
 let focusDeadline=0;
-let focusRemaining=25*60;
+let focusRemaining=([5,10,15,25,30,45,50,60].includes(Number(state.focusSettings?.minutes))?Number(state.focusSettings.minutes):25)*60;
 let focusRunning=false;
 let focusAudioContext=null;
 function focusSettings(){
