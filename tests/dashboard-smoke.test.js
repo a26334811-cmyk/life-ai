@@ -86,3 +86,12 @@ test('focus timer uses compact action row and hides advanced alarm settings',()=
   assert.match(html,/진행 중인 집중 시간을 초기화할까요/);
   assert.match(html,/집중 시간을 변경하면 진행 중인 타이머가 초기화돼요/);
 });
+
+test('dashboard and secondary cards stay compact and avoid stale preview messaging',()=>{
+  assert.doesNotMatch(html,/새 기능 미리보기 · 2026-11-12/);
+  assert.match(html,/class="habit-add"/);
+  assert.match(html,/class="habit-row"/);
+  assert.match(html,/class="focus-history-more"/);
+  assert.match(html,/이번 주/);
+  assert.match(html,/dashboard-panel \.btn/);
+});
