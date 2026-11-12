@@ -248,6 +248,39 @@
 .insights-details summary{cursor:pointer;list-style-position:inside}
 #progressInsights .planner-grid{margin-bottom:8px}
 #progressInsights .planner-grid strong{font-size:clamp(17px,4vw,24px)}
+
+/* Quiet, consistent mobile UI: visual-only overrides. */
+:root{--bg:#f7f9fc;--card:#fff;--text:#1f2937;--muted:#687589;--line:#e7ecf2;--radius:16px}
+body{background:#f7f9fc}
+.app{background:#f7f9fc}
+.screen{padding-top:18px}
+h1,h2,h3{color:var(--text);letter-spacing:-.025em}
+h2{font-size:21px;margin-bottom:14px}
+h3{font-size:16px;line-height:1.4}
+.card,.choice{border-color:var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(31,41,55,.025)}
+.card{padding:16px}
+.stack{gap:10px}
+.meta{color:var(--muted);line-height:1.45}
+.btn{border-radius:11px;font-weight:700}
+.btn.primary{background:#1763db;box-shadow:none}
+.btn.secondary{background:#eef3fb;color:#245ba5}
+.bottomnav{background:rgba(255,255,255,.97);border-color:var(--line);box-shadow:0 -2px 12px rgba(31,41,55,.04)}
+.bottomnav button.active{background:#f0f5ff}
+.planner-tabbar{gap:0;padding:6px;background:#f0f3f8;border-radius:13px;position:sticky;top:0}
+.planner-tabbar button{border:0;background:transparent;color:#637083;border-radius:9px;padding:10px 2px;font-size:12px}
+.planner-tabbar button[aria-selected="true"]{background:#fff;color:#1763db;border:0;box-shadow:0 1px 5px rgba(30,55,85,.08)}
+.planner-toolbar{margin:10px 0}
+.planner-toolbar button.btn{min-height:36px}
+.planner-day{border-color:var(--line);border-radius:8px}
+.planner-day.selected{background:#f0f5ff}
+.insights-day{border-radius:7px}
+#progressInsights .planner-grid strong{font-weight:800;letter-spacing:-.03em}
+.recovery-choices{background:#f0f3f8;border-radius:11px;padding:4px;gap:3px}
+.recovery-choices button.btn{border-radius:8px;box-shadow:none;background:transparent;color:#637083}
+.recovery-choices button.btn.primary{background:#fff;color:#1763db;box-shadow:0 1px 5px rgba(30,55,85,.08)}
+@media(max-width:767px){.screen{padding:18px 14px 28px}.card{padding:15px}.dashboard-stats{gap:8px}.dashboard-stat{padding:13px;border-radius:13px;box-shadow:none}}
+@media(min-width:768px){.app{background:transparent}.screen{padding-top:36px}.card{padding:22px}}
+
   </style>
 </head>
 <body>
