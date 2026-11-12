@@ -111,3 +111,8 @@ test('backup import validates nested records and warns when saving fails',()=>{
   assert.match(html,/lifeAISaveWarningShown/);
   assert.match(html,/기록을 저장하지 못했어요/);
 });
+
+test('focus timer starts with the saved duration after reopening the app',()=>{
+  assert.match(html,/let focusRemaining=\(\[5,10,15,25,30,45,50,60\]\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
+  assert.doesNotMatch(html,/let focusRemaining=25\*60/);
+});
