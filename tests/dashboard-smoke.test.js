@@ -1,0 +1,126 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const html=fs.readFileSync(require('node:path').join(__dirname,'..','index.html'),'utf8');
+test('inline application JavaScript parses',()=>{
+  const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(Boolean);
+  assert.ok(scripts.length>0,'expected inline app script');
+  scripts.forEach((script,i)=>assert.doesNotThrow(()=>new vm.Script(script,{filename:'index-script-'+i+'.js'})));
+});
+test('modern blue dashboard and navigation targets exist',()=>{
+  for(const id of ['home','my','goals','calendar','jobHub','cert','liveJobs','bottomnav']){
+    assert.match(html,new RegExp('id="'+id+'"'));
+  }
+  for(const marker of ['dashboard-stats','dashboard-grid','exportLifeAIBackup','importLifeAIBackup','liveJobsRequestVersion']){
+    assert.ok(html.includes(marker),marker);
+  }
+});
+
+test('planner, focus and habit integration markers are present',()=>{
+  for(const fn of ['plannerSave','plannerOccurs','plannerForDate','habitToggle','habitStreak','focusStartPause','focusRecordCompletion','progressInsightsHTML','focusNotify']){
+    assert.match(html,new RegExp('function '+fn+'\\('),fn);
+  }
+  for(const token of ["alarm:'vibrate'","navigator.vibrate","focus-flash","visibilitychange","focusHistoryHTML()","habitPanelHTML()","progressInsightsHTML()"]){
+    assert.ok(html.includes(token),token);
+  }
+});
+
+test('nested Netlify entrypoint matches root app',()=>{
+  const path=require('node:path');
+  const nested=fs.readFileSync(path.join(__dirname,'..','LIFE_AI_v6_2_QNET_LIVE_FIXED (3)','life_ai_v6_2','index.html'),'utf8');
+  assert.equal(nested,html,'nested deployment directory must not serve a stale app');
+});
+
+test('planner has four tabbed panels and defaults to Today',()=>{
+  for(const tab of ['today','calendar','habits','stats']){
+    assert.ok(html.includes("'"+tab+"'"),tab);
+  }
+  assert.match(html,/let plannerActiveTab='today'/);
+  assert.match(html,/function plannerSwitchTab\(tab\)/);
+  assert.match(html,/planner-tabpanel\[hidden\]/);
+});
+
+test('planner editor starts collapsed and supports explicit add/edit/cancel',()=>{
+  assert.match(html,/let plannerFormOpen=false/);
+  assert.match(html,/function plannerOpenForm\(\)/);
+  assert.match(html,/function plannerCancelForm\(\)/);
+  assert.match(html,/id="plannerEditor"/);
+  assert.match(html,/aria-expanded=/);
+});
+
+test('day view hides weekday grid and weekly report starts on Sunday',()=>{
+  assert.match(html,/plannerView==='day'\s*\?/);
+  assert.match(html,/planner-day-summary/);
+  assert.match(html,/이번 주/);
+  assert.match(html,/weekStart=plannerDateOffset\(today,-new Date\(today\+'T12:00:00Z'\).getUTCDay\(\)\)/);
+});
+
+test('weekly insights is default and monthly insights has calendar month bounds',()=>{
+  assert.match(html,/let insightsPeriod='week'/);
+  assert.match(html,/function insightsSetPeriod\(period\)/);
+  assert.match(html,/monthStart=today.slice\(0,7\)\+'-01'/);
+  assert.match(html,/월간/);
+  assert.match(html,/id="progressInsights"/);
+});
+
+test('recovery mode is opt-in and does not suppress critical reminders',()=>{
+  assert.match(html,/function recoverySetMode\(mode\)/);
+  assert.match(html,/function recoveryPanelHTML\(\)/);
+  assert.match(html,/state.recoveryMode=mode;persistState\(\)/);
+  assert.match(html,/시험·면접 일정을 숨기지 않아요/);
+});
+
+test('monthly heatmap displays daily focus and selectable dates',()=>{
+  assert.match(html,/function insightsSelectDate\(date\)/);
+  assert.match(html,/class="insights-heatmap"/);
+  assert.match(html,/aria-label="월간 날짜별 집중 시간"/);
+  assert.match(html,/d\.minutes\/maxDayMinutes/);
+  assert.match(html,/selected\.minutes/);
+});
+
+test('focus timer uses compact action row and hides advanced alarm settings',()=>{
+  assert.match(html,/class="focus-actions"/);
+  assert.match(html,/class="focus-more"/);
+  assert.match(html,/알림 및 사용 안내/);
+  assert.match(html,/진행 중인 집중 시간을 초기화할까요/);
+  assert.match(html,/집중 시간을 변경하면 진행 중인 타이머가 초기화돼요/);
+});
+
+test('dashboard and secondary cards stay compact and avoid stale preview messaging',()=>{
+  assert.doesNotMatch(html,/새 기능 미리보기 · 2026-11-12/);
+  assert.match(html,/class="habit-add"/);
+  assert.match(html,/class="planner-item habit-row"/);
+  assert.match(html,/class="focus-history-more"/);
+  assert.match(html,/이번 주/);
+  assert.match(html,/dashboard-panel \.btn/);
+});
+
+test('changing focus duration resets once after confirmation without second reset prompt',()=>{
+  const match=html.match(/function focusChangeMinutes\(value\)\{([\s\S]*?)\n\}/);
+  assert.ok(match,'focusChangeMinutes must exist');
+  assert.doesNotMatch(match[1],/focusReset\(\)/);
+  assert.match(match[1],/focusRemaining=Number\(value\)\*60/);
+});
+
+test('backup import validates nested records and warns when saving fails',()=>{
+  assert.match(html,/function validateLifeAIBackupState\(data\)/);
+  assert.match(html,/data\.completedTasks\.some\(value=>typeof value!=='boolean'\)/);
+  assert.match(html,/if\(!validateLifeAIBackupState\(backup\.state\)\)/);
+  assert.match(html,/const snapshot=localStorage\.getItem\('lifeAIPrototypeV5'\)/);
+  assert.match(html,/lifeAISaveWarningShown/);
+  assert.match(html,/기록을 저장하지 못했어요/);
+});
+
+test('focus timer starts with the saved duration after reopening the app',()=>{
+  assert.match(html,/let focusRemaining=\(\[5,10,15,25,30,45,50,60\]\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
+  assert.doesNotMatch(html,/let focusRemaining=25\*60/);
+});
+
+test('home summary is rounded and compact with details available on demand',()=>{
+  assert.match(html,/class="soft-overview"/);
+  assert.match(html,/class="soft-overview-row"/);
+  assert.match(html,/자세한 현황 보기/);
+  assert.match(html,/\.soft-overview\{[^}]*border-radius:26px/);
+  assert.match(html,/aria-label="시험 일정 보기"/);
+});
