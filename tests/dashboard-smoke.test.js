@@ -116,3 +116,11 @@ test('focus timer starts with the saved duration after reopening the app',()=>{
   assert.match(html,/let focusRemaining=\(\[5,10,15,25,30,45,50,60\]\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
   assert.doesNotMatch(html,/let focusRemaining=25\*60/);
 });
+
+test('home summary is rounded and compact with details available on demand',()=>{
+  assert.match(html,/class="soft-overview"/);
+  assert.match(html,/class="soft-overview-row"/);
+  assert.match(html,/자세한 현황 보기/);
+  assert.match(html,/\.soft-overview\{[^}]*border-radius:26px/);
+  assert.match(html,/aria-label="시험 일정 보기"/);
+});
