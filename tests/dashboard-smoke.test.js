@@ -78,3 +78,11 @@ test('monthly heatmap displays daily focus and selectable dates',()=>{
   assert.match(html,/d\.minutes\/maxDayMinutes/);
   assert.match(html,/selected\.minutes/);
 });
+
+test('focus timer uses compact action row and hides advanced alarm settings',()=>{
+  assert.match(html,/class="focus-actions"/);
+  assert.match(html,/class="focus-more"/);
+  assert.match(html,/알림 및 사용 안내/);
+  assert.match(html,/진행 중인 집중 시간을 초기화할까요/);
+  assert.match(html,/집중 시간을 변경하면 진행 중인 타이머가 초기화돼요/);
+});
