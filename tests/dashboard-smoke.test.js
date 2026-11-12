@@ -90,8 +90,15 @@ test('focus timer uses compact action row and hides advanced alarm settings',()=
 test('dashboard and secondary cards stay compact and avoid stale preview messaging',()=>{
   assert.doesNotMatch(html,/새 기능 미리보기 · 2026-11-12/);
   assert.match(html,/class="habit-add"/);
-  assert.match(html,/class="habit-row"/);
+  assert.match(html,/class="planner-item habit-row"/);
   assert.match(html,/class="focus-history-more"/);
   assert.match(html,/이번 주/);
   assert.match(html,/dashboard-panel \.btn/);
+});
+
+test('changing focus duration resets once after confirmation without second reset prompt',()=>{
+  const match=html.match(/function focusChangeMinutes\(value\)\{([\s\S]*?)\n\}/);
+  assert.ok(match,'focusChangeMinutes must exist');
+  assert.doesNotMatch(match[1],/focusReset\(\)/);
+  assert.match(match[1],/focusRemaining=Number\(value\)\*60/);
 });
