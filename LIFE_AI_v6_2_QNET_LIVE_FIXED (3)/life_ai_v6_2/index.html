@@ -169,6 +169,18 @@
     }
 
     .dashboard-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+    .soft-overview{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:8px 16px;box-shadow:0 3px 14px rgba(20,60,90,.035);margin:12px 0 16px}
+    .soft-overview-row{display:flex;align-items:center;gap:12px;padding:12px 0;min-width:0}
+    .soft-overview-row+.soft-overview-row{border-top:1px solid var(--line)}
+    .soft-overview-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:14px;background:#edf4f9;font-size:19px}
+    .soft-overview-copy{flex:1;min-width:0}
+    .soft-overview-copy strong{display:block;font-size:15px;line-height:1.4}
+    .soft-overview-copy .meta{display:block;line-height:1.4;overflow-wrap:anywhere}
+    .soft-overview-action{flex:0 0 auto;border:0;border-radius:12px;background:#edf4f9;color:var(--primary);font-size:12px;font-weight:750;padding:9px 11px;cursor:pointer}
+    .soft-overview details{border-top:1px solid var(--line);padding:10px 0 3px}
+    .soft-overview summary{cursor:pointer;font-size:12px;color:var(--muted);font-weight:700;padding:3px 0}
+    .soft-overview .dashboard-stats{margin:12px 0 4px}
+    .soft-overview :focus-visible{outline:2px solid var(--primary);outline-offset:3px}
     .dashboard-stat{padding:18px;border:1px solid #dce7fa;background:#fff;border-radius:18px;box-shadow:0 6px 20px rgba(30,80,140,.05);min-width:0}
     .dashboard-stat .metric{font-size:25px;font-weight:850;letter-spacing:-.04em;color:#175ac5;margin:7px 0}
     .dashboard-stat .meta{font-size:12px}
@@ -929,11 +941,19 @@ function renderHome(){
   const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
     .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
+    <div class="soft-overview" aria-label="내 생활 요약">
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(fmtDate(nextEvent.date)):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">💼</span><div class="soft-overview-copy"><strong>저장한 공고 ${jobs.length}건</strong><span class="meta">관심 자격증 ${favorites.length}개</span></div><button class="soft-overview-action" onclick="go('jobHub')" aria-label="채용공고 관리 보기">관리</button></div>
+      <details><summary>자세한 현황 보기</summary>
     <div class="dashboard-stats">
       <div class="dashboard-stat"><span class="meta">💼 저장한 채용공고</span><div class="metric">${jobs.length}건</div><span class="meta">내가 등록한 공고 기준</span></div>
       <div class="dashboard-stat"><span class="meta">🏅 관심 자격증</span><div class="metric">${favorites.length}개</div><span class="meta">관심 목록에 저장됨</span></div>
       <div class="dashboard-stat"><span class="meta">☑ 목표 진행률</span><div class="metric">${progress}%</div><span class="meta">${completed}/${taskTotal}개 단계 완료</span></div>
       <div class="dashboard-stat"><span class="meta">📅 다음 시험 일정</span><div class="metric" style="font-size:17px">${nextEvent?esc(fmtDate(nextEvent.date)):'미등록'}</div><span class="meta">${nextEvent?esc(nextEvent.name):'Q-Net에서 일정 확인 필요'}</span></div>
+    </div>
+
+      </details>
     </div>
     <div class="dashboard-grid">
       <div class="dashboard-panel"><div class="card">
