@@ -102,3 +102,12 @@ test('changing focus duration resets once after confirmation without second rese
   assert.doesNotMatch(match[1],/focusReset\(\)/);
   assert.match(match[1],/focusRemaining=Number\(value\)\*60/);
 });
+
+test('backup import validates nested records and warns when saving fails',()=>{
+  assert.match(html,/function validateLifeAIBackupState\(data\)/);
+  assert.match(html,/data\.completedTasks\.some\(value=>typeof value!=='boolean'\)/);
+  assert.match(html,/if\(!validateLifeAIBackupState\(backup\.state\)\)/);
+  assert.match(html,/const snapshot=localStorage\.getItem\('lifeAIPrototypeV5'\)/);
+  assert.match(html,/lifeAISaveWarningShown/);
+  assert.match(html,/기록을 저장하지 못했어요/);
+});
