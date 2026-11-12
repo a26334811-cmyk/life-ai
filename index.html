@@ -1182,7 +1182,9 @@ if(typeof document.addEventListener==='function')document.addEventListener('visi
 function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!confirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?')){renderCalendar();return;}
-  focusSettings().minutes=Number(value);persistState();focusReset();
+  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusSettings().minutes=Number(value);persistState();
+  focusRemaining=Number(value)*60;focusUpdateUI();
 }
 function focusChangeAlarm(value){
   focusSettings().alarm=value;persistState();
