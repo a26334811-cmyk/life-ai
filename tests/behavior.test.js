@@ -363,3 +363,12 @@ test('ordinary startup is not affected by the share handler',()=>{
   const b=createApp(undefined,{search:'?text=hello'});
   assert.equal(b.historyCalls.length,0);
 });
+
+test('an inferred company name is flagged to the user as a guess',async()=>{
+  const a=createApp(undefined,{fetch:reply({ok:true,title:'26.11 현대제철 포항공장 기술직(계약) 채용',siteName:'현대제철 채용',company:'현대제철',companyInferred:true,description:''})});
+  a.el('postingUrl').value='https://hyundai-steel.recruiter.co.kr/career/jobs/133809';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingCompany').value,'현대제철');
+  assert.match(status(a),/회사명은 페이지 정보로 추정한 값/);
+  assert.equal(a.el('postingDeadline').value,'');
+});

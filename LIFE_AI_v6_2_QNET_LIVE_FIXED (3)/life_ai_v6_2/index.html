@@ -1846,6 +1846,7 @@ function applyPostingInfo(info){
   else if(deadline&&postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
   if(!filled.length&&!note)return '읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.';
   let message=filled.length?'채운 항목: '+filled.join(', ')+'.':'';
+  if(filled.includes('회사명')&&info.companyInferred)message+=' 회사명은 페이지 정보로 추정한 값이에요.';
   if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
   return (message+note+' 내용을 확인해 주세요.').trim();
 }

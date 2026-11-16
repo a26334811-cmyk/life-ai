@@ -204,6 +204,25 @@ function regionFrom(location) {
   return [address.addressRegion, address.addressLocality].map(x => plain(x, 40)).filter(Boolean).join(' ');
 }
 
+/* Company career sites (not job boards) usually name the employer in <meta name="author"> or the site publisher.
+   That is a guess about the page owner, so it is used only when the same name also appears inside the posting title
+   (after removing a trailing site name). A board such as "시설관리 - 사람인" therefore never yields "사람인". */
+function inferCompany(html, nodes, title, siteName) {
+  const candidates = [metaContent(html, 'author')];
+  for (const node of nodes) {
+    if (node && node.publisher) candidates.push(text(node.publisher));
+    if (node && node['@type'] === 'Organization') candidates.push(text(node));
+  }
+  let bare = String(title || '');
+  for (const sep of [' - ', ' | ', ' : ', ' · ', ' – ', ' — ']) {
+    if (siteName && bare.endsWith(sep + siteName)) { bare = bare.slice(0, -(sep + siteName).length); break; }
+  }
+  for (const name of candidates) {
+    if (name && name.length >= 2 && name !== siteName && bare.includes(name)) return name;
+  }
+  return '';
+}
+
 function parsePage(html, finalUrl) {
   const nodes = jsonLdBlocks(html).reduce((all, block) => flattenLd(block, all), []);
   const job = nodes.find(isJobPosting);
@@ -212,18 +231,22 @@ function parsePage(html, finalUrl) {
   const metaTitle = metaContent(html, 'og:title') || metaContent(html, 'twitter:title') || (titleTag ? plain(titleTag[1], 200) : '');
   const metaDescription = metaContent(html, 'og:description') || metaContent(html, 'description');
   if (job) {
+    const title = text(job.title) || metaTitle;
+    const stated = text(job.hiringOrganization);
+    const inferred = stated ? '' : inferCompany(html, nodes, title, siteName);
     return {
       ok: true, source: 'jobposting', url: finalUrl, siteName,
-      title: text(job.title) || metaTitle,
-      company: text(job.hiringOrganization),
+      title,
+      company: stated || inferred, companyInferred: Boolean(inferred),
       deadline: isoDate(job.validThrough),
       region: regionFrom(job.jobLocation),
       description: plain(job.description, 1500) || metaDescription
     };
   }
+  const inferred = inferCompany(html, nodes, metaTitle, siteName);
   return {
     ok: true, source: 'meta', url: finalUrl, siteName,
-    title: metaTitle, company: '', deadline: '', region: '', description: metaDescription
+    title: metaTitle, company: inferred, companyInferred: Boolean(inferred), deadline: '', region: '', description: metaDescription
   };
 }
 

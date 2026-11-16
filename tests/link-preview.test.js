@@ -145,3 +145,34 @@ test('a streamed huge page stops reading after the limit',async()=>{
   assert.equal(r.body.title,'스트림 공고');
   assert.ok(pulled<=8,'stopped early, read '+pulled+' chunks');
 });
+
+/* ---------- company career sites (real page shape: hyundai-steel.recruiter.co.kr) ---------- */
+const CAREER_SITE=`<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/>
+<meta name="description" content="현대제철에서 현대제철 포항공장 기술직(계약) 채용 지원자를 모집하고 있어요."/>
+<meta name="author" content="현대제철"/>
+<meta property="og:title" content="26.11 현대제철 포항공장 기술직(계약) 채용"/>
+<meta property="og:description" content="Start your MOVE with Hyundai Steel"/>
+<meta property="og:site_name" content="현대제철 채용"/>
+<title>현대제철 채용 | 현대제철 포항공장 기술직(계약) 채용</title></head>
+<body><script id="structuredData-script" type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"현대제철 채용","publisher":{"@type":"Organization","name":"현대제철"}}]}</script></body></html>`;
+
+test('a company career site names the employer through its author tag, marked as inferred',()=>{
+  const r=parsePage(CAREER_SITE,'https://hyundai-steel.recruiter.co.kr/career/jobs/133809');
+  assert.equal(r.title,'26.11 현대제철 포항공장 기술직(계약) 채용');
+  assert.equal(r.company,'현대제철');
+  assert.equal(r.companyInferred,true);
+  assert.equal(r.deadline,'','a deadline drawn by JavaScript is not in the HTML and is never invented');
+});
+
+test('a job board name is never taken as the employer',()=>{
+  const board='<meta name="author" content="사람인"><meta property="og:site_name" content="사람인"><title>시설관리 신입 - 사람인</title>';
+  const r=parsePage(board,'https://www.saramin.co.kr/x');
+  assert.equal(r.company,'');assert.equal(r.companyInferred,false);
+  const other='<meta name="author" content="어떤회사"><meta property="og:site_name" content="어떤 채용"><title>시설관리 신입 | 어떤 채용</title>';
+  assert.equal(parsePage(other,'https://e.com').company,'','author that is not in the posting title is ignored');
+});
+
+test('a company stated by JobPosting data is used as written and not marked inferred',()=>{
+  const r=parsePage(JSON_LD,'https://example.com/job/1');
+  assert.equal(r.company,'삼천리');assert.equal(r.companyInferred,false);
+});
