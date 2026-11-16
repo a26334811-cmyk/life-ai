@@ -182,3 +182,27 @@ test('cleanTitle removes only a trailing site name',()=>{
   assert.equal(L.cleanTitle('  여러   공백  ',''),'여러 공백');
   assert.equal(L.cleanTitle('가'.repeat(300),'').length,120);
 });
+
+/* ---------- real posting text (hyundai-steel.recruiter.co.kr, user screenshot 2026-11-16) ---------- */
+const HYUNDAI_TEXT=`4. 모집기간 및 지원방법
+- 모집기간 : 26.11.11(수) 15:00  ~ 26.11.22(일) 23:59 까지
+- 지원방법 : 당사 홈페이지 (hyundai-steel.recruiter.co.kr) 內 채용공고 메뉴 접속 후 지원서 작성
+※ ①당사 홈페이지 지원서 ②기술직지원추가정보입력시스템, 총 2가지 지원서 ‘모두’ 작성시 최종지원 접수 완료
+5. 전형절차 서류전형 26.12.03 발표`;
+
+test('two-digit-year dates in a real posting give the end of the application period',()=>{
+  const r=L.extractDeadline(HYUNDAI_TEXT,'2026-11-16');
+  assert.equal(r.date,'2026-11-22');
+  assert.equal(r.past,false);
+  assert.equal(r.confident,true);
+});
+
+test('two-digit-year forms and look-alike numbers',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('접수 마감: 26/12/05 18시까지',today)?.date,'2026-12-05');
+  assert.equal(L.extractDeadline('지원기간 26-11-10 ~ 26-11-30',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('서류전형 합격자 발표 26.12.03',today),null,'announcement date is not a deadline');
+  assert.equal(L.extractDeadline('버전 10.20.30 안내, 문의 12.34.56',today),null,'version-like numbers have no deadline clue');
+  assert.equal(L.extractDeadline('마감 26.13.45',today),null,'impossible date');
+  assert.equal(L.extractDeadline('마감 2026.11.22',today)?.date,'2026-11-22','four-digit form still works');
+});

@@ -265,6 +265,12 @@
     let m;
     const full = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
     while ((m = full.exec(src))) add(m.index, m[0].length, Number(m[1]), Number(m[2]), Number(m[3]), true);
+    // two-digit year as many company sites write it: 26.11.22(일) -> 2026-11-22
+    const twoDigit = /(?<![\d.\-/])(\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?![\d])/g;
+    while ((m = twoDigit.exec(src))) {
+      if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      add(m.index, m[0].length, 2000 + Number(m[1]), Number(m[2]), Number(m[3]), true);
+    }
     const korean = /(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
     while ((m = korean.exec(src))) {
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
@@ -278,8 +284,8 @@
     if (!found.length) return null;
     let best = null;
     for (const c of found) {
-      const before = src.slice(Math.max(0, c.index - 24), c.index);
-      const after = src.slice(c.index + c.length, c.index + c.length + 10);
+      const before = src.slice(Math.max(0, c.index - 30), c.index);
+      const after = src.slice(c.index + c.length, c.index + c.length + 16);
       let score = 0;
       for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
       for (const word of NEGATIVE) { if (before.slice(-10).includes(word)) score -= 3; }

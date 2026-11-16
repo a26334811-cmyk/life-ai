@@ -372,3 +372,11 @@ test('an inferred company name is flagged to the user as a guess',async()=>{
   assert.match(status(a),/회사명은 페이지 정보로 추정한 값/);
   assert.equal(a.el('postingDeadline').value,'');
 });
+
+test('pasting the real Hyundai Steel posting text fills the deadline 2026-11-22',()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z')});
+  a.el('postingPaste').value='4. 모집기간 및 지원방법\n- 모집기간 : 26.11.11(수) 15:00  ~ 26.11.22(일) 23:59 까지\n- 지원방법 : 당사 홈페이지 (hyundai-steel.recruiter.co.kr) 內 채용공고 메뉴 접속 후 지원서 작성';
+  a.run('fillPostingFromPaste()');
+  assert.equal(a.el('postingDeadline').value,'2026-11-22');
+  assert.match(status(a),/마감일/);
+});
