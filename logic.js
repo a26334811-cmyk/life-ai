@@ -191,7 +191,15 @@
       ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts'].some(k => Array.isArray(state[k]) && state[k].length);
   }
 
-  /* Returns {kind, message} when the user should be nudged to back up, otherwise null. */
+  // How many saved records the user has made (habits, schedule entries, focus sessions, postings, favourites).
+  function recordCount(state) {
+    if (!state) return 0;
+    return ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts']
+      .reduce((sum, k) => sum + (Array.isArray(state[k]) ? state[k].length : 0), 0);
+  }
+
+  /* Returns {kind, message} when the user should be nudged to back up, otherwise null.
+     A first-day user who only typed a goal is not nagged: "never backed up" needs at least 3 saved records. */
   function backupNudge(state, now, opts) {
     const staleDays = (opts && opts.staleDays) || 14;
     const limit = (opts && opts.historyLimit) || FOCUS_HISTORY_LIMIT;
@@ -202,7 +210,10 @@
       return { kind: 'history', message: '집중 기록이 ' + count + '/' + limit + '개예요. 가득 차면 오래된 기록부터 지워져요. 지금 백업해 두면 안전해요.' };
     }
     const last = Date.parse(state.lastBackupAt || '');
-    if (!Number.isFinite(last)) return { kind: 'never', message: '아직 백업한 적이 없어요. 브라우저 데이터를 지우면 기록이 사라지니 한 번 백업해 두세요.' };
+    if (!Number.isFinite(last)) {
+      if (recordCount(state) < 3) return null;
+      return { kind: 'never', message: '아직 백업한 적이 없어요. 브라우저 데이터를 지우면 기록이 사라지니 한 번 백업해 두세요.' };
+    }
     const days = Math.floor((now - last) / 86400000);
     if (days >= staleDays) return { kind: 'stale', message: '마지막 백업이 ' + days + '일 전이에요. 새 기록을 백업해 두면 좋아요.' };
     return null;
@@ -310,7 +321,7 @@
     validDate, koreaDate, dateOffset, daysInMonth,
     occurs, isRepeating, isDone, toggleDone, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
-    resumeFocus, backupNudge, hasUserData
+    resumeFocus, backupNudge, hasUserData, recordCount
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LifeLogic = api;

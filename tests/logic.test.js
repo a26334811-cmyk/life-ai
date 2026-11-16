@@ -121,7 +121,10 @@ test('resumeFocus ignores damaged data',()=>{
 test('backupNudge asks when never backed up, stale, or history is nearly full',()=>{
   const now=Date.parse('2026-05-20T00:00:00Z');
   assert.equal(L.backupNudge({},now),null,'empty app is not nagged');
-  assert.equal(L.backupNudge({mainGoal:'x'},now).kind,'never');
+  assert.equal(L.backupNudge({mainGoal:'x'},now),null,'only a goal typed: not nagged on day one');
+  assert.equal(L.backupNudge({mainGoal:'x',habits:[{}],plannerEntries:[{}]},now),null,'two records: still not nagged');
+  assert.equal(L.backupNudge({mainGoal:'x',habits:[{}],plannerEntries:[{}],jobPostings:[{}]},now).kind,'never','three records and never backed up');
+  assert.equal(L.recordCount({habits:[{},{}],focusHistory:[{}],favoriteCerts:'bad'}),3);
   assert.equal(L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-15T00:00:00Z'},now),null);
   const stale=L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-01T00:00:00Z'},now);
   assert.equal(stale.kind,'stale');assert.match(stale.message,/19일/);

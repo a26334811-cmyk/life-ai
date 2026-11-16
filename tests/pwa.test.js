@@ -108,3 +108,7 @@ test('manifest lets the phone Share sheet send a link to the app (GET with title
   assert.deepEqual(target.params,{title:'title',text:'text',url:'url'});
   assert.match(html,/function handleSharedLink\(\)/);
 });
+
+test('share target declares its encoding so Chrome reports no manifest warnings',()=>{
+  assert.equal(manifest.share_target.enctype,'application/x-www-form-urlencoded');
+});

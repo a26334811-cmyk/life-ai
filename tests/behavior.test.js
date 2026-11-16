@@ -214,7 +214,9 @@ test('data saved by the previous version is upgraded',()=>{
 
 /* ---------- backup reminders (improvement 6) ---------- */
 test('home and MY show the backup reminder until a backup is made, and it can be snoozed',()=>{
-  const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
+  const goalOnly=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
+  assert.equal(goalOnly.run('backupNudgeHTML()'),'','a goal alone does not trigger the reminder');
+  const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',habits:[{id:'h',name:'공부',checks:[]}],plannerEntries:[{id:'p',title:'a',date:'2026-05-01'},{id:'q',title:'b',date:'2026-05-02'}]}));
   assert.match(a.run('backupNudgeHTML()'),/백업한 적이 없어요/);
   a.run('renderHome()');
   assert.match(a.el('homeContent').innerHTML,/backup-nudge/);
@@ -379,4 +381,32 @@ test('pasting the real Hyundai Steel posting text fills the deadline 2026-11-22'
   a.run('fillPostingFromPaste()');
   assert.equal(a.el('postingDeadline').value,'2026-11-22');
   assert.match(status(a),/마감일/);
+});
+
+test('MY shows when the last backup was made',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-05-01T01:00:00.000Z'}));
+  a.run('renderMy()');
+  assert.ok(a.el('myContent').innerHTML.includes('마지막 백업:</strong> 2026-05-01'));
+  const b=createApp();b.run('renderMy()');
+  assert.ok(b.el('myContent').innerHTML.includes('마지막 백업:</strong> 아직 없음'));
+});
+
+test('pasting into the posting text box searches automatically',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.ok(html.includes('id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)"'));
+});
+
+test('when the link gives no deadline the user is pointed to the paste box and it is opened',async()=>{
+  const a=createApp(undefined,{fetch:reply({ok:true,title:'정비 신입',company:'현대제철',companyInferred:true,description:''})});
+  let opened=false;
+  a.el('postingPaste').closest=()=>({set open(v){opened=v;}});
+  a.el('postingUrl').value='https://example.com/job/5';
+  await a.run('fillPostingFromUrl()');
+  assert.match(status(a),/마감일은 링크에서 찾지 못했어요/);
+  assert.equal(opened,true);
+  const b=createApp(undefined,{fetch:reply({ok:true,title:'정비 신입',deadline:'2099-01-01',description:''})});
+  let bOpened=false;b.el('postingPaste').closest=()=>({set open(v){bOpened=v;}});
+  b.el('postingUrl').value='https://example.com/job/6';
+  await b.run('fillPostingFromUrl()');
+  assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
