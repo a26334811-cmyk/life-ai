@@ -45,3 +45,16 @@ test('invalid year and missing service key fail clearly',async()=>{
   delete process.env.DATA_GO_KR_SERVICE_KEY;
   assert.equal((await handler({queryStringParameters:{name:'전기기사'}})).statusCode,503);
 });
+
+test('Q-Net qualification endpoint rejects HTML error pages',async()=>{
+  const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
+  const result=await handler({queryStringParameters:{mode:'search',q:'설비보전'}});
+  assert.equal(result.statusCode,502);
+  assert.match(JSON.parse(result.body).message,/HTML/);
+});
+test('Q-Net schedule endpoint rejects HTML error pages',async()=>{
+  const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  assert.equal(result.statusCode,502);
+  assert.match(JSON.parse(result.body).message,/HTML/);
+});
