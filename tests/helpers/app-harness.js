@@ -15,7 +15,9 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.choice   value returned by uiChoice (default 'all'); a function receives (message, choices)
    opts.now      fake clock start (ms)
    opts.hidden   document.hidden
-   opts.notification  {permission, requestResult} to fake the Notification API */
+   opts.notification  {permission, requestResult} to fake the Notification API
+   opts.fetch    fake fetch(url, options) used by the app
+   opts.search   makes `location` exist with this query string (e.g. '?url=...' from the phone's Share sheet) */
 function createApp(saved, opts = {}) {
   const elements = new Map();
   const storage = new Map(saved ? [['lifeAIPrototypeV5', saved]] : []);
@@ -48,9 +50,15 @@ function createApp(saved, opts = {}) {
     setInterval: fn => { timers.push(fn); return timers.length; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
     requestAnimationFrame() {},
-    Intl, Date: FakeDate, URL, AbortController, console, navigator: {},
+    Intl, Date: FakeDate, URL, URLSearchParams, AbortController, AbortSignal, console, navigator: {},
     confirm: () => true, prompt: () => opts.answer
   };
+  const historyCalls = [];
+  if (opts.fetch) context.fetch = (...args) => opts.fetch(...args);
+  if (opts.search !== undefined) {
+    context.location = { search: opts.search, pathname: '/index.html', protocol: 'https:', hostname: 'app.example' };
+    context.history = { replaceState: (a, b, url) => { historyCalls.push(url); context.location.search = ''; } };
+  }
   if (opts.notification) {
     const n = opts.notification;
     context.Notification = function (title, options) { notifications.push({ title, options }); };
@@ -77,7 +85,7 @@ function createApp(saved, opts = {}) {
   `, Object.assign(context, { __toast: m => toasts.push(m) }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, toasts, dialogs, notifications, context,
+    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, context,
     tick() { timers.filter(Boolean).forEach(fn => fn()); },
     saved() { return JSON.parse(storage.get('lifeAIPrototypeV5')); }
   };

@@ -208,7 +208,98 @@
     return null;
   }
 
+  /* ---------- job posting helpers ---------- */
+
+  function firstUrl(text) {
+    const match = String(text || '').match(/https?:\/\/[^\s<>"'`]+/i);
+    if (!match) return '';
+    const cleaned = match[0].replace(/[)\]}>.,;:!?。、」』”’]+$/, '');
+    try { const u = new URL(cleaned); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
+  }
+
+  /* What the phone's "Share" sheet sends to the app (?title=&text=&url=). Many apps put the link in `text`. */
+  function parseShareParams(search) {
+    let params;
+    try { params = new URLSearchParams(search || ''); } catch (e) { return null; }
+    const title = params.get('title') || '', text = params.get('text') || '', urlParam = params.get('url') || '';
+    const url = firstUrl(urlParam) || firstUrl(text) || firstUrl(title);
+    if (!url) return null;
+    const strip = s => s.replace(/https?:\/\/[^\s]+/gi, '').replace(/\s+/g, ' ').trim();
+    const label = strip(title) || strip(text);
+    return { url, title: label.slice(0, 120) };
+  }
+
+  // "공고 제목 - 사람인" -> "공고 제목" (only when the tail really is the site name)
+  function cleanTitle(title, siteName) {
+    let t = String(title || '').replace(/\s+/g, ' ').trim();
+    const site = String(siteName || '').trim();
+    if (site) {
+      for (const sep of [' - ', ' | ', ' : ', ' · ', ' – ', ' — ']) {
+        if (t.endsWith(sep + site)) { t = t.slice(0, -(sep + site).length).trim(); break; }
+      }
+    }
+    return t.slice(0, 120);
+  }
+
+  const POSITIVE = [['마감', 3], ['까지', 2], ['접수', 1], ['지원기간', 1], ['모집기간', 1], ['서류', 1]];
+  const NEGATIVE = ['공고일', '게시일', '등록일', '작성일', '발표', '면접', '시작', '개시', '입사', '입과', '교육'];
+
+  /* Finds the most likely application deadline in pasted posting text.
+     Returns {date:'YYYY-MM-DD', past:boolean, confident:boolean, snippet} or null. Never guesses without a clue word. */
+  function extractDeadline(text, today) {
+    const src = String(text || '').slice(0, 30000);
+    if (!src || !validDate(today)) return null;
+    const year = Number(today.slice(0, 4));
+    const found = [];
+    const add = (index, length, y, m, d, hasYear) => {
+      let iso = null;
+      const make = (yy) => { const s = yy + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); return validDate(s) ? s : null; };
+      if (hasYear) iso = make(y);
+      else {
+        iso = make(year);
+        // "1월 5일까지" read in December means next year
+        if (iso && iso < dateOffset(today, -31)) iso = make(year + 1);
+      }
+      if (iso && iso >= dateOffset(today, -366 * 2) && iso <= dateOffset(today, 366 * 2)) found.push({ index, length, iso, hasYear });
+    };
+    let m;
+    const full = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
+    while ((m = full.exec(src))) add(m.index, m[0].length, Number(m[1]), Number(m[2]), Number(m[3]), true);
+    const korean = /(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
+    while ((m = korean.exec(src))) {
+      if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
+    }
+    const short = /(?<![\d.\-/])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d.\-/])/g;
+    while ((m = short.exec(src))) {
+      if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
+    }
+    if (!found.length) return null;
+    let best = null;
+    for (const c of found) {
+      const before = src.slice(Math.max(0, c.index - 24), c.index);
+      const after = src.slice(c.index + c.length, c.index + c.length + 10);
+      let score = 0;
+      for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
+      for (const word of NEGATIVE) { if (before.slice(-10).includes(word)) score -= 3; }
+      // end of a range: "11.10 ~ 11.30" (parenthesised weekdays are ignored)
+      const compact = before.replace(/\([^)]*\)/g, '').replace(/\s+/g, '');
+      if (/[~∼～]$/.test(compact)) score += 3;
+      if (!c.hasYear && score < 3) score -= 1; // short forms need a stronger clue
+      if (!best || score > best.score || (score === best.score && c.iso > best.iso)) best = { ...c, score };
+    }
+    if (!best || best.score < 2) return null;
+    return {
+      date: best.iso,
+      past: best.iso < today,
+      confident: best.score >= 4,
+      snippet: src.slice(Math.max(0, best.index - 12), best.index + best.length + 8).replace(/\s+/g, ' ').trim()
+    };
+  }
+
   const api = {
+    firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth,
     occurs, isRepeating, isDone, toggleDone, habitStreak,

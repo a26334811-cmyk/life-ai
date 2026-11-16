@@ -255,3 +255,111 @@ test('cancelling a posting delete keeps the posting',async()=>{
   await b.run(`deletePosting('${id}')`);
   assert.equal(b.run('state.jobPostings.length'),0);
 });
+
+/* ---------- job posting auto-fill (option A) ---------- */
+const reply=(body,ok=true)=>async()=>({ok,json:async()=>body});
+const status=a=>a.el('postingFetchStatus').textContent;
+
+test('a pasted link fills empty title, company, region and deadline from the page summary',async()=>{
+  let requested='';
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:async url=>{requested=url;return {ok:true,json:async()=>({ok:true,title:'시설관리 신입 - 사람인',siteName:'사람인',company:'삼천리',region:'경기 수원시',deadline:'2026-12-05',description:''})};}});
+  a.el('postingUrl').value='https://example.com/job/1';
+  await a.run('fillPostingFromUrl()');
+  assert.match(requested,/^\/\.netlify\/functions\/link-preview\?url=https%3A%2F%2Fexample\.com%2Fjob%2F1$/);
+  assert.equal(a.el('postingTitle').value,'시설관리 신입');
+  assert.equal(a.el('postingCompany').value,'삼천리');
+  assert.equal(a.el('postingRegion').value,'경기 수원시');
+  assert.equal(a.el('postingDeadline').value,'2026-12-05');
+  assert.match(status(a),/채운 항목: .*공고명.*회사명.*마감일/);
+  assert.equal(a.el('postingFetch').disabled,false,'button is usable again');
+});
+
+test('auto-fill never overwrites what the user already typed',async()=>{
+  const a=createApp(undefined,{fetch:reply({ok:true,title:'다른 제목',company:'다른 회사',deadline:'2099-01-01',description:''})});
+  a.el('postingUrl').value='https://example.com/job/1';a.el('postingCompany').value='내가 쓴 회사';a.el('postingDeadline').value='2099-05-05';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingCompany').value,'내가 쓴 회사');
+  assert.equal(a.el('postingDeadline').value,'2099-05-05');
+  assert.equal(a.el('postingTitle').value,'다른 제목');
+});
+
+test('a page without a company says so instead of guessing, and a past deadline is not filled',async()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'정비 신입',siteName:'원티드',company:'',deadline:'2026-10-01',description:''})});
+  a.el('postingUrl').value='https://example.com/job/2';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingCompany').value,'');
+  assert.equal(a.el('postingDeadline').value,'');
+  assert.match(status(a),/원티드 페이지라서 회사명은 직접 입력/);
+  assert.match(status(a),/이미 지났어요/);
+});
+
+test('the deadline is found in the page description when the page has no structured deadline',async()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'안전관리',description:'모집 안내. 지원 마감 12월 5일 (금) 18시까지'})});
+  a.el('postingUrl').value='https://example.com/job/3';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingDeadline').value,'2026-12-05');
+});
+
+test('unreadable links, blocked sites and no network give friendly messages and keep the form',async()=>{
+  const blocked=createApp(undefined,{fetch:reply({ok:false,message:'이 사이트는 자동으로 읽을 수 없게 막혀 있어요. 직접 입력해 주세요.'},false)});
+  blocked.el('postingUrl').value='https://example.com/x';blocked.el('postingTitle').value='내 제목';
+  await blocked.run('fillPostingFromUrl()');
+  assert.match(status(blocked),/막혀 있어요/);assert.equal(blocked.el('postingTitle').value,'내 제목');
+  const offline=createApp(undefined,{fetch:async()=>{throw new TypeError('Failed to fetch');}});
+  offline.el('postingUrl').value='https://example.com/x';
+  await offline.run('fillPostingFromUrl()');
+  assert.match(status(offline),/지금은 링크를 읽을 수 없어요/);
+  assert.equal(offline.el('postingFetch').disabled,false);
+  const empty=createApp(undefined,{fetch:async()=>{throw new Error('should not be called');}});
+  await empty.run('fillPostingFromUrl()');
+  assert.match(status(empty),/먼저 올바른 공고 링크/);
+  empty.el('postingUrl').value='javascript:alert(1)';
+  await empty.run('fillPostingFromUrl()');
+  assert.match(status(empty),/먼저 올바른 공고 링크/);
+});
+
+test('pasting the posting text finds the deadline and the link',()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z')});
+  a.el('postingPaste').value='도시가스 시설관리 신입\n접수기간 2026.11.10(월) ~ 2026.11.30(일) 18:00\n자세히 https://example.com/job/7';
+  a.run('fillPostingFromPaste()');
+  assert.equal(a.el('postingDeadline').value,'2026-11-30');
+  assert.equal(a.el('postingUrl').value,'https://example.com/job/7');
+  assert.match(status(a),/마감일/);
+  const none=createApp();
+  none.el('postingPaste').value='채용시 마감, 많은 지원 바랍니다';
+  none.run('fillPostingFromPaste()');
+  assert.match(status(none),/찾지 못했어요/);
+  assert.equal(none.el('postingDeadline').value,'');
+});
+
+test('a link shared from the phone opens the job screen with the form filled and read automatically',async()=>{
+  const urls=[];
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),search:'?title='+encodeURIComponent('삼천리 시설관리')+'&text='+encodeURIComponent('보세요 https://example.com/job/9'),
+    fetch:async url=>{urls.push(url);return {ok:true,json:async()=>({ok:true,title:'삼천리 시설관리 신입',company:'삼천리',deadline:'2026-12-20',description:''})};}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(a.el('postingUrl').value,'https://example.com/job/9');
+  assert.equal(a.el('postingTitle').value,'삼천리 시설관리','shared title is kept, page title only fills empty fields');
+  assert.equal(a.el('postingCompany').value,'삼천리');
+  assert.equal(a.el('postingDeadline').value,'2026-12-20');
+  assert.equal(urls.length,1);
+  assert.equal(a.historyCalls.length,1,'share parameters are removed so a reload does not repeat it');
+  assert.equal(a.el('postingEditor').open,true);
+});
+
+test('sharing a link that is already saved does not create a second form',async()=>{
+  const saved=JSON.stringify({mainGoal:'x',jobPostings:[{id:'p1',company:'삼천리',title:'시설',url:'https://example.com/job/9',stage:'관심',tasks:[false,false,false,false]}]});
+  let fetched=0;
+  const a=createApp(saved,{search:'?url='+encodeURIComponent('https://example.com/job/9'),fetch:async()=>{fetched++;return {ok:true,json:async()=>({ok:false})};}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(fetched,0);
+  assert.match(a.el('toast').textContent,/이미 저장한 공고/,'startup toast is shown through the real toast element');
+  assert.equal(a.el('postingUrl').value,'');
+});
+
+test('ordinary startup is not affected by the share handler',()=>{
+  const a=createApp(undefined,{search:'?screen=calendar'});
+  assert.equal(a.historyCalls.length,0);
+  assert.equal(a.el('postingUrl').value,'');
+  const b=createApp(undefined,{search:'?text=hello'});
+  assert.equal(b.historyCalls.length,0);
+});

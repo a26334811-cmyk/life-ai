@@ -99,3 +99,12 @@ test('tapping the notification focuses an open window or opens the calendar',asy
   await wait;
   assert.equal(none.self.__opened,'./index.html?screen=calendar');
 });
+
+test('manifest lets the phone Share sheet send a link to the app (GET with title, text, url)',()=>{
+  const target=manifest.share_target;
+  assert.ok(target,'share_target');
+  assert.equal(target.method,'GET');
+  assert.equal(target.action,'./index.html');
+  assert.deepEqual(target.params,{title:'title',text:'text',url:'url'});
+  assert.match(html,/function handleSharedLink\(\)/);
+});

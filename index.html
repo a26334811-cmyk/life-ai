@@ -109,6 +109,8 @@
     .ui-modal-actions{display:flex;flex-direction:column;gap:8px}
     .ui-modal-actions .btn{margin:0}
     .btn.danger{background:#c0392b;color:#fff;border-color:#c0392b}
+    .posting-autofill{margin:-4px 0 12px}
+    .posting-autofill .btn{width:100%;margin:0 0 6px}
     .backup-nudge{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff7e6;border:1px solid #f1d49b;border-radius:14px;padding:12px 14px;margin:0 0 12px}
     .backup-nudge p{margin:0;flex:1 1 220px;font-size:14px;line-height:1.5}
     .backup-nudge .btn{margin:0;padding:8px 12px;width:auto}
@@ -575,11 +577,13 @@ h3{font-size:16px;line-height:1.4}
       <div class="field"><label for="postingCompany">회사명 *</label><input id="postingCompany" required></div>
       <div class="field"><label for="postingTitle">공고명·직무 *</label><input id="postingTitle" required placeholder="예: 도시가스 시설관리 신입 채용"></div>
       <div class="field"><label for="postingUrl">공고 링크 *</label><input id="postingUrl" type="url" required placeholder="https://"></div>
+      <div class="posting-autofill"><button type="button" class="btn secondary" id="postingFetch" onclick="fillPostingFromUrl()">🔎 링크에서 정보 가져오기</button><p id="postingFetchStatus" class="meta" role="status" aria-live="polite"></p></div>
       <div class="field"><label for="postingDeadline">지원 마감일 (미정·채용시 마감이면 비워두세요)</label><input id="postingDeadline" type="date"></div>
+      <details><summary>공고 글을 복사해 붙여넣어 마감일 찾기 (선택)</summary><div class="field"><label for="postingPaste">공고 내용 붙여넣기</label><textarea id="postingPaste" style="width:100%;min-height:90px" placeholder="공고 화면의 글을 복사해서 붙여넣어 보세요"></textarea></div><button type="button" class="btn secondary" onclick="fillPostingFromPaste()">마감일 찾기</button></details>
       <details><summary>지역·조건 메모 추가 (선택)</summary><div class="field"><label for="postingRegion">근무지역 (선택)</label><input id="postingRegion"></div>
       <div class="field"><label for="postingNotes">필수·우대조건과 메모 (선택)</label><textarea id="postingNotes" style="width:100%;min-height:80px"></textarea></div></details>
       <button class="btn primary" type="submit">공고 저장</button><button class="btn ghost" type="button" onclick="clearPostingForm()">입력 초기화</button>
-      <p class="meta">링크 내용을 자동으로 읽지 않아요. 공식 공고를 확인해 내용을 입력해 주세요.</p>
+      <p class="meta">링크나 붙여넣은 글에서 찾은 내용은 참고용이에요. 틀릴 수 있으니 공식 공고에서 마감일을 꼭 확인하고 저장해 주세요.</p>
     </form></details>
     <div class="section-title">저장한 공고</div><div id="savedPostings" class="stack"></div>
   </section>
@@ -1820,6 +1824,78 @@ function clearPostingForm(){
   ['postingId','postingCompany','postingTitle','postingUrl','postingDeadline','postingRegion','postingNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('postingFormTitle').textContent='관심 공고 저장';
 }
+/* Fills the posting form from the pasted link. Only EMPTY fields are filled, so nothing the user typed is overwritten. */
+let postingFetchVersion=0;
+function postingSetStatus(message){const el=document.getElementById('postingFetchStatus');if(el)el.textContent=message;}
+function postingFillField(id,value){
+  const el=document.getElementById(id);
+  if(!el||!value||String(el.value||'').trim())return false;
+  el.value=value;return true;
+}
+function applyPostingInfo(info){
+  const filled=[];
+  const siteName=info.siteName||'';
+  if(postingFillField('postingTitle',LifeLogic.cleanTitle(info.title,siteName)))filled.push('공고명');
+  if(postingFillField('postingCompany',info.company))filled.push('회사명');
+  if(postingFillField('postingRegion',info.region))filled.push('근무지역');
+  const today=koreaToday();
+  let deadline=info.deadline&&validDeadline(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
+  if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
+  let note='';
+  if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';
+  else if(deadline&&postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
+  if(!filled.length&&!note)return '읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.';
+  let message=filled.length?'채운 항목: '+filled.join(', ')+'.':'';
+  if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
+  return (message+note+' 내용을 확인해 주세요.').trim();
+}
+async function fillPostingFromUrl(){
+  const url=safeUrl((document.getElementById('postingUrl')?.value||'').trim());
+  if(!url){postingSetStatus('먼저 올바른 공고 링크를 입력해 주세요.');return;}
+  const version=++postingFetchVersion;
+  const button=document.getElementById('postingFetch');
+  if(button)button.disabled=true;
+  postingSetStatus('링크를 읽는 중이에요…');
+  try{
+    const response=await fetch('/.netlify/functions/link-preview?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(15000)});
+    const data=await response.json().catch(()=>({}));
+    if(version!==postingFetchVersion)return;
+    if(!response.ok||!data.ok)throw new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');
+    postingSetStatus(applyPostingInfo(data));
+  }catch(e){
+    if(version!==postingFetchVersion)return;
+    postingSetStatus(e.name==='TypeError'||e.name==='AbortError'||e.name==='TimeoutError'?'지금은 링크를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.':(e.message||'링크를 읽지 못했어요. 직접 입력해 주세요.'));
+  }finally{
+    if(version===postingFetchVersion&&button)button.disabled=false;
+  }
+}
+function fillPostingFromPaste(){
+  const text=document.getElementById('postingPaste')?.value||'';
+  if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
+  const message=applyPostingInfo({description:text});
+  const found=!message.startsWith('읽었지만');
+  const linkFilled=postingFillField('postingUrl',LifeLogic.firstUrl(text));
+  if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
+  else postingSetStatus(linkFilled?'글 안의 링크를 채웠어요. 마감일은 찾지 못했으니 직접 입력해 주세요.':'글에서 마감일로 볼 만한 날짜를 찾지 못했어요. 직접 입력해 주세요.');
+}
+/* The phone's Share sheet opens the app as index.html?title=&text=&url= (see share_target in manifest.json). */
+function handleSharedLink(){
+  if(typeof location==='undefined')return false;
+  const shared=LifeLogic.parseShareParams(location.search);
+  if(!shared)return false;
+  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(null,'',location.pathname);}catch(e){}
+  jobCollections();
+  go('jobHub');
+  if(state.jobPostings.some(x=>x.url===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
+  const editor=document.getElementById('postingEditor');
+  if(editor)editor.open=true;
+  clearPostingForm();
+  document.getElementById('postingUrl').value=shared.url;
+  if(shared.title)document.getElementById('postingTitle').value=shared.title;
+  toast('공유한 링크를 가져왔어요. 정보를 확인해 주세요.');
+  fillPostingFromUrl();
+  return true;
+}
 function validDeadline(value){
   if(!value)return true;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
@@ -2088,6 +2164,7 @@ focusRestore();
 if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
 else if(state.mainGoal)go('home');
 else renderHome();
+handleSharedLink();
 if(startupNotice)setTimeout(()=>toast(startupNotice),600);
 </script>
 </body>

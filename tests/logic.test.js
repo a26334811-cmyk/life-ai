@@ -129,3 +129,56 @@ test('backupNudge asks when never backed up, stale, or history is nearly full',(
   assert.equal(full.kind,'history');assert.match(full.message,/450\/500/);
   assert.equal(L.backupNudge({mainGoal:'x',backupSnoozeUntil:'2026-05-25T00:00:00Z'},now),null,'snoozed');
 });
+
+/* ---------- job posting helpers ---------- */
+test('extractDeadline finds the deadline in typical Korean posting text',()=>{
+  const today='2026-11-16';
+  const cases=[
+    ['접수기간 : 2026.11.10(월) ~ 2026.11.30(일) 18:00','2026-11-30'],
+    ['마감일: 2026-12-05','2026-12-05'],
+    ['지원 마감 12월 5일 (금) 18시까지','2026-12-05'],
+    ['공고일 2026.11.01 / 마감 2026.11.20','2026-11-20'],
+    ['11/30까지 접수','2026-11-30'],
+    ['서류 접수 11월 10일부터 11월 30일까지','2026-11-30'],
+    ['2026년 12월 20일까지 지원해 주세요','2026-12-20'],
+    ['마감 1월 5일','2027-01-05']
+  ];
+  for(const [text,expected] of cases)assert.equal(L.extractDeadline(text,today)?.date,expected,text);
+});
+
+test('extractDeadline stays quiet when there is no clear deadline',()=>{
+  const today='2026-11-16';
+  for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
+    assert.equal(L.extractDeadline(text,today),null,String(text));
+  }
+  assert.equal(L.extractDeadline('마감 2026.12.05','2026-02-30'),null,'bad today');
+});
+
+test('extractDeadline flags past dates and confidence',()=>{
+  const r=L.extractDeadline('접수기간 2026.10.01 ~ 2026.10.31','2026-11-16');
+  assert.equal(r.date,'2026-10-31');assert.equal(r.past,true);
+  const strong=L.extractDeadline('마감일 2026-12-05 까지','2026-11-16');
+  assert.equal(strong.confident,true);assert.equal(strong.past,false);
+  assert.match(strong.snippet,/2026-12-05/);
+});
+
+test('firstUrl and parseShareParams read links from shared text',()=>{
+  assert.equal(L.firstUrl('보세요 https://example.com/job/1?a=1&b=2. 감사'),'https://example.com/job/1?a=1&b=2');
+  assert.equal(L.firstUrl('링크 없음'),'');
+  assert.equal(L.firstUrl('javascript:alert(1) ftp://x.com'),'');
+  const s=L.parseShareParams('?title=%EC%8B%9C%EC%84%A4%EA%B4%80%EB%A6%AC%20%EC%B1%84%EC%9A%A9&text=%EC%9E%90%EC%84%B8%ED%9E%88%20https%3A%2F%2Fexample.com%2Fjob%2F1');
+  assert.equal(s.url,'https://example.com/job/1');assert.equal(s.title,'시설관리 채용');
+  const onlyText=L.parseShareParams('?text='+encodeURIComponent('삼천리 신입 https://example.com/j/9'));
+  assert.equal(onlyText.url,'https://example.com/j/9');assert.equal(onlyText.title,'삼천리 신입');
+  assert.equal(L.parseShareParams('?text=hello'),null);
+  assert.equal(L.parseShareParams(''),null);
+  assert.equal(L.parseShareParams('?url='+encodeURIComponent('javascript:alert(1)')),null);
+});
+
+test('cleanTitle removes only a trailing site name',()=>{
+  assert.equal(L.cleanTitle('시설관리 신입 - 사람인','사람인'),'시설관리 신입');
+  assert.equal(L.cleanTitle('시설관리 | 원티드','원티드'),'시설관리');
+  assert.equal(L.cleanTitle('사람인 연구원 채용','사람인'),'사람인 연구원 채용');
+  assert.equal(L.cleanTitle('  여러   공백  ',''),'여러 공백');
+  assert.equal(L.cleanTitle('가'.repeat(300),'').length,120);
+});
