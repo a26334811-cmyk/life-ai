@@ -4,3 +4,15 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# The service worker and manifest must always be re-checked so updates reach installed apps.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"

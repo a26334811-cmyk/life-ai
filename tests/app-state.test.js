@@ -1,16 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const vm=require('node:vm'),fs=require('node:fs');
-const html=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
-const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
-function app(saved,answer){
- const elements=new Map(),storage=new Map(saved?[['lifeAIPrototypeV5',saved]]:[]);
- const el=id=>{if(!ids.has(id))return null;if(!elements.has(id)) elements.set(id,{value:'',dataset:{},innerHTML:'',textContent:'',style:{},classList:{add(){},remove(){},toggle(){},contains(){return false;}}});return elements.get(id);};
- const context=vm.createContext({document:{getElementById:el,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>0,clearTimeout(){},requestAnimationFrame(){},Intl,Date,URL,AbortController,console,confirm:()=>true,prompt:()=>answer});
- vm.runInContext(script,context);
- return {run:code=>vm.runInContext(code,context),el,storage};
-}
+const {createApp}=require('./helpers/app-harness.js');
+const app=(saved,answer)=>createApp(saved,{answer});
 test('qualification names create certificate goals and reset previous progress',()=>{
  const a=app();a.run("state.completedTasks=[true,true,true,true,true];state.jobSubmitted=true;quickGoal('위험물산업기사 준비')");
  assert.equal(a.run('state.goalType'),'cert');assert.equal(a.run('state.jobSubmitted'),false);assert.equal(a.run('state.completedTasks.some(Boolean)'),false);
@@ -68,8 +59,8 @@ test('interview date survives reload and appears in calendar',()=>{
  const b=app(a.storage.get('lifeAIPrototypeV5'));assert.match(b.run('jobCalendarHTML()'),/다가오는 면접/);assert.match(b.run('jobCalendarHTML()'),/2099.03.04/);
 });
 
-test('renaming preserves checklist and saved qualification schedule',()=>{
+test('renaming preserves checklist and saved qualification schedule',async()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
- const a=app(JSON.stringify(saved),'전기기사 올해 취득');a.run('editCurrentGoal()');
+ const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');
  assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
 });

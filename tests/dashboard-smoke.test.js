@@ -105,15 +105,15 @@ test('changing focus duration resets once after confirmation without second rese
 
 test('backup import validates nested records and warns when saving fails',()=>{
   assert.match(html,/function validateLifeAIBackupState\(data\)/);
-  assert.match(html,/data\.completedTasks\.some\(value=>typeof value!=='boolean'\)/);
-  assert.match(html,/if\(!validateLifeAIBackupState\(backup\.state\)\)/);
+  assert.match(html,/LifeLogic\.validateBackupState\(data\)/);
+  assert.match(html,/if\(!validateLifeAIBackupState\(migrated\)\)/);
   assert.match(html,/const snapshot=localStorage\.getItem\('lifeAIPrototypeV5'\)/);
   assert.match(html,/lifeAISaveWarningShown/);
   assert.match(html,/기록을 저장하지 못했어요/);
 });
 
 test('focus timer starts with the saved duration after reopening the app',()=>{
-  assert.match(html,/let focusRemaining=\(\[5,10,15,25,30,45,50,60\]\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
+  assert.match(html,/let focusRemaining=\(LifeLogic\.FOCUS_MINUTES\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
   assert.doesNotMatch(html,/let focusRemaining=25\*60/);
 });
 

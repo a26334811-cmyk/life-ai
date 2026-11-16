@@ -6,6 +6,10 @@
   <meta name="theme-color" content="#1763db" />
   <title>life-ai | 나의 목표와 일정</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <style>
     :root{
       --primary:#0f4c81;
@@ -97,6 +101,17 @@
       opacity:0;pointer-events:none;transition:.25s;z-index:30;font-size:14px;
     }
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .ui-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,32,48,.45)}
+    .ui-modal-box{width:min(420px,100%);background:#fff;border-radius:20px;padding:22px 20px 16px;box-shadow:0 18px 50px rgba(15,32,48,.28)}
+    .ui-modal-box h3{margin:0 0 8px;font-size:17px}
+    .ui-modal-box p{margin:0 0 14px;line-height:1.55;white-space:pre-line}
+    .ui-modal-box input{width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px;border:1px solid #cdd8e3;border-radius:12px;font:inherit}
+    .ui-modal-actions{display:flex;flex-direction:column;gap:8px}
+    .ui-modal-actions .btn{margin:0}
+    .btn.danger{background:#c0392b;color:#fff;border-color:#c0392b}
+    .backup-nudge{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff7e6;border:1px solid #f1d49b;border-radius:14px;padding:12px 14px;margin:0 0 12px}
+    .backup-nudge p{margin:0;flex:1 1 220px;font-size:14px;line-height:1.5}
+    .backup-nudge .btn{margin:0;padding:8px 12px;width:auto}
     .pillbar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
     .pill{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:999px;white-space:nowrap}
     .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -591,8 +606,9 @@ h3{font-size:16px;line-height:1.4}
   </nav>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="logic.js"></script>
 <script>
 
 const state = {
@@ -614,10 +630,25 @@ const state = {
   activity:[]
 };
 let savedState;
+let startupNotice='';
 try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
 if(savedState){
-  try { Object.assign(state, JSON.parse(savedState)); } catch(e) {}
+  let parsedSaved=null;
+  try { parsedSaved=JSON.parse(savedState); } catch(e) {}
+  const cleaned=LifeLogic.sanitizeState(LifeLogic.migrateState(parsedSaved));
+  if(cleaned){
+    Object.assign(state,cleaned.state);
+    if(cleaned.dropped.length){
+      // Keep the untouched original so nothing is lost, and tell the user once.
+      try { localStorage.setItem('lifeAIPrototypeV5.damaged',savedState); } catch(e) {}
+      startupNotice='저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본은 이 기기에 따로 남겨 두었어요.';
+    }
+  } else {
+    try { localStorage.setItem('lifeAIPrototypeV5.damaged',savedState); } catch(e) {}
+    startupNotice='저장된 기록을 읽지 못해 새로 시작해요. 원본은 이 기기에 따로 남겨 두었어요.';
+  }
 }
+state.schemaVersion=LifeLogic.STATE_SCHEMA_VERSION;
 let lifeAISaveWarningShown=false;
 function persistState(){
   try {
@@ -658,8 +689,8 @@ function resetGoalProgress(){
   const input=document.getElementById('certSearchInput');
   if(input){input.value='';input.dataset.code='';}
 }
-function editCurrentGoal(){
-  const next=prompt('목표 이름을 수정해보세요. 진행상태는 유지돼요.', state.mainGoal || '');
+async function editCurrentGoal(){
+  const next=await uiPrompt('목표 이름을 수정해보세요. 진행상태는 유지돼요.', state.mainGoal || '',{title:'목표 수정',maxLength:120});
   if(next===null) return;
   const value=next.trim();
   if(!value){ toast('목표는 비워둘 수 없어요.'); return; }
@@ -683,20 +714,23 @@ function exportLifeAIBackup(){
     link.href=url;link.download='life-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
+    state.lastBackupAt=new Date().toISOString();delete state.backupSnoozeUntil;persistState();
+    refreshBackupNudges();
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
   }catch(e){toast('백업 파일을 만들지 못했어요.');}
 }
-function validateLifeAIBackupState(data){
-  if(!data||typeof data!=='object'||Array.isArray(data))return false;
-  const arrayKeys=['activity','completedTasks','habits','plannerEntries','focusHistory','jobPostings','watchCompanies','favoriteCerts'];
-  if(arrayKeys.some(key=>data[key]!==undefined&&!Array.isArray(data[key])))return false;
-  if(data.completedTasks.some(value=>typeof value!=='boolean'))return false;
-  const textKeys=['nickname','mainGoal','goalType','recoveryMode'];
-  if(textKeys.some(key=>data[key]!==undefined&&typeof data[key]!=='string'))return false;
-  if(data.focusSettings!==undefined&&(data.focusSettings===null||typeof data.focusSettings!=='object'||Array.isArray(data.focusSettings)))return false;
-  if(data.habits!==undefined&&data.habits.some(item=>!item||typeof item!=='object'||typeof item.name!=='string'||!Array.isArray(item.checks)))return false;
-  if(data.focusHistory!==undefined&&data.focusHistory.some(item=>!item||typeof item!=='object'||typeof item.date!=='string'||!Number.isFinite(Number(item.minutes))||Number(item.minutes)<0))return false;
-  return true;
+function validateLifeAIBackupState(data){return LifeLogic.validateBackupState(data);}
+/* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
+function backupNudgeHTML(){
+  const nudge=LifeLogic.backupNudge(state,Date.now());
+  if(!nudge)return '';
+  return `<div class="backup-nudge" role="note"><p>💾 ${esc(nudge.message)}</p><button class="btn primary" onclick="exportLifeAIBackup()">지금 백업</button><button class="btn ghost" onclick="snoozeBackupNudge()">7일 뒤에</button></div>`;
+}
+function snoozeBackupNudge(){
+  state.backupSnoozeUntil=new Date(Date.now()+7*86400000).toISOString();persistState();refreshBackupNudges();
+}
+function refreshBackupNudges(){
+  document.querySelectorAll?.('.backup-nudge-slot').forEach(slot=>{slot.innerHTML=backupNudgeHTML();});
 }
 function openLifeAIBackup(){
   const input=document.getElementById('lifeAIBackupFile');
@@ -716,13 +750,10 @@ async function importLifeAIBackup(input){
        !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
       throw new Error('올바른 life-ai 백업 파일이 아니에요.');
     }
-    if(!validateLifeAIBackupState(backup.state))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
-    if(!confirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요? 기존 데이터는 덮어써집니다.'))return;
-    const safe={};
-    for(const [key,value] of Object.entries(backup.state)){
-      if(['__proto__','prototype','constructor'].includes(key))continue;
-      safe[key]=value;
-    }
+    const migrated=LifeLogic.migrateState(backup.state);
+    if(!validateLifeAIBackupState(migrated))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
+    if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
+    const safe=LifeLogic.sanitizeState(migrated).state;
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
@@ -730,13 +761,13 @@ async function importLifeAIBackup(input){
       try{if(snapshot!==null)localStorage.setItem('lifeAIPrototypeV5',snapshot);}catch(rollbackError){}
       throw new Error('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
     }
-    alert('복원이 완료됐어요. 앱을 새로고침합니다.');
+    await uiAlert('복원이 완료됐어요. 앱을 새로고침합니다.',{title:'복원 완료'});
     location.reload();
   }catch(e){toast(e.message||'백업 파일을 읽지 못했어요.');}
 }
 
-function resetPrototype(){
-  if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
+async function resetPrototype(){
+  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
   try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
   location.reload();
 }
@@ -833,6 +864,74 @@ function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'),1800);
+}
+/* In-app dialogs. They replace the browser's confirm/prompt/alert, which look out of place in an installed
+   app and can be blocked. Each returns a Promise; closing with Esc, the backdrop or "취소" resolves to null/false. */
+let uiDialogQueue=Promise.resolve();
+function uiAsk(config){
+  const run=()=>new Promise(resolve=>{
+    if(typeof document.createElement!=='function'){resolve(config.fallback);return;}
+    const previous=document.activeElement;
+    const wrap=document.createElement('div');
+    wrap.className='ui-modal';
+    const box=document.createElement('div');
+    box.className='ui-modal-box';
+    box.setAttribute('role',config.alert?'alertdialog':'dialog');
+    box.setAttribute('aria-modal','true');
+    box.setAttribute('aria-label',config.title||'확인');
+    if(config.title){const h=document.createElement('h3');h.textContent=config.title;box.appendChild(h);}
+    const p=document.createElement('p');p.textContent=config.message||'';box.appendChild(p);
+    let input=null;
+    if(config.input){input=document.createElement('input');input.type='text';input.maxLength=config.maxLength||200;input.value=config.defaultValue||'';input.setAttribute('aria-label',config.message||'입력');box.appendChild(input);}
+    const actions=document.createElement('div');actions.className='ui-modal-actions';
+    const finish=value=>{
+      document.removeEventListener('keydown',onKey,true);
+      wrap.remove();
+      try{if(previous&&previous.focus)previous.focus();}catch(e){}
+      resolve(value);
+    };
+    const buttons=[];
+    (config.buttons||[]).forEach(def=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='btn '+(def.kind||'ghost');b.textContent=def.label;
+      b.addEventListener('click',()=>finish(typeof def.value==='function'?def.value(input):def.value));
+      actions.appendChild(b);buttons.push(b);
+    });
+    box.appendChild(actions);wrap.appendChild(box);
+    function onKey(event){
+      if(event.key==='Escape'){event.preventDefault();finish(config.cancelValue);}
+      else if(event.key==='Enter'&&input&&document.activeElement===input){event.preventDefault();finish(input.value);}
+      else if(event.key==='Tab'){
+        const items=[...(input?[input]:[]),...buttons];
+        const index=items.indexOf(document.activeElement);
+        event.preventDefault();
+        items[(index+(event.shiftKey?-1:1)+items.length)%items.length].focus();
+      }
+    }
+    wrap.addEventListener('mousedown',event=>{if(event.target===wrap)finish(config.cancelValue);});
+    document.addEventListener('keydown',onKey,true);
+    document.body.appendChild(wrap);
+    (input||buttons[config.focusIndex!=null?config.focusIndex:buttons.length-1]||buttons[0]).focus();
+    if(input)input.select();
+  });
+  const next=uiDialogQueue.then(run,run);
+  uiDialogQueue=next.catch(()=>{});
+  return next;
+}
+function uiConfirm(message,opts={}){
+  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:1,
+    buttons:[{label:opts.cancel||'취소',kind:'ghost',value:false},{label:opts.ok||'확인',kind:opts.danger?'danger':'primary',value:true}]});
+}
+function uiChoice(message,choices,opts={}){
+  return uiAsk({message,title:opts.title,cancelValue:null,fallback:null,focusIndex:0,
+    buttons:[...choices.map(c=>({label:c.label,kind:c.kind||'secondary',value:c.value})),{label:'취소',kind:'ghost',value:null}]});
+}
+function uiPrompt(message,defaultValue,opts={}){
+  return uiAsk({message,title:opts.title,input:true,defaultValue,maxLength:opts.maxLength,cancelValue:null,fallback:null,
+    buttons:[{label:'취소',kind:'ghost',value:null},{label:opts.ok||'확인',kind:'primary',value:input=>input.value}]});
+}
+function uiAlert(message,opts={}){
+  return uiAsk({message,title:opts.title,alert:true,cancelValue:undefined,fallback:undefined,buttons:[{label:'확인',kind:'primary',value:undefined}]});
 }
 function historyBack(){ go('home'); }
 
@@ -941,6 +1040,7 @@ function renderHome(){
   const nextEvent=savedSchedule.flatMap(round=>(round.events||[]).map(e=>({name:round.round+' · '+e.label,date:e.startDate})))
     .filter(e=>e.date&&e.date>=koreaToday()).sort((a,b)=>a.date.localeCompare(b.date))[0];
   c.innerHTML=`
+    <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
     <div class="soft-overview" aria-label="내 생활 요약">
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(fmtDate(nextEvent.date)):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
@@ -1104,10 +1204,10 @@ function renderTasks(){
       <span><strong>${t}</strong></span>
     </label>`).join('');
 }
-function toggleTask(i){
+async function toggleTask(i){
   if(state.goalType==='job' && i===4 && !state.completedTasks[i]){
-    const ok=confirm('지원서를 실제로 제출했나요?');
-    if(!ok) return;
+    const ok=await uiConfirm('지원서를 실제로 제출했나요?',{title:'지원 완료 기록',ok:'제출했어요'});
+    if(!ok){renderTasks();return;}
     state.completedTasks[i]=true;
     state.jobSubmitted=true;
     addActivity('지원 완료를 기록했어요');
@@ -1135,19 +1235,10 @@ function plannerEntries(){
   if(!Array.isArray(state.plannerEntries))state.plannerEntries=[];
   return state.plannerEntries;
 }
-function plannerDateOffset(date,days){
-  const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
-}
-function plannerOccurs(item,date){
-  if(!item||!validDeadline(item.date)||!item.date||date<item.date)return false;
-  if(item.until&&date>item.until)return false;
-  if(item.repeat==='daily')return true;
-  if(item.repeat==='weekly')return Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(item.date+'T00:00:00Z'))/86400000)%7===0;
-  if(item.repeat==='monthly')return date.slice(8)===item.date.slice(8);
-  return item.date===date;
-}
+function plannerDateOffset(date,days){return LifeLogic.dateOffset(date,days);}
+function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
 function plannerForDate(date){
-  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal'}));
+  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
   return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
@@ -1164,32 +1255,66 @@ function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';rende
 let plannerFormOpen=false;
 function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
 function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
-function plannerEdit(id){plannerEditing=id;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
-function plannerSave(){
+let plannerEditingDate='';
+function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
+async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
   if(!title||title.length>120||!validDeadline(date)||!date){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
   if(until&&(!validDeadline(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  const editingId=plannerEditing,occurrence=plannerEditingDate;
+  const before=plannerEntries().find(e=>e.id===editingId);
+  let scope='all';
+  if(before&&LifeLogic.isRepeating(before)){
+    // A repeating item can change for just this day, or for every day it repeats.
+    scope=await uiChoice('반복 일정이에요. 어느 범위를 수정할까요?',[
+      {value:'one',label:'이번 일정만 ('+occurrence+')',kind:'primary'},
+      {value:'all',label:'모든 반복 일정',kind:'secondary'}],{title:'반복 일정 수정'});
+    if(scope===null)return;
+  }
   const entries=plannerEntries();
-  const item={id:plannerEditing||newJobId(),title,date,time,category,repeat,until,priority,done:false};
-  const index=entries.findIndex(e=>e.id===plannerEditing);
-  if(index>=0){item.done=Boolean(entries[index].done);entries[index]=item;}else entries.push(item);
-  plannerEditing='';plannerFormOpen=false;plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
+  const old=entries.find(e=>e.id===editingId);
+  if(old&&scope==='one'){
+    old.skipDates=[...new Set([...(Array.isArray(old.skipDates)?old.skipDates:[]),occurrence])].sort();
+    entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
+  }else{
+    const item={...(old||{}),id:old?.id||newJobId(),title,date,time,category,repeat,until,priority};
+    if(LifeLogic.isRepeating(item)){item.done=false;if(!Array.isArray(item.doneDates))item.doneDates=[];}
+    else{item.done=Boolean(old?.done)&&!LifeLogic.isRepeating(old);delete item.doneDates;delete item.skipDates;}
+    const index=entries.findIndex(e=>e.id===item.id);
+    if(index>=0)entries[index]=item;else entries.push(item);
+  }
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
 }
-function plannerRemove(id){
-  if(!confirm('이 일정과 반복 일정을 삭제할까요?'))return;
-  state.plannerEntries=plannerEntries().filter(x=>x.id!==id);plannerEditing='';plannerFormOpen=false;persistState();renderCalendar();
+async function plannerRemove(id,date){
+  const item=plannerEntries().find(x=>x.id===id);
+  if(!item)return;
+  const occurrence=date||plannerSelected;
+  if(LifeLogic.isRepeating(item)){
+    const scope=await uiChoice('반복 일정이에요. 어떻게 삭제할까요?',[
+      {value:'one',label:'이번 일정만 삭제 ('+occurrence+')',kind:'danger'},
+      {value:'all',label:'모든 반복 일정 삭제',kind:'danger'}],{title:'반복 일정 삭제'});
+    if(scope===null)return;
+    const target=plannerEntries().find(x=>x.id===id);
+    if(!target)return;
+    if(scope==='one')target.skipDates=[...new Set([...(Array.isArray(target.skipDates)?target.skipDates:[]),occurrence])].sort();
+    else state.plannerEntries=plannerEntries().filter(x=>x.id!==id);
+  }else{
+    if(!await uiConfirm('이 일정을 삭제할까요?',{title:'일정 삭제',ok:'삭제',danger:true}))return;
+    state.plannerEntries=plannerEntries().filter(x=>x.id!==id);
+  }
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;persistState();renderCalendar();
 }
-function plannerToggle(id){const e=plannerEntries().find(x=>x.id===id);if(!e)return;e.done=!e.done;persistState();renderCalendar();}
+function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
 function plannerEscapeAttr(s){return esc(String(s||''));}
 let focusInterval=null;
 let focusDeadline=0;
-let focusRemaining=([5,10,15,25,30,45,50,60].includes(Number(state.focusSettings?.minutes))?Number(state.focusSettings.minutes):25)*60;
+let focusRemaining=(LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings?.minutes))?Number(state.focusSettings.minutes):25)*60;
 let focusRunning=false;
 let focusAudioContext=null;
 function focusSettings(){
   if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
-  if(![5,10,15,25,30,45,50,60].includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
+  if(!LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
   if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
   return state.focusSettings;
 }
@@ -1201,40 +1326,62 @@ function focusUpdateUI(){
   const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
   if(clock)clock.textContent=focusFormat(focusRemaining);
   if(button)button.textContent=focusRunning?'일시정지':'시작';
+  // Show the countdown in the browser tab title so a hidden tab still tells the time.
+  try{document.title=focusRunning?'⏱ '+focusFormat(focusRemaining)+' · life-ai':'life-ai | 나의 목표와 일정';}catch(e){}
+}
+/* The running/paused timer is saved so a reload, a closed tab or a phone that unloads the page
+   does not lose the session. Only the end time is stored while running, so time keeps counting. */
+function focusSaveRun(){
+  const cfg=focusSettings(),total=Number(cfg.minutes)*60;
+  if(focusRunning){
+    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+  }else if(focusRemaining>0&&focusRemaining<total){
+    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+  }else delete state.focusRun;
+  persistState();
+}
+function focusStopTimer(){
+  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
 }
 function focusTick(){
   if(!focusRunning)return;
   focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
   focusUpdateUI();
   if(focusRemaining===0){
-    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
-    focusRecordCompletion();focusNotify();toast('집중 시간이 끝났어요!');
+    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category||'study',completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
+    focusStopTimer();
+    delete state.focusRun;
+    focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
+    focusUpdateUI();
   }
 }
 function focusStartPause(){
   if(focusRunning){
     focusTick();
-    focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+    if(focusRunning){focusStopTimer();focusSaveRun();}
   }else{
     if(focusRemaining<=0)focusRemaining=Number(focusSettings().minutes)*60;
     focusDeadline=Date.now()+focusRemaining*1000;
     focusRunning=true;
     focusInterval=setInterval(focusTick,500);
+    focusSaveRun();
   }
   focusUpdateUI();
 }
-function focusReset(){
-  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){if(!confirm("진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요."))return;}
-  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
-  focusRemaining=Number(focusSettings().minutes)*60;focusUpdateUI();
+async function focusReset(){
+  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){if(!await uiConfirm('진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요.',{title:'타이머 초기화',ok:'초기화'}))return;}
+  focusStopTimer();
+  focusRemaining=Number(focusSettings().minutes)*60;
+  delete state.focusRun;persistState();focusUpdateUI();
 }
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
-function focusChangeMinutes(value){
+async function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
-  if((focusRunning||focusRemaining<previous*60)&&!confirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?')){renderCalendar();return;}
-  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
-  focusSettings().minutes=Number(value);persistState();
-  focusRemaining=Number(value)*60;focusUpdateUI();
+  if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
+  focusStopTimer();
+  focusSettings().minutes=Number(value);
+  focusRemaining=Number(value)*60;
+  delete state.focusRun;persistState();focusUpdateUI();
 }
 function focusChangeAlarm(value){
   focusSettings().alarm=value;persistState();
@@ -1258,6 +1405,7 @@ function focusPrimeSound(){
 }
 function focusNotify(){
   const mode=focusSettings().alarm;
+  focusShowNotification();
   const panel=document.getElementById('focusPanel');
   if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
   if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
@@ -1280,17 +1428,69 @@ function focusHistory(){
   if(!Array.isArray(state.focusHistory))state.focusHistory=[];
   return state.focusHistory;
 }
-function focusRecordCompletion(){
-  const minutes=Number(focusSettings().minutes);
-  const category=focusSettings().category||'study';
-  focusHistory().unshift({date:koreaToday(),minutes,category,completedAt:new Date().toISOString()});
-  if(state.focusHistory.length>500)state.focusHistory.length=500;
+function focusRecordCompletion(done){
+  const minutes=Number(done?.minutes||focusSettings().minutes);
+  const category=done?.category||focusSettings().category||'study';
+  const completedAt=done?.completedAt||new Date().toISOString();
+  // The same finished session can be seen by two open tabs; record it only once.
+  if(focusHistory().some(x=>x.completedAt===completedAt))return;
+  focusHistory().unshift({date:done?.date||koreaToday(),minutes,category,completedAt});
+  const limit=LifeLogic.FOCUS_HISTORY_LIMIT;
+  if(state.focusHistory.length>limit){
+    state.focusHistory.length=limit;
+    toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');
+  }
   persistState();
   if(document.getElementById('calendarContent'))renderCalendar();
 }
 function focusChangeCategory(value){
   if(!['study','job','personal'].includes(value))return;
-  focusSettings().category=value;persistState();
+  focusSettings().category=value;
+  if(state.focusRun&&typeof state.focusRun==='object')state.focusRun.category=value;
+  persistState();
+}
+/* Browser notification when the timer ends while the tab is hidden. It works only while the page is
+   still alive in the background; without a push server a fully closed app cannot ring. */
+function focusNotificationsSupported(){return typeof Notification!=='undefined';}
+async function focusShowNotification(){
+  if(!focusSettings().notify||!focusNotificationsSupported()||Notification.permission!=='granted')return;
+  if(typeof document.hidden!=='undefined'&&!document.hidden)return;
+  const title='집중 시간이 끝났어요';
+  const options={body:Number(focusSettings().minutes)+'분 집중을 마쳤어요. 잠깐 쉬어가요.',icon:'icons/icon-192.png',badge:'icons/icon-192.png',tag:'life-ai-focus'};
+  try{
+    const registration=navigator.serviceWorker&&navigator.serviceWorker.getRegistration?await navigator.serviceWorker.getRegistration():null;
+    if(registration&&registration.showNotification){await registration.showNotification(title,options);return;}
+    new Notification(title,options);
+  }catch(e){}
+}
+async function focusChangeNotify(checked){
+  if(!checked){focusSettings().notify=false;persistState();return;}
+  if(!focusNotificationsSupported()){
+    focusSettings().notify=false;persistState();renderCalendar();
+    toast('이 브라우저는 알림을 지원하지 않아요. 홈 화면에 앱을 추가하면 가능할 수 있어요.');return;
+  }
+  let permission=Notification.permission;
+  if(permission==='default'){try{permission=await Notification.requestPermission();}catch(e){permission='denied';}}
+  focusSettings().notify=permission==='granted';persistState();
+  if(permission!=='granted'){renderCalendar();toast('알림이 허용되지 않았어요. 브라우저 설정에서 허용해 주세요.');}
+  else toast('타이머가 끝나면 알림을 보내요.');
+}
+/* Called once at startup: continue, or settle, a timer saved before the page was closed. */
+function focusRestore(){
+  const resumed=LifeLogic.resumeFocus(state.focusRun,Date.now());
+  if(resumed.status==='idle'){if(state.focusRun){delete state.focusRun;persistState();}return;}
+  focusSettings().minutes=resumed.minutes;focusSettings().category=resumed.category;
+  if(resumed.status==='paused'){focusRemaining=resumed.remaining;}
+  else if(resumed.status==='running'){
+    focusRemaining=resumed.remaining;focusDeadline=resumed.deadline;focusRunning=true;
+    focusInterval=setInterval(focusTick,500);
+  }else{
+    delete state.focusRun;
+    focusRemaining=0;
+    focusRecordCompletion({minutes:resumed.minutes,category:resumed.category,completedAt:resumed.finishedAt,date:resumed.date});
+    startupNotice=startupNotice||resumed.minutes+'분 집중이 끝났어요. 기록에 저장했어요.';
+  }
+  focusUpdateUI();
 }
 let insightsPeriod='week';
 let insightsSelectedDate='';
@@ -1390,7 +1590,8 @@ function focusPanelHTML(){
       ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
     </select></label></div>
     <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
-    <p class="meta">앱이 열려 있는 동안 작동합니다. 브라우저를 종료하거나 기기가 절전 상태가 되면 완료 알림이 보장되지 않습니다.</p></details>
+    <label class="check focus-notify"><input type="checkbox" ${cfg.notify?'checked':''} onchange="focusChangeNotify(this.checked)"><span>화면이 가려져 있을 때 브라우저 알림도 받기</span></label>
+    <p class="meta">타이머는 저장돼서 앱을 다시 열어도 이어져요. 단, 알림과 알람은 앱이 백그라운드에서 살아 있을 때만 울려요. 완전히 종료됐거나 절전 중이면 다시 열 때 끝난 시간이 기록돼요.</p></details>
   </div>`;
 }
 function habitEntries(){
@@ -1413,19 +1614,12 @@ function habitToggle(id,date){
   else habit.checks.push(date);
   persistState();renderCalendar();
 }
-function habitRemove(id){
-  if(!confirm('습관과 완료 기록을 삭제할까요?'))return;
+async function habitRemove(id){
+  if(!await uiConfirm('습관과 완료 기록을 삭제할까요?',{title:'습관 삭제',ok:'삭제',danger:true}))return;
   state.habits=habitEntries().filter(x=>x.id!==id);
   persistState();renderCalendar();
 }
-function habitStreak(habit){
-  const checks=new Set(Array.isArray(habit.checks)?habit.checks:[]);
-  let date=koreaToday();
-  if(!checks.has(date))date=plannerDateOffset(date,-1);
-  let streak=0;
-  while(checks.has(date)&&streak<3650){streak++;date=plannerDateOffset(date,-1);}
-  return streak;
-}
+function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday());}
 function habitPanelHTML(){
   const today=koreaToday(),habits=habitEntries();
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
@@ -1496,7 +1690,7 @@ function renderCalendar(){
   const existing=plannerEntries().find(e=>e.id===plannerEditing);
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+['일','월','화','수','목','금','토'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]+')':plannerSelected;
   const dayList=plannerForDate(plannerSelected);
-  const upcoming=plannerEntries().filter(e=>!e.done&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+  const upcoming=plannerEntries().filter(e=>!LifeLogic.isDone(e,e.date)&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
   c.innerHTML=`
     <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
       ${[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']].map(([tab,label])=>`<button type="button" role="tab" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" onclick="plannerSwitchTab('${tab}')">${label}</button>`).join('')}
@@ -1537,7 +1731,7 @@ function renderCalendar(){
     </div>
     <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
-      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
     <div class="card">
       <div class="planner-form-heading">
@@ -1582,10 +1776,11 @@ function renderMy(){
       <div class="card"><strong>🏛 지원조건 정보</strong><p class="meta">${state.policyIncomeAdded?'소득 정보 확인됨':'필요할 때만 추가로 확인'}</p></div>
     </div>
     <div class="section-title">최근 활동</div>
-    <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${esc(x)}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
     <div class="section-title">내 데이터 백업·복원</div>
+    <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
     <div class="card"><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
@@ -1648,8 +1843,8 @@ function editPosting(id){
   document.getElementById('postingEditor').open=true;
   document.getElementById('postingFormTitle').textContent='공고 수정';document.getElementById('postingForm').scrollIntoView({behavior:'smooth'});
 }
-function deletePosting(id){
-  if(!confirm('이 공고와 지원 준비 기록을 삭제할까요?'))return;
+async function deletePosting(id){
+  if(!await uiConfirm('이 공고와 지원 준비 기록을 삭제할까요?',{title:'공고 삭제',ok:'삭제',danger:true}))return;
   state.jobPostings=state.jobPostings.filter(x=>x.id!==id);persistState();renderJobHub();
 }
 function setPostingStage(id,stage){
@@ -1885,9 +2080,15 @@ go=function(id){
   _go(id);
 };
 
+// Offline support and installable app: the service worker only runs on https or localhost.
+if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
+focusRestore();
 if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
 else if(state.mainGoal)go('home');
 else renderHome();
+if(startupNotice)setTimeout(()=>toast(startupNotice),600);
 </script>
 </body>
 </html>
