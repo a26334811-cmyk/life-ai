@@ -196,13 +196,41 @@ test('damaged saved data does not break startup and the original is kept',()=>{
   assert.equal(a.run('state.completedTasks.length'),5);
   assert.equal(a.run('habitEntries().length'),0);
   assert.equal(a.run('focusSettings().minutes'),25);
-  assert.equal(a.storage.get('lifeAIPrototypeV5.damaged'),raw);
+  assert.equal(a.storage.get('lifeAIPrototypeV5.damaged.2026-05-10'),raw);
+  assert.match(a.run('startupNotice'),/남겨 두었어요/);
 });
 
 test('unreadable saved data starts fresh but is preserved',()=>{
   const a=createApp('{not json');
   assert.equal(a.run('state.mainGoal'),'');
-  assert.equal(a.storage.get('lifeAIPrototypeV5.damaged'),'{not json');
+  assert.equal(a.storage.get('lifeAIPrototypeV5.damaged.2026-05-10'),'{not json');
+});
+
+test('damaged original: honest notice when keeping fails, never overwrites an earlier original, can be downloaded',()=>{
+  // storage full: the original cannot be kept, so the notice must not claim it was
+  const full=createApp('{not json',{failSave:true});
+  assert.doesNotMatch(full.run('startupNotice'),/남겨 두었어요/);
+  assert.match(full.run('startupNotice'),/보관하지 못했어요/);
+  // a second damage event on the same day keeps both originals
+  const b=createApp('{first bad');
+  b.run("archiveDamagedState('{second bad');archiveDamagedState('{third bad')");
+  const raws=Array.from(b.run('damagedArchives()').map(x=>x.raw)).sort();
+  assert.deepEqual(raws,['{first bad','{second bad','{third bad']);
+  // the same original is not stored twice
+  b.run("archiveDamagedState('{third bad')");
+  assert.equal(b.run('damagedArchives().length'),3);
+  // MY screen offers the download only when there is something to download, and the file holds the raw text
+  assert.match(b.run('(renderMy(),document.getElementById("myContent").innerHTML)'),/손상된 원본 내려받기/);
+  let blobText='';
+  b.context.Blob=class{constructor(parts){blobText=parts.join('');}};
+  b.context.URL={createObjectURL:()=>'blob:x',revokeObjectURL(){}};
+  const link={click(){this.clicked=true;},remove(){}};
+  b.context.document.createElement=()=>link;b.context.document.body={appendChild(){}};
+  b.run('downloadDamagedState()');
+  assert.equal(link.clicked,true);assert.match(link.download,/^life-ai-damaged-.*\.json$/);
+  assert.deepEqual(JSON.parse(blobText).archives.map(x=>x.raw).sort(),raws);
+  const clean=createApp(JSON.stringify({mainGoal:'x'}));
+  assert.doesNotMatch(clean.run('(renderMy(),document.getElementById("myContent").innerHTML)'),/손상된 원본 내려받기/);
 });
 
 test('data saved by the previous version is upgraded',()=>{

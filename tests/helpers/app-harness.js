@@ -42,6 +42,8 @@ function createApp(saved, opts = {}) {
   const context = {
     document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '' },
     localStorage: {
+      get length() { return storage.size; },
+      key: i => [...storage.keys()][i] ?? null,
       getItem: k => (storage.has(k) ? storage.get(k) : null),
       setItem: (k, v) => { if (opts.failSave) throw new Error('quota'); storage.set(k, v); },
       removeItem: k => storage.delete(k)
