@@ -805,10 +805,9 @@ function understandingHTML(){
 }
 function priorityReason(){
   if(state.goalType==='job'){
-    return {title:'관심 회사와 공고를 관리해보세요',desc:'관심 회사에서 공고를 확인하고, 저장한 공고의 준비와 마감일을 관리해요.',cta:'취업 관리 열기'};
     if(state.jobSubmitted) return '이미 제출한 일정은 더 이상 재촉하지 않고 다음 단계만 보여줘요.';
     if(state.jobPreparationStarted) return '준비 중인 목표가 있으므로 새 정보보다 미완료 행동을 먼저 보여줘요.';
-    return '취업 목표가 있으므로 가장 먼저 지원 가능한 기회를 확인하도록 정했어요.';
+    return '취업 목표가 있으므로 관심 회사와 공고를 저장해 마감일을 챙기는 것부터 보여줘요.';
   }
   if(state.goalType==='cert') return '시험 일정이 준비 계획 전체를 결정하므로 가장 먼저 확인하도록 정했어요.';
   if(state.goalType==='policy') return '지원 가능 여부를 먼저 알아야 불필요한 신청 준비를 줄일 수 있어요.';
