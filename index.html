@@ -224,7 +224,8 @@
 .planner-form .wide{grid-column:1/-1}
 .planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .planner-item .btn{width:auto}
-@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
+.planner-item-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+@media(max-width:520px){.planner-item{flex-direction:column}.planner-item-actions{justify-content:flex-start}.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
 .focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
@@ -1735,7 +1736,7 @@ function renderCalendar(){
     </div>
     <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
-      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+      ${e.origin==='personal'?`<div class="planner-item-actions"><button class="btn ghost" aria-label="${e.done?'완료 취소':'완료 표시'}: ${plannerEscapeAttr(e.title)}" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'완료 취소':'완료'}</button><button class="btn ghost" aria-label="수정: ${plannerEscapeAttr(e.title)}" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" aria-label="삭제: ${plannerEscapeAttr(e.title)}" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
     <div class="card">
       <div class="planner-form-heading">
