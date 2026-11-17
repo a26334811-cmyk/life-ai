@@ -180,6 +180,84 @@ test('cancelling the scope question leaves the series untouched',async()=>{
   assert.deepEqual(titles(a,'2026-05-05'),['운동']);
 });
 
+/* ---------- adding a new item and input checks (#54) ---------- */
+test('a new one-off item is added with the form values and a saved notice',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'치과',date:'2026-05-12',time:'09:30',category:'personal',priority:'high'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  const item=a.saved().plannerEntries[0];
+  assert.equal(item.title,'치과');assert.equal(item.date,'2026-05-12');assert.equal(item.time,'09:30');
+  assert.equal(item.repeat,'none');assert.equal(item.priority,'high');assert.equal(item.done,false);
+  assert.ok(item.id);
+  assert.deepEqual(titles(a,'2026-05-12'),['치과']);
+  assert.deepEqual(titles(a,'2026-05-13'),[]);
+  assert.match(a.toasts.at(-1),/일정을 저장했어요/);
+});
+
+test('new daily, weekly and monthly items are saved and show on the right days',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'매일 운동',date:'2026-05-04',repeat:'daily'});await a.run('plannerSave()');
+  fillForm(a,{title:'주간 회의',date:'2026-05-04',repeat:'weekly'});await a.run('plannerSave()');
+  fillForm(a,{title:'월세',date:'2026-05-04',repeat:'monthly'});await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),3);
+  assert.deepEqual(a.saved().plannerEntries.map(e=>e.repeat),['daily','weekly','monthly']);
+  assert.deepEqual(titles(a,'2026-05-05'),['매일 운동']);
+  assert.deepEqual(titles(a,'2026-05-11').sort(),['매일 운동','주간 회의'].sort());
+  assert.deepEqual(titles(a,'2026-06-04').sort(),['매일 운동','월세'].sort());
+  assert.deepEqual(titles(a,'2026-05-04').sort(),['매일 운동','월세','주간 회의'].sort());
+});
+
+test('a repeat end date stops the repeat after that day',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'스터디',date:'2026-05-01',repeat:'daily',until:'2026-05-03'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.saved().plannerEntries[0].until,'2026-05-03');
+  assert.deepEqual(titles(a,'2026-05-03'),['스터디']);
+  assert.deepEqual(titles(a,'2026-05-04'),[]);
+});
+
+test('a title of exactly 120 characters is accepted',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'가'.repeat(120),date:'2026-05-12'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.run('state.plannerEntries[0].title.length'),120);
+});
+
+test('invalid input is refused: nothing is saved and the user is told why',async()=>{
+  const bad=[
+    ['empty title',{title:'',date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['blank title',{title:'   ',date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['121 character title',{title:'가'.repeat(121),date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['missing date',{title:'치과',date:''},/제목\(120자 이하\)과 날짜/],
+    ['date that does not exist',{title:'치과',date:'2026-02-30'},/제목\(120자 이하\)과 날짜/],
+    ['date in the wrong format',{title:'치과',date:'2026/05/12'},/제목\(120자 이하\)과 날짜/],
+    ['end date before the start date',{title:'치과',date:'2026-05-12',repeat:'daily',until:'2026-05-11'},/반복 종료일을 확인/],
+    ['end date that does not exist',{title:'치과',date:'2026-05-12',repeat:'daily',until:'2026-02-30'},/반복 종료일을 확인/]
+  ];
+  for(const [name,form,message] of bad){
+    const a=createApp();
+    fillForm(a,form);
+    await a.run('plannerSave()');
+    assert.equal(a.run('plannerEntries().length'),0,name+': no item added');
+    assert.equal(a.storage.has('lifeAIPrototypeV5')&&(a.saved().plannerEntries||[]).length>0,false,name+': nothing stored');
+    assert.equal(a.toasts.length,1,name+': one notice');
+    assert.match(a.toasts[0],message,name);
+  }
+});
+
+test('a refused edit leaves the existing item unchanged',async()=>{
+  const a=createApp();
+  a.run("state.plannerEntries=[{id:'x',title:'치과',date:'2026-05-12',repeat:'none'}]");
+  a.run("plannerEdit('x','2026-05-12')");
+  fillForm(a,{title:'',date:'2026-05-12'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries[0].title'),'치과');
+  assert.match(a.toasts.at(-1),/확인해 주세요/);
+});
+
 test('ticking a repeating item done affects only that day',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
