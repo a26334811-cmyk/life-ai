@@ -121,6 +121,37 @@ test('after a finished timer, reset and duration change do not ask for confirmat
   assert.equal(reopened.dialogs.filter(d=>d.kind==='confirm').length,0);
 });
 
+test('the timer wakes once per shown second plus once at the end time, not twice a second',()=>{
+  const a=createApp();
+  const before=a.pending().length;
+  a.run('focusStartPause()');
+  const ids=a.pending().slice(before);
+  assert.equal(ids.length,2,'one next-second timeout and one end-time timeout');
+  assert.deepEqual(ids.map(id=>a.delays[id]).sort((x,y)=>x-y),[1005,25*60*1000+5]);
+  assert.ok(ids.every(id=>a.delays[id]!==undefined),'both are one-shot timeouts, no repeating interval');
+  // 400 ms later the shown second has not changed: the screen text stays, the next wake-up is re-aimed at the next second change.
+  a.clock.now+=400;
+  a.tick();
+  assert.equal(a.el('focusClock').textContent,'25:00');
+  const after=a.pending().slice(before);
+  assert.equal(after.length,2,'old timeouts are replaced, not piled up');
+  assert.deepEqual(after.map(id=>a.delays[id]).sort((x,y)=>x-y),[605,25*60*1000-400+5]);
+  a.clock.now+=700;
+  a.tick();
+  assert.equal(a.el('focusClock').textContent,'24:59');
+});
+
+test('the end-time timeout finishes the session and leaves no timer running',()=>{
+  const a=createApp();
+  const before=a.pending().length;
+  a.run('focusStartPause()');
+  a.clock.now+=25*60*1000+5;
+  a.tick();
+  assert.equal(a.run('focusRunning'),false);
+  assert.equal(a.run('focusHistory().length'),1);
+  assert.equal(a.pending().length,before,'both timeouts are cleared after the finish');
+});
+
 /* ---------- notifications (improvement 2) ---------- */
 test('browser notification is sent only when enabled, permitted and the tab is hidden',async()=>{
   const hidden=createApp(undefined,{hidden:true,notification:{permission:'default',requestResult:'granted'}});

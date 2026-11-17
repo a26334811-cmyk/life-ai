@@ -26,7 +26,8 @@ function createApp(saved, opts = {}) {
   const storage = new Map(saved ? [['lifeAIPrototypeV5', saved]] : []);
   const clock = { now: opts.now || Date.parse('2026-05-10T03:00:00Z') };
   const timers = [];
-  const pendingTimeouts = []; // setTimeout callbacks wait here; flushTimeouts() runs them on demand
+  const oneShot = new Set(); // ids of setTimeout timers (dropped once they have run)
+  const delays = {};
   let reloads = 0;
   const toasts = [];
   const dialogs = [];
@@ -57,7 +58,9 @@ function createApp(saved, opts = {}) {
       },
       removeItem: k => storage.delete(k)
     },
-    setTimeout: fn => { pendingTimeouts.push(fn); return 0; }, clearTimeout() {},
+// setTimeout is recorded too (one-shot: dropped after tick() or flushTimeouts() runs it); delays[id] holds the requested wait in ms.
+setTimeout: (fn, ms) => { timers.push(fn); oneShot.add(timers.length); delays[timers.length] = ms; return timers.length; },
+clearTimeout: id => { if (id) timers[id - 1] = null; },
     setInterval: fn => { timers.push(fn); return timers.length; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
     requestAnimationFrame() {},
@@ -129,9 +132,19 @@ function createApp(saved, opts = {}) {
   `, Object.assign(context, { __toast: m => toasts.push(m) }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
-    tick() { timers.filter(Boolean).forEach(fn => fn()); },
-    flushTimeouts() { pendingTimeouts.splice(0).forEach(fn => fn()); },
+    el, storage, clock, timers, delays, toasts, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
+    // ids of timers that are still waiting (not cleared, not yet run)
+    pending() { return timers.map((fn, i) => (fn ? i + 1 : 0)).filter(Boolean); },
+    tick() {
+      timers.map((fn, i) => [fn, i]).filter(([fn]) => fn).forEach(([fn, i]) => {
+        if (oneShot.has(i + 1)) timers[i] = null;
+        fn();
+      });
+    },
+    // runs only the waiting setTimeout callbacks (not the repeating timers)
+    flushTimeouts() {
+      timers.map((fn, i) => [fn, i]).filter(([fn, i]) => fn && oneShot.has(i + 1)).forEach(([fn, i]) => { timers[i] = null; fn(); });
+    },
     get reloads() { return reloads; },
     saved() { return JSON.parse(storage.get('lifeAIPrototypeV5')); }
   };

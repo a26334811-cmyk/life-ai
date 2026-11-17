@@ -1468,7 +1468,7 @@ function plannerPostpone(id){
   persistState();renderCalendar();toast('일정을 '+e.date+'로 미뤘어요.');
 }
 function plannerEscapeAttr(s){return esc(String(s||''));}
-let focusInterval=null;
+let focusTickTimer=null,focusEndTimer=null;
 let focusDeadline=0;
 let focusRemaining=(LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings?.minutes))?Number(state.focusSettings.minutes):25)*60;
 let focusRunning=false;
@@ -1490,12 +1490,14 @@ function focusFormat(seconds){
 }
 function focusUpdateUI(){
   const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
-  if(clock)clock.textContent=focusFormat(focusRemaining);
-  if(button)button.textContent=focusRunning?'일시정지':'시작';
-  const doneNote=document.getElementById('focusDoneNote');
-  if(doneNote)doneNote.textContent=focusDoneText();
+  const clockText=focusFormat(focusRemaining),buttonText=focusRunning?'일시정지':'시작';
+  // Only touch the page when the text really changed.
+  if(clock&&clock.textContent!==clockText)clock.textContent=clockText;
+  if(button&&button.textContent!==buttonText)button.textContent=buttonText;
+  const doneNote=document.getElementById('focusDoneNote'),doneText=focusDoneText();
+  if(doneNote&&doneNote.textContent!==doneText)doneNote.textContent=doneText;
   // Show the countdown in the browser tab title so a hidden tab still tells the time.
-  try{document.title=focusRunning?'⏱ '+focusFormat(focusRemaining)+' · life-ai':focusDoneMinutes?'✅ 집중이 끝났어요 · life-ai':'life-ai | 나의 목표와 일정';}catch(e){}
+  try{const title=focusRunning?'⏱ '+clockText+' · life-ai':focusDoneMinutes?'✅ 집중이 끝났어요 · life-ai':'life-ai | 나의 목표와 일정';if(document.title!==title)document.title=title;}catch(e){}
 }
 /* The running/paused timer is saved so a reload, a closed tab or a phone that unloads the page
    does not lose the session. Only the end time is stored while running, so time keeps counting. */
@@ -1509,7 +1511,7 @@ function focusSaveRun(){
   persistState();
 }
 function focusStopTimer(){
-  focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusRunning=false;clearTimeout(focusTickTimer);clearTimeout(focusEndTimer);focusTickTimer=null;focusEndTimer=null;
   focusWakeRelease();
 }
 /* Keep the screen on while the timer runs (optional). Browsers drop the lock when the page is hidden,
@@ -1534,10 +1536,20 @@ function focusChangeKeepAwake(checked){
   focusSettings().keepAwake=Boolean(checked);persistState();
   if(checked)focusWakeAcquire();else focusWakeRelease();
 }
+/* Two timeouts instead of a 0.5 s interval: one wakes up exactly when the shown second changes,
+   one fires at the end time so the finish is not missed while the tab is throttled. */
+function focusScheduleTick(){
+  clearTimeout(focusTickTimer);clearTimeout(focusEndTimer);
+  const left=focusDeadline-Date.now();
+  const toNextSecond=left-(Math.ceil(left/1000)-1)*1000;
+  focusTickTimer=setTimeout(focusTick,Math.max(0,toNextSecond)+5);
+  focusEndTimer=setTimeout(focusTick,Math.max(0,left)+5);
+}
 function focusTick(){
   if(!focusRunning)return;
   focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
   focusUpdateUI();
+  if(focusRemaining>0)focusScheduleTick();
   if(focusRemaining===0){
     const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category,completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
     focusStopTimer();
@@ -1557,7 +1569,7 @@ function focusStartPause(){
     focusDoneMinutes=0;
     focusDeadline=Date.now()+focusRemaining*1000;
     focusRunning=true;
-    focusInterval=setInterval(focusTick,500);
+    focusScheduleTick();
     focusSaveRun();
     focusWakeAcquire();
   }
@@ -1687,7 +1699,7 @@ function focusRestore(){
   if(resumed.status==='paused'){focusRemaining=resumed.remaining;}
   else if(resumed.status==='running'){
     focusRemaining=resumed.remaining;focusDeadline=resumed.deadline;focusRunning=true;
-    focusInterval=setInterval(focusTick,500);
+    focusScheduleTick();
     focusWakeAcquire();
   }else{
     delete state.focusRun;
