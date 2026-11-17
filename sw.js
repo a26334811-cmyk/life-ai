@@ -3,7 +3,7 @@
    - Network first: when online you get the newest files; the cache is the fallback (also when the network takes over 3 seconds).
    - Never touches Netlify functions or other origins (live job / exam data must stay live).
    - Shows the "focus finished" notification and opens the app when it is tapped. */
-const CACHE = 'life-ai-shell-v1';
+const CACHE = 'life-ai-shell-v2';
 const NETWORK_TIMEOUT_MS = 3000;
 const SHELL = ['./', 'index.html', 'logic.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
@@ -31,7 +31,8 @@ self.addEventListener('fetch', event => {
   // Ask the network first, but on a weak signal do not leave a blank screen: after NETWORK_TIMEOUT_MS show the
   // saved copy right away and let the download finish in the background so the next open has the newest files.
   const network = fetch(request).then(response => {
-    if (response && response.ok && response.type === 'basic') {
+    /* Addresses with a query (e.g. a shared job link: index.html?title=..&url=..) are never stored. */
+    if (response && response.ok && response.type === 'basic' && !url.search) {
       const copy = response.clone();
       caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
     }

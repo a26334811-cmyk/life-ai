@@ -850,7 +850,7 @@ function inferGoal(text){
 function understandingHTML(){
   const p=state.parsedGoal||{};
   if(!p.raw && state.goalType==='job'){
-    return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${state.selectedCompany||'회사 미정'}</span> <span class="tag">${state.selectedJob||'직무 미정'}</span></div></div>`;
+    return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${esc(state.selectedCompany||'회사 미정')}</span> <span class="tag">${esc(state.selectedJob||'직무 미정')}</span></div></div>`;
   }
   if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${esc(state.mainGoal)}</p></div>`;
   const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
@@ -1069,7 +1069,7 @@ function goalPlanCards(){
     const goalHint=state.parsedGoal?.region ? `${state.parsedGoal.region} 지역을 우선 반영` : `${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준`;
     return `
       <div class="stack">
-        <div class="card"><strong>1. 맞는 채용 찾기</strong><p class="meta">${goalHint}</p></div>
+        <div class="card"><strong>1. 맞는 채용 찾기</strong><p class="meta">${esc(goalHint)}</p></div>
         <div class="card"><strong>2. 지원 준비 체크리스트</strong><p class="meta">조건 확인 → 서류 준비 → 최종 제출</p></div>
         <div class="card"><strong>3. 놓치면 안 되는 일정</strong><p class="meta">지원 마감과 준비 일정을 한곳에서 관리</p></div>
       </div>`;
@@ -1907,9 +1907,9 @@ function renderMy(){
     <div class="stack">
       <div class="card"><strong>목표 유형</strong><p class="meta">${goalTypeName(state.goalType)}</p></div>
       ${state.goalType==='job'?`
-      <div class="card"><strong>관심 회사·직무</strong><p class="meta">${state.selectedCompany||'미입력'} · ${state.selectedJob||'미입력'}</p></div>
-      <div class="card"><strong>취업 정보</strong><p class="meta">${state.employmentStatus||'미입력'} · ${state.career||'경력 미입력'} · ${state.education||'학력 미입력'}</p></div>
-      <div class="card"><strong>보유 자격증</strong><p class="meta">${state.ownedCert||'입력 없음'}</p></div>`:''}
+      <div class="card"><strong>관심 회사·직무</strong><p class="meta">${esc(state.selectedCompany||'미입력')} · ${esc(state.selectedJob||'미입력')}</p></div>
+      <div class="card"><strong>취업 정보</strong><p class="meta">${esc(state.employmentStatus||'미입력')} · ${esc(state.career||'경력 미입력')} · ${esc(state.education||'학력 미입력')}</p></div>
+      <div class="card"><strong>보유 자격증</strong><p class="meta">${esc(state.ownedCert||'입력 없음')}</p></div>`:''}
       <div class="card"><strong>🏛 지원조건 정보</strong><p class="meta">${state.policyIncomeAdded?'소득 정보 확인됨':'필요할 때만 추가로 확인'}</p></div>
     </div>
     <div class="section-title">최근 활동</div>

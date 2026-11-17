@@ -822,3 +822,20 @@ test('a server error message still shows as before, not the slow notice',async()
   assert.match(a.el('liveCertStatus').innerHTML,/인증키 문제/);
   assert.doesNotMatch(a.el('liveCertStatus').innerHTML,/연결이 느려요/);
 });
+
+/* ---------- #33: typed company/job/career/cert text must not become HTML ---------- */
+test('company, job, career, education and certificate text is escaped on the goal-created and MY screens',()=>{
+  const evil='<img src=x onerror=alert(1)>';
+  const a=createApp(JSON.stringify({mainGoal:'x',goalType:'job',selectedCompany:evil,selectedJob:'<script>x</script>',employmentStatus:'<b>',career:'<i>c</i>',education:'<u>e</u>',ownedCert:'<svg onload=1>'}));
+  a.run('renderMy()');
+  const my=a.el('myContent').innerHTML;
+  assert.ok(!/<(img|script|b|i|u|svg)\b/.test(my),my);
+  assert.ok(my.includes('&lt;img src=x onerror=alert(1)&gt;')&&my.includes('&lt;script&gt;x&lt;/script&gt;')&&my.includes('&lt;svg onload=1&gt;'));
+  const understanding=a.run('understandingHTML()');
+  assert.ok(!/<(img|script)\b/.test(understanding),understanding);
+  assert.ok(understanding.includes('&lt;script&gt;x&lt;/script&gt;'));
+  a.run('finishGoalCreation()');
+  const plan=a.el('goalPlanPreview').innerHTML;
+  assert.ok(!/<(img|script)\b/.test(plan),plan);
+  assert.ok(plan.includes('&lt;img src=x onerror=alert(1)&gt;'));
+});
