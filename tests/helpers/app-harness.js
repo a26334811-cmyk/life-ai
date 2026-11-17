@@ -54,10 +54,23 @@ function createApp(saved, opts = {}) {
     confirm: () => true, prompt: () => opts.answer
   };
   const historyCalls = [];
+  const historyLog = [];
+  if (opts.search === undefined && opts.trackHistory) {
+    context.history = {
+      replaceState: (a) => { historyLog.push({ type: 'replace', state: a }); },
+      pushState: (a) => { historyLog.push({ type: 'push', state: a }); }
+    };
+  }
   if (opts.fetch) context.fetch = (...args) => opts.fetch(...args);
   if (opts.search !== undefined) {
     context.location = { search: opts.search, pathname: '/index.html', protocol: 'https:', hostname: 'app.example' };
-    context.history = { replaceState: (a, b, url) => { historyCalls.push(url); context.location.search = ''; } };
+    context.history = {
+      replaceState: (a, b, url) => {
+        if (url === undefined) { historyLog.push({ type: 'replace', state: a }); return; } // screen history only; the address stays
+        historyCalls.push(url); context.location.search = '';
+      },
+      pushState: (a) => { historyLog.push({ type: 'push', state: a }); }
+    };
   }
   if (opts.notification) {
     const n = opts.notification;
@@ -85,7 +98,7 @@ function createApp(saved, opts = {}) {
   `, Object.assign(context, { __toast: m => toasts.push(m) }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, context,
+    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, historyLog, context,
     tick() { timers.filter(Boolean).forEach(fn => fn()); },
     saved() { return JSON.parse(storage.get('lifeAIPrototypeV5')); }
   };

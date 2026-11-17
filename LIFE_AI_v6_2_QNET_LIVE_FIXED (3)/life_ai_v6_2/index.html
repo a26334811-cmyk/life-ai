@@ -605,11 +605,11 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <nav id="bottomnav" class="bottomnav">
-    <button data-target="home" onclick="go('home')"><span class="navicon">⌂</span>홈</button>
-    <button data-target="opportunities" onclick="go('opportunities')"><span class="navicon">⌕</span>기회</button>
-    <button data-target="goals" onclick="go('goals')"><span class="navicon">◎</span>목표</button>
-    <button data-target="calendar" onclick="go('calendar')"><span class="navicon">□</span>일정</button>
-    <button data-target="my" onclick="go('my')"><span class="navicon">○</span>MY</button>
+    <button data-target="home" onclick="go('home','replace')"><span class="navicon">⌂</span>홈</button>
+    <button data-target="opportunities" onclick="go('opportunities','replace')"><span class="navicon">⌕</span>기회</button>
+    <button data-target="goals" onclick="go('goals','replace')"><span class="navicon">◎</span>목표</button>
+    <button data-target="calendar" onclick="go('calendar','replace')"><span class="navicon">□</span>일정</button>
+    <button data-target="my" onclick="go('my','replace')"><span class="navicon">○</span>MY</button>
   </nav>
 </div>
 
@@ -850,7 +850,29 @@ function startOrContinue(){
 function getNick(){
   return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
 }
-function go(id){
+/* Browser history: each screen change leaves an entry so the phone's Back gesture returns to the previous screen
+   instead of closing the app. mode 'replace' (bottom menu) and the very first screen do not add entries;
+   mode 'pop' is used when the browser itself moved through history. */
+let currentScreen='start';
+let screenHistoryStarted=false;
+function recordScreenHistory(id,mode){
+  if(mode==='pop'){screenHistoryStarted=true;return;}
+  try{
+    if(typeof history==='undefined')return;
+    const entry={screen:id};
+    if(!screenHistoryStarted||mode==='replace'||id===currentScreen){if(history.replaceState)history.replaceState(entry,'');}
+    else if(history.pushState)history.pushState(entry,'');
+    screenHistoryStarted=true;
+  }catch(e){}
+}
+function onScreenPopState(event){
+  const id=event?.state?.screen;
+  if(!id||!document.getElementById(id))return;
+  go(id,'pop');
+}
+function go(id,mode){
+  recordScreenHistory(id,mode);
+  currentScreen=id;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
@@ -1903,7 +1925,7 @@ function handleSharedLink(){
   if(typeof location==='undefined')return false;
   const shared=LifeLogic.parseShareParams(location.search);
   if(!shared)return false;
-  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(null,'',location.pathname);}catch(e){}
+  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(history.state||null,'',location.pathname);}catch(e){}
   jobCollections();
   go('jobHub');
   if(state.jobPostings.some(x=>x.url===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
@@ -2171,10 +2193,11 @@ function syncJobDetail(){
 }
 
 const _go=go;
-go=function(id){
+go=function(id,mode){
   if(['jobDetail','prepare'].includes(id)) id='jobHub';
-  _go(id);
+  _go(id,mode);
 };
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
 
 // Offline support and installable app: the service worker only runs on https or localhost.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
@@ -2184,6 +2207,7 @@ focusRestore();
 if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
 else if(state.mainGoal)go('home');
 else renderHome();
+if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
 handleSharedLink();
 if(startupNotice)setTimeout(()=>toast(startupNotice),600);
 </script>

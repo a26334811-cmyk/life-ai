@@ -473,6 +473,39 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+/* ---------- phone Back gesture keeps the app open ---------- */
+test('screen changes leave history entries; bottom menu and the first screen only replace',()=>{
+  const a=createApp(undefined,{trackHistory:true});
+  const log=()=>JSON.parse(JSON.stringify(a.historyLog));
+  assert.deepEqual(log(),[{type:'replace',state:{screen:'start'}}],'first screen is recorded without adding an entry');
+  a.run("go('calendar')");
+  a.run("go('jobHub')");
+  assert.deepEqual(log().slice(1),[{type:'push',state:{screen:'calendar'}},{type:'push',state:{screen:'jobHub'}}]);
+  a.run("go('my','replace')");
+  assert.deepEqual(log().at(-1),{type:'replace',state:{screen:'my'}});
+  const before=a.historyLog.length;
+  a.run("go('my')");
+  assert.equal(a.historyLog.at(-1).type,'replace','showing the same screen again does not stack entries');
+  assert.equal(a.historyLog.length,before+1);
+});
+
+test('the browser Back (popstate) shows the earlier screen without adding history',()=>{
+  const a=createApp(undefined,{trackHistory:true});
+  a.run("go('calendar')");a.run("go('jobHub')");
+  const count=a.historyLog.length;
+  a.run("onScreenPopState({state:{screen:'calendar'}})");
+  assert.equal(a.run('currentScreen'),'calendar');
+  assert.equal(a.historyLog.length,count,'going back must not push or replace');
+  // entries without a screen name (or an unknown one) are ignored
+  a.run("onScreenPopState({state:null});onScreenPopState({state:{screen:'nope'}})");
+  assert.equal(a.run('currentScreen'),'calendar');
+});
+
+test('bottom menu buttons switch tabs without stacking history',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  for(const id of ['home','opportunities','goals','calendar','my'])assert.ok(html.includes(`onclick="go('${id}','replace')"`),id);
+});
+
 /* ---------- save failure must not look like success ---------- */
 const saveFourThings=async a=>{
   a.run('plannerOpenForm()');
