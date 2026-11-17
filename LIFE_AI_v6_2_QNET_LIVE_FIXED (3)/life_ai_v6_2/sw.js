@@ -1,9 +1,10 @@
 /* life-ai service worker.
    - Keeps the app shell so the planner, habits and timer open without a network.
-   - Network first: when online you always get the newest files; the cache is only the fallback.
+   - Network first: when online you get the newest files; the cache is the fallback (also when the network takes over 3 seconds).
    - Never touches Netlify functions or other origins (live job / exam data must stay live).
    - Shows the "focus finished" notification and opens the app when it is tapped. */
 const CACHE = 'life-ai-shell-v1';
+const NETWORK_TIMEOUT_MS = 3000;
 const SHELL = ['./', 'index.html', 'logic.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
@@ -27,19 +28,28 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/.netlify/')) return;
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (response && response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(request, { ignoreSearch: true }).then(hit =>
-          hit || (request.mode === 'navigate' ? caches.match('index.html') : Response.error())))
-  );
+  // Ask the network first, but on a weak signal do not leave a blank screen: after NETWORK_TIMEOUT_MS show the
+  // saved copy right away and let the download finish in the background so the next open has the newest files.
+  const network = fetch(request).then(response => {
+    if (response && response.ok && response.type === 'basic') {
+      const copy = response.clone();
+      caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+    }
+    return response;
+  });
+  const saved = () => caches.match(request, { ignoreSearch: true }).then(hit =>
+    hit || (request.mode === 'navigate' ? caches.match('index.html') : null));
+  let timer;
+  const first = Promise.race([
+    network.then(response => ({ response }), () => ({ failed: true })),
+    new Promise(resolve => { timer = setTimeout(() => resolve({ slow: true }), NETWORK_TIMEOUT_MS); })
+  ]);
+  event.waitUntil(network.catch(() => {}));
+  event.respondWith(first.then(result => {
+    clearTimeout(timer);
+    if (result.response) return result.response;
+    return saved().then(hit => hit || (result.slow ? network.catch(() => Response.error()) : Response.error()));
+  }));
 });
 
 self.addEventListener('notificationclick', event => {
