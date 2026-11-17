@@ -101,6 +101,9 @@
       opacity:0;pointer-events:none;transition:.25s;z-index:30;font-size:14px;
     }
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .save-fail-banner{position:fixed;top:0;left:0;right:0;z-index:55;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#b3261e;color:#fff;font-size:14px;font-weight:700}
+    .save-fail-banner[hidden]{display:none}
+    .save-fail-banner button{border:0;border-radius:10px;padding:8px 12px;background:#fff;color:#b3261e;font-weight:800;cursor:pointer}
     .ui-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,32,48,.45)}
     .ui-modal-box{width:min(420px,100%);background:#fff;border-radius:20px;padding:22px 20px 16px;box-shadow:0 18px 50px rgba(15,32,48,.28)}
     .ui-modal-box h3{margin:0 0 8px;font-size:17px}
@@ -602,15 +605,16 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <nav id="bottomnav" class="bottomnav">
-    <button data-target="home" onclick="go('home')"><span class="navicon">⌂</span>홈</button>
-    <button data-target="opportunities" onclick="go('opportunities')"><span class="navicon">⌕</span>기회</button>
-    <button data-target="goals" onclick="go('goals')"><span class="navicon">◎</span>목표</button>
-    <button data-target="calendar" onclick="go('calendar')"><span class="navicon">□</span>일정</button>
-    <button data-target="my" onclick="go('my')"><span class="navicon">○</span>MY</button>
+    <button data-target="home" onclick="go('home','replace')"><span class="navicon">⌂</span>홈</button>
+    <button data-target="opportunities" onclick="go('opportunities','replace')"><span class="navicon">⌕</span>기회</button>
+    <button data-target="goals" onclick="go('goals','replace')"><span class="navicon">◎</span>목표</button>
+    <button data-target="calendar" onclick="go('calendar','replace')"><span class="navicon">□</span>일정</button>
+    <button data-target="my" onclick="go('my','replace')"><span class="navicon">○</span>MY</button>
   </nav>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="saveFailBanner" class="save-fail-banner" role="alert" hidden><span>기록을 저장하지 못했어요. 지금 닫으면 방금 입력한 내용이 사라질 수 있어요.</span><button type="button" onclick="exportLifeAIBackup()">지금 백업</button></div>
 
 <script src="logic.js"></script>
 <script>
@@ -658,8 +662,13 @@ function persistState(){
   try {
     localStorage.setItem('lifeAIPrototypeV5', JSON.stringify(state));
     lifeAISaveWarningShown=false;
+    const banner=document.getElementById('saveFailBanner');
+    if(banner)banner.hidden=true;
     return true;
   } catch(e) {
+    // Stays on screen until a later save succeeds (the toast below disappears after a moment).
+    const banner=document.getElementById('saveFailBanner');
+    if(banner)banner.hidden=false;
     if(!lifeAISaveWarningShown){
       lifeAISaveWarningShown=true;
       if(typeof toast==='function')toast('기록을 저장하지 못했어요. 저장 공간을 확인하고 내 데이터 백업을 이용해 주세요.');
@@ -667,6 +676,18 @@ function persistState(){
     return false;
   }
 }
+/* Another tab (or a backup restore in another tab) saved new records. This tab still holds the old copy and would
+   overwrite them on its next save, so it re-reads everything from storage instead of keeping stale data. */
+let lifeAIReloadingForStorage=false;
+function onStateStorageEvent(event){
+  if(!event||(event.key!==null&&event.key!=='lifeAIPrototypeV5'))return;
+  if(event.key!==null&&event.newValue===event.oldValue)return;
+  if(lifeAIReloadingForStorage)return;
+  lifeAIReloadingForStorage=true;
+  try{toast('다른 창에서 기록이 바뀌었어요. 최신 내용으로 다시 불러와요.');}catch(e){}
+  setTimeout(()=>{try{location.reload();}catch(e){lifeAIReloadingForStorage=false;}},900);
+}
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('storage',onStateStorageEvent);
 
 const taskNames = ['기본 조건 확인','필요 자료 정리','핵심 준비 시작','최종 검토','완료 기록'];
 
@@ -841,7 +862,29 @@ function startOrContinue(){
 function getNick(){
   return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
 }
-function go(id){
+/* Browser history: each screen change leaves an entry so the phone's Back gesture returns to the previous screen
+   instead of closing the app. mode 'replace' (bottom menu) and the very first screen do not add entries;
+   mode 'pop' is used when the browser itself moved through history. */
+let currentScreen='start';
+let screenHistoryStarted=false;
+function recordScreenHistory(id,mode){
+  if(mode==='pop'){screenHistoryStarted=true;return;}
+  try{
+    if(typeof history==='undefined')return;
+    const entry={screen:id};
+    if(!screenHistoryStarted||mode==='replace'||id===currentScreen){if(history.replaceState)history.replaceState(entry,'');}
+    else if(history.pushState)history.pushState(entry,'');
+    screenHistoryStarted=true;
+  }catch(e){}
+}
+function onScreenPopState(event){
+  const id=event?.state?.screen;
+  if(!id||!document.getElementById(id))return;
+  go(id,'pop');
+}
+function go(id,mode){
+  recordScreenHistory(id,mode);
+  currentScreen=id;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
@@ -1243,7 +1286,7 @@ function plannerDateOffset(date,days){return LifeLogic.dateOffset(date,days);}
 function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
 function plannerForDate(date){
   const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
-  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
+  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
   return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
 function plannerNavigate(days){
@@ -1282,13 +1325,15 @@ async function plannerSave(){
     old.skipDates=[...new Set([...(Array.isArray(old.skipDates)?old.skipDates:[]),occurrence])].sort();
     entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
   }else{
-    const item={...(old||{}),id:old?.id||newJobId(),title,date,time,category,repeat,until,priority};
+    // The form shows the day the user tapped; if they left it unchanged, the series keeps its own start date.
+    const startDate=old&&LifeLogic.isRepeating(old)&&date===occurrence&&repeat!=='none'?old.date:date;
+    const item={...(old||{}),id:old?.id||newJobId(),title,date:startDate,time,category,repeat,until,priority};
     if(LifeLogic.isRepeating(item)){item.done=false;if(!Array.isArray(item.doneDates))item.doneDates=[];}
     else{item.done=Boolean(old?.done)&&!LifeLogic.isRepeating(old);delete item.doneDates;delete item.skipDates;}
     const index=entries.findIndex(e=>e.id===item.id);
     if(index>=0)entries[index]=item;else entries.push(item);
   }
-  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast('일정을 저장했어요.');
 }
 async function plannerRemove(id,date){
   const item=plannerEntries().find(x=>x.id===id);
@@ -1354,6 +1399,7 @@ function focusTick(){
   if(focusRemaining===0){
     const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category||'study',completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
     focusStopTimer();
+    focusRemaining=Number(focusSettings().minutes)*60;
     delete state.focusRun;
     focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
     focusUpdateUI();
@@ -1490,7 +1536,7 @@ function focusRestore(){
     focusInterval=setInterval(focusTick,500);
   }else{
     delete state.focusRun;
-    focusRemaining=0;
+    focusRemaining=Number(focusSettings().minutes)*60;
     focusRecordCompletion({minutes:resumed.minutes,category:resumed.category,completedAt:resumed.finishedAt,date:resumed.date});
     startupNotice=startupNotice||resumed.minutes+'분 집중이 끝났어요. 기록에 저장했어요.';
   }
@@ -1608,7 +1654,7 @@ function habitAdd(){
   if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
   if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
   habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
-  persistState();renderCalendar();toast('습관을 추가했어요.');
+  const saved=persistState();renderCalendar();if(saved)toast('습관을 추가했어요.');
 }
 function habitToggle(id,date){
   const habit=habitEntries().find(x=>x.id===id);
@@ -1744,7 +1790,7 @@ function renderCalendar(){
       </div>
       <div id="plannerEditor" ${plannerFormOpen?'':'hidden'}><div class="planner-form">
       <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
-      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing?.date||plannerSelected)}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing&&LifeLogic.isRepeating(existing)&&plannerEditingDate?plannerEditingDate:(existing?.date||plannerSelected))}"></label>
       <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
       <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
       <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
@@ -1815,7 +1861,7 @@ function addWatchCompany(){
   if(raw&&!url){toast('http 또는 https 주소를 입력해 주세요.');return;}
   const existing=state.watchCompanies.find(x=>x.name.replace(/\s/g,'')===name.replace(/\s/g,''));
   if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
-  persistState();renderJobHub();toast('관심 회사를 저장했어요.');
+  const saved=persistState();renderJobHub();if(saved)toast('관심 회사를 저장했어요.');
 }
 function removeWatchCompany(id){
   state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
@@ -1891,7 +1937,7 @@ function handleSharedLink(){
   if(typeof location==='undefined')return false;
   const shared=LifeLogic.parseShareParams(location.search);
   if(!shared)return false;
-  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(null,'',location.pathname);}catch(e){}
+  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(history.state||null,'',location.pathname);}catch(e){}
   jobCollections();
   go('jobHub');
   if(state.jobPostings.some(x=>x.url===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
@@ -1918,7 +1964,7 @@ function savePosting(){
   if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
   if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
-  persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();toast('공고와 마감일을 저장했어요.');
+  const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
@@ -2159,10 +2205,11 @@ function syncJobDetail(){
 }
 
 const _go=go;
-go=function(id){
+go=function(id,mode){
   if(['jobDetail','prepare'].includes(id)) id='jobHub';
-  _go(id);
+  _go(id,mode);
 };
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
 
 // Offline support and installable app: the service worker only runs on https or localhost.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
@@ -2172,6 +2219,7 @@ focusRestore();
 if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
 else if(state.mainGoal)go('home');
 else renderHome();
+if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
 handleSharedLink();
 if(startupNotice)setTimeout(()=>toast(startupNotice),600);
 </script>

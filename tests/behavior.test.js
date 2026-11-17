@@ -81,7 +81,26 @@ test('finishing the timer records it using the deadline time and clears the save
   assert.equal(a.run('focusRunning'),false);
   assert.equal(a.run('focusHistory().length'),1);
   assert.equal('focusRun' in a.saved(),false);
-  assert.equal(a.run('focusRemaining'),0);
+  // The clock goes back to the full length, so Reset / changing minutes does not warn about a "running" timer.
+  assert.equal(a.run('focusRemaining'),25*60);
+});
+
+test('after a finished timer, reset and duration change do not ask for confirmation',async()=>{
+  const a=createApp(undefined,{confirm:false});
+  a.run('focusStartPause()');
+  a.clock.now+=25*60*1000+500;
+  a.tick();
+  await a.run('focusReset()');
+  await a.run('focusChangeMinutes(30)');
+  assert.equal(a.dialogs.filter(d=>d.kind==='confirm').length,0);
+  assert.equal(a.run('focusRemaining'),30*60);
+  // same after reopening an app whose timer ended while it was closed
+  const b=createApp(undefined,{confirm:false});
+  b.run('focusStartPause()');
+  const reopened=createApp(JSON.stringify(b.saved()),{now:b.saved().focusRun.deadline+60000,confirm:false});
+  assert.equal(reopened.run('focusRemaining'),25*60);
+  await reopened.run('focusReset()');
+  assert.equal(reopened.dialogs.filter(d=>d.kind==='confirm').length,0);
 });
 
 /* ---------- notifications (improvement 2) ---------- */
@@ -178,6 +197,49 @@ test('cancelling the scope question leaves the series untouched',async()=>{
   fillForm(a,{title:'바뀜',date:'2026-05-01',repeat:'daily'});
   await a.run('plannerSave()');
   assert.deepEqual(titles(a,'2026-05-05'),['운동']);
+});
+
+const dateInForm=a=>a.el('calendarContent').innerHTML.match(/id="plannerDate"[^>]*value="([^"]*)"/)[1];
+
+test('editing a repeating item shows the tapped day in the date field, not the series start',()=>{
+  const a=createApp();
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  assert.equal(dateInForm(a),'2026-11-20');
+  // a one-off item still shows its own date
+  a.run("state.plannerEntries.push({id:'o',title:'치과',date:'2026-11-25',repeat:'none'});plannerEdit('o','2026-11-25')");
+  assert.equal(dateInForm(a),'2026-11-25');
+});
+
+test('saving "this one only" on a repeating item moves just that day, not a past day',async()=>{
+  const a=createApp(undefined,{choice:'one'});
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  fillForm(a,{title:'스터디(변경)',date:dateInForm(a),time:'19:00',repeat:'weekly'});
+  a.el('plannerRepeat').value='none';
+  await a.run('plannerSave()');
+  assert.deepEqual(titles(a,'2026-11-20'),['스터디(변경)']);
+  assert.deepEqual(titles(a,'2026-10-02'),['스터디']);
+  assert.deepEqual(titles(a,'2026-11-13'),['스터디']);
+});
+
+test('saving "all" with the date field untouched keeps the series start date',async()=>{
+  const a=createApp(undefined,{choice:'all'});
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  fillForm(a,{title:'스터디2',date:dateInForm(a),repeat:'weekly'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.run('state.plannerEntries[0].date'),'2026-10-02');
+  assert.deepEqual(titles(a,'2026-10-09'),['스터디2']);
+});
+
+test('only interested/preparing job postings show their deadline in the planner',()=>{
+  const a=createApp();
+  const mk=(id,stage)=>({id,company:'회사'+id,title:'공고',deadline:'2026-05-12',...(stage?{stage}:{})});
+  a.run(`state.jobPostings=${JSON.stringify([mk('a','관심'),mk('b','준비 중'),mk('c',''),mk('d','지원 완료'),mk('e','불합격'),mk('f','지원 취소'),mk('g','면접')])}`);
+  const got=titles(a,'2026-05-12');
+  assert.deepEqual(got.map(t=>t.slice(0,3)).sort(),['회사a','회사b','회사c']);
 });
 
 test('ticking a repeating item done affects only that day',()=>{
@@ -409,4 +471,100 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   b.el('postingUrl').value='https://example.com/job/6';
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
+});
+
+/* ---------- phone Back gesture keeps the app open ---------- */
+test('screen changes leave history entries; bottom menu and the first screen only replace',()=>{
+  const a=createApp(undefined,{trackHistory:true});
+  const log=()=>JSON.parse(JSON.stringify(a.historyLog));
+  assert.deepEqual(log(),[{type:'replace',state:{screen:'start'}}],'first screen is recorded without adding an entry');
+  a.run("go('calendar')");
+  a.run("go('jobHub')");
+  assert.deepEqual(log().slice(1),[{type:'push',state:{screen:'calendar'}},{type:'push',state:{screen:'jobHub'}}]);
+  a.run("go('my','replace')");
+  assert.deepEqual(log().at(-1),{type:'replace',state:{screen:'my'}});
+  const before=a.historyLog.length;
+  a.run("go('my')");
+  assert.equal(a.historyLog.at(-1).type,'replace','showing the same screen again does not stack entries');
+  assert.equal(a.historyLog.length,before+1);
+});
+
+test('the browser Back (popstate) shows the earlier screen without adding history',()=>{
+  const a=createApp(undefined,{trackHistory:true});
+  a.run("go('calendar')");a.run("go('jobHub')");
+  const count=a.historyLog.length;
+  a.run("onScreenPopState({state:{screen:'calendar'}})");
+  assert.equal(a.run('currentScreen'),'calendar');
+  assert.equal(a.historyLog.length,count,'going back must not push or replace');
+  // entries without a screen name (or an unknown one) are ignored
+  a.run("onScreenPopState({state:null});onScreenPopState({state:{screen:'nope'}})");
+  assert.equal(a.run('currentScreen'),'calendar');
+});
+
+test('bottom menu buttons switch tabs without stacking history',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  for(const id of ['home','opportunities','goals','calendar','my'])assert.ok(html.includes(`onclick="go('${id}','replace')"`),id);
+});
+
+/* ---------- two tabs open at once ---------- */
+test('when another tab saves new records, this tab re-reads them instead of overwriting later',()=>{
+  const a=createApp(undefined,{search:''});
+  a.flushTimeouts();
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5.damaged',newValue:'x',oldValue:null})");
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'same',oldValue:'same'})");
+  a.flushTimeouts();
+  assert.equal(a.reloads,0,'unrelated keys and unchanged values are ignored');
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'{\"habits\":[]}',oldValue:'{}'})");
+  assert.match(a.toasts.at(-1),/다른 창에서 기록이 바뀌었어요/);
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'{\"habits\":[1]}',oldValue:'{\"habits\":[]}'})");
+  a.flushTimeouts();
+  assert.equal(a.reloads,1,'reloads once even if several changes arrive together');
+  // storage cleared in another tab
+  const b=createApp(undefined,{search:''});
+  b.run('onStateStorageEvent({key:null,newValue:null,oldValue:null})');b.flushTimeouts();
+  assert.equal(b.reloads,1);
+});
+
+test('the app listens for the storage event',()=>{
+  const {script}=require('./helpers/app-harness.js');
+  assert.match(script,/window\.addEventListener\('storage',onStateStorageEvent\)/);
+});
+
+/* ---------- save failure must not look like success ---------- */
+const saveFourThings=async a=>{
+  a.run('plannerOpenForm()');
+  fillForm(a,{title:'치과',date:'2026-05-12'});
+  await a.run('plannerSave()');
+  a.el('habitName').value='물 마시기';a.run('habitAdd()');
+  a.el('watchCompany').value='삼천리';a.run('addWatchCompany()');
+  a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';
+  a.run('savePosting()');
+};
+
+test('a failed save never shows a "saved" message for planner, habit, posting or watched company',async()=>{
+  const a=createApp(undefined,{failSave:true});
+  await saveFourThings(a);
+  assert.equal(a.toasts.filter(t=>/저장했어요|추가했어요/.test(t)).length,0,a.toasts.join('|'));
+  assert.ok(a.toasts.some(t=>/저장하지 못했어요/.test(t)),'the failure notice is shown');
+});
+
+test('a failed save shows a lasting banner with a backup button, and the next good save hides it',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.match(html,/id="saveFailBanner"[^>]*hidden[\s\S]*?exportLifeAIBackup\(\)">지금 백업/);
+  const opts={failSave:true};
+  const a=createApp(undefined,opts);
+  a.run('persistState()');
+  assert.equal(a.el('saveFailBanner').hidden,false);
+  // the banner does not depend on the one-time toast: a second failure keeps it visible
+  a.run('persistState()');
+  assert.equal(a.el('saveFailBanner').hidden,false);
+  opts.failSave=false;
+  assert.equal(a.run('persistState()'),true);
+  assert.equal(a.el('saveFailBanner').hidden,true);
+});
+
+test('a successful save still shows the confirmation',async()=>{
+  const a=createApp();
+  await saveFourThings(a);
+  for(const word of ['일정을 저장했어요.','습관을 추가했어요.','관심 회사를 저장했어요.','공고와 마감일을 저장했어요.'])assert.ok(a.toasts.includes(word),word);
 });
