@@ -119,8 +119,9 @@ test('readBackup checks file text, format, version and state in one place',()=>{
   assert.equal(ok.ok,true);assert.equal(ok.state.mainGoal,'b');assert.equal(ok.state.schemaVersion,L.STATE_SCHEMA_VERSION);
   const notBackup='올바른 life-ai 백업 파일이 아니에요.',badShape='백업 데이터의 구조가 올바르지 않아요.';
   const fail=(text,message)=>{const r=L.readBackup(text);assert.equal(r.ok,false);assert.equal(r.message,message);assert.equal(r.state,undefined);};
-  fail('not json at all','백업 파일을 읽지 못했어요.');
-  fail('','백업 파일을 읽지 못했어요.');
+  const unreadable='백업 파일을 읽지 못했어요. 앱에서 만든 life-ai-backup-날짜.json 파일을 골라 주세요.';
+  fail('not json at all',unreadable);
+  fail('',unreadable);
   fail('null',notBackup);fail('[]',notBackup);fail('"text"',notBackup);
   fail(file({format:'other'}),notBackup);
   fail(file({version:2}),notBackup);

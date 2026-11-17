@@ -186,7 +186,7 @@
      Returns {ok:true, state} with the upgraded, cleaned state, or {ok:false, message} for the user. */
   function readBackup(text) {
     let backup;
-    try { backup = JSON.parse(text); } catch (e) { return { ok: false, message: '백업 파일을 읽지 못했어요.' }; }
+    try { backup = JSON.parse(text); } catch (e) { return { ok: false, message: '백업 파일을 읽지 못했어요. 앱에서 만든 life-ai-backup-날짜.json 파일을 골라 주세요.' }; }
     if (!isPlain(backup) || backup.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || !isPlain(backup.state)) {
       return { ok: false, message: '올바른 life-ai 백업 파일이 아니에요.' };
     }
