@@ -1009,7 +1009,7 @@ test('restoring a backup keeps the previous data under beforeRestore',async()=>{
 test('habit checkbox uses the date at click time, and a new day redraws the planner',()=>{
   const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',habits:[{id:'h',name:'공부',checks:[]}]}));
   a.run('renderCalendar()');
-  assert.match(a.el('calendarContent').innerHTML,/habitToggle\('h',koreaToday\(\)\)/);
+  assert.match(a.el('calendarContent').innerHTML,/data-id="h" onchange="habitToggle\(this\.dataset\.id,koreaToday\(\)\)"/);
   assert.equal(a.run('plannerSelected'),'2026-05-10');
   a.clock.now+=24*3600*1000;
   a.run('plannerDayRollover()');
@@ -1024,4 +1024,18 @@ test('a saved interview date shows in the planner for that day, except for finis
   a.run('state.jobPostings='+JSON.stringify([row('a','삼천리','준비 중'),row('b','다른곳','불합격'),row('c','또다른곳','지원 취소')]));
   assert.deepEqual(titles(a,'2026-06-01'),['삼천리 · 공고 면접']);
   assert.deepEqual(titles(a,'2026-06-02'),[]);
+});
+
+test('habit and schedule buttons read ids from data-id, not from inline script text',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',habits:[{id:'h-1',name:'공부',checks:[]}],plannerEntries:[{id:'p-1',title:'치과',date:'2026-05-02',repeat:'none'}]}));
+  a.run("plannerSelected='2026-05-02';plannerActiveTab='calendar';renderCalendar()");
+  const html=a.el('calendarContent').innerHTML;
+  assert.match(html,/data-id="p-1" onclick="plannerToggle\(this\.dataset\.id/);
+  assert.match(html,/data-id="p-1" onclick="plannerEdit\(this\.dataset\.id/);
+  assert.match(html,/data-id="p-1" onclick="plannerRemove\(this\.dataset\.id/);
+  a.run("plannerActiveTab='habits';renderCalendar()");
+  const habits=a.el('calendarContent').innerHTML;
+  assert.match(habits,/data-id="h-1" onchange="habitToggle\(this\.dataset\.id/);
+  assert.match(habits,/data-id="h-1" onclick="habitRemove\(this\.dataset\.id\)"/);
+  assert.equal(/habit(Toggle|Remove)\('|planner(Toggle|Edit|Remove)\('/.test(habits+html),false);
 });

@@ -98,11 +98,14 @@
   const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts'];
   const OBJECT_KEYS = ['parsedGoal', 'focusSettings', 'focusRun'];
 
+  // Ids of habits and planner entries are used inside page markup, so only plain id characters are allowed.
+  const validId = value => typeof value === 'string' && /^[\w-]{1,40}$/.test(value);
+
   const itemChecks = {
     activity: item => isText(item, 300),
     // only the name is checked here; broken check dates are removed one by one in sanitizeState
-    habits: item => isPlain(item) && isText(item.name, 200) && Array.isArray(item.checks),
-    plannerEntries: item => isPlain(item) && isText(item.title, 300) && validDate(item.date),
+    habits: item => isPlain(item) && validId(item.id) && isText(item.name, 200) && Array.isArray(item.checks),
+    plannerEntries: item => isPlain(item) && validId(item.id) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
     jobPostings: item => isPlain(item) && Array.isArray(item.tasks) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
     watchCompanies: item => isPlain(item) || typeof item === 'string',

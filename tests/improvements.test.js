@@ -84,7 +84,7 @@ test('overdue card lists unfinished one-time entries from the last 14 days only'
   a.run('renderCalendar()');
   const html=a.el('calendarContent').innerHTML;
   assert.match(html,/밀린 일정/);
-  assert.match(html,/plannerToggle\('y','2026-05-09'\)/);
+  assert.match(html,/data-id="y" onclick="plannerToggle\(this\.dataset\.id,'2026-05-09'\)"/);
   assert.match(html,/plannerGoToDate\('2026-05-09'\)/);
   assert.doesNotMatch(html,/plannerToggle\('tooold'/);
 });
@@ -113,7 +113,7 @@ test('postpone moves a one-time entry one day later; repeating entries get no bu
   const a=createApp(plannerSeed());
   a.run("plannerSelected='2026-05-10';renderCalendar()");
   const html=a.el('calendarContent').innerHTML;
-  assert.match(html,/plannerPostpone\('one'\)/);
+  assert.match(html,/data-id="one" onclick="plannerPostpone\(this\.dataset\.id\)"/);
   assert.doesNotMatch(html,/plannerPostpone\('rep'\)/);
   a.run("plannerPostpone('one')");
   const one=a.saved().plannerEntries.find(e=>e.id==='one');
@@ -185,7 +185,7 @@ test('renaming a habit keeps id, checks and createdAt',async()=>{
   assert.equal(h.name,'달리기');
   assert.equal(h.id,'h1');assert.equal(h.createdAt,'2026-05-01');
   assert.deepEqual(h.checks,['2026-05-09','2026-05-10']);
-  assert.match(a.run('habitPanelHTML()'),/habitRename\('h1'\)/);
+  assert.match(a.run('habitPanelHTML()'),/data-id="h1" onclick="habitRename\(this\.dataset\.id\)"/);
 });
 
 test('renaming a habit is refused for empty, too long or duplicate names, and cancel changes nothing',async()=>{

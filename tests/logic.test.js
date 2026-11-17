@@ -60,8 +60,8 @@ test('sanitizeState drops wrong-typed fields and broken list items but keeps goo
   const raw={
     nickname:'지훈',mainGoal:'전기기사',goalType:'cert',
     completedTasks:'oops',
-    habits:[{name:'운동',checks:['2026-05-01']},{name:5,checks:[]},null],
-    plannerEntries:[{title:'a',date:'2026-05-01'},{title:'b',date:'2026-02-30'}],
+    habits:[{id:'h1',name:'운동',checks:['2026-05-01']},{id:'h2',name:5,checks:[]},null],
+    plannerEntries:[{id:'p1',title:'a',date:'2026-05-01'},{id:'p2',title:'b',date:'2026-02-30'}],
     focusHistory:[{date:'2026-05-01',minutes:25},{date:'bad',minutes:25},{date:'2026-05-01',minutes:-3}],
     activity:['ok',{x:1}],
     focusSettings:'nope',
@@ -81,7 +81,7 @@ test('sanitizeState drops wrong-typed fields and broken list items but keeps goo
 });
 
 test('sanitizeState keeps a habit and its good dates when only some check dates are broken',()=>{
-  const raw={habits:[{name:'운동',checks:['2026-05-01','bad','2026-02-30',7,'2026-05-02']},{name:'독서',checks:['2026-05-03']}]};
+  const raw={habits:[{id:'h1',name:'운동',checks:['2026-05-01','bad','2026-02-30',7,'2026-05-02']},{id:'h2',name:'독서',checks:['2026-05-03']}]};
   const {state,dropped}=L.sanitizeState(raw);
   assert.equal(state.habits.length,2);
   assert.deepEqual(state.habits[0].checks,['2026-05-01','2026-05-02']);
@@ -89,8 +89,23 @@ test('sanitizeState keeps a habit and its good dates when only some check dates 
   assert.deepEqual(state.habits[1].checks,['2026-05-03']);
   assert.ok(dropped.includes('habits'),'the user is told something was skipped');
   assert.deepEqual(raw.habits[0].checks,['2026-05-01','bad','2026-02-30',7,'2026-05-02'],'input is not changed');
-  assert.deepEqual(L.sanitizeState({habits:[{name:'a',checks:['2026-05-01']}]}).dropped,[],'clean data reports nothing');
+  assert.deepEqual(L.sanitizeState({habits:[{id:'a1',name:'a',checks:['2026-05-01']}]}).dropped,[],'clean data reports nothing');
   assert.equal(L.validateBackupState({mainGoal:'',nickname:'',activity:[],completedTasks:[],habits:raw.habits}),false,'restoring a backup stays strict');
+});
+
+test('habit and planner ids must be plain characters (no quotes or markup)',()=>{
+  const evil="x');alert(1);('";
+  const raw={
+    habits:[{id:'ab-12_X',name:'a',checks:[]},{id:evil,name:'b',checks:[]},{name:'c',checks:[]},{id:'a'.repeat(41),name:'d',checks:[]}],
+    plannerEntries:[{id:'mq1-abc',title:'a',date:'2026-05-01'},{id:evil,title:'b',date:'2026-05-01'},{id:'',title:'c',date:'2026-05-01'}]
+  };
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.deepEqual(state.habits.map(h=>h.id),['ab-12_X']);
+  assert.deepEqual(state.plannerEntries.map(e=>e.id),['mq1-abc']);
+  assert.ok(dropped.includes('habits')&&dropped.includes('plannerEntries'));
+  const base={nickname:'a',mainGoal:'b',activity:[],completedTasks:[false,false,false,false,false]};
+  assert.equal(L.validateBackupState({...base,habits:[{id:evil,name:'b',checks:[]}]}),false);
+  assert.equal(L.validateBackupState({...base,plannerEntries:[{id:evil,title:'b',date:'2026-05-01'}]}),false);
 });
 
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
