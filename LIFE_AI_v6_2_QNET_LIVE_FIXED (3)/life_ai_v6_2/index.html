@@ -1282,7 +1282,9 @@ async function plannerSave(){
     old.skipDates=[...new Set([...(Array.isArray(old.skipDates)?old.skipDates:[]),occurrence])].sort();
     entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
   }else{
-    const item={...(old||{}),id:old?.id||newJobId(),title,date,time,category,repeat,until,priority};
+    // The form shows the day the user tapped; if they left it unchanged, the series keeps its own start date.
+    const startDate=old&&LifeLogic.isRepeating(old)&&date===occurrence&&repeat!=='none'?old.date:date;
+    const item={...(old||{}),id:old?.id||newJobId(),title,date:startDate,time,category,repeat,until,priority};
     if(LifeLogic.isRepeating(item)){item.done=false;if(!Array.isArray(item.doneDates))item.doneDates=[];}
     else{item.done=Boolean(old?.done)&&!LifeLogic.isRepeating(old);delete item.doneDates;delete item.skipDates;}
     const index=entries.findIndex(e=>e.id===item.id);
@@ -1744,7 +1746,7 @@ function renderCalendar(){
       </div>
       <div id="plannerEditor" ${plannerFormOpen?'':'hidden'}><div class="planner-form">
       <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
-      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing?.date||plannerSelected)}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing&&LifeLogic.isRepeating(existing)&&plannerEditingDate?plannerEditingDate:(existing?.date||plannerSelected))}"></label>
       <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
       <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
       <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>

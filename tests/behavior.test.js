@@ -180,6 +180,41 @@ test('cancelling the scope question leaves the series untouched',async()=>{
   assert.deepEqual(titles(a,'2026-05-05'),['운동']);
 });
 
+const dateInForm=a=>a.el('calendarContent').innerHTML.match(/id="plannerDate"[^>]*value="([^"]*)"/)[1];
+
+test('editing a repeating item shows the tapped day in the date field, not the series start',()=>{
+  const a=createApp();
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  assert.equal(dateInForm(a),'2026-11-20');
+  // a one-off item still shows its own date
+  a.run("state.plannerEntries.push({id:'o',title:'치과',date:'2026-11-25',repeat:'none'});plannerEdit('o','2026-11-25')");
+  assert.equal(dateInForm(a),'2026-11-25');
+});
+
+test('saving "this one only" on a repeating item moves just that day, not a past day',async()=>{
+  const a=createApp(undefined,{choice:'one'});
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  fillForm(a,{title:'스터디(변경)',date:dateInForm(a),time:'19:00',repeat:'weekly'});
+  a.el('plannerRepeat').value='none';
+  await a.run('plannerSave()');
+  assert.deepEqual(titles(a,'2026-11-20'),['스터디(변경)']);
+  assert.deepEqual(titles(a,'2026-10-02'),['스터디']);
+  assert.deepEqual(titles(a,'2026-11-13'),['스터디']);
+});
+
+test('saving "all" with the date field untouched keeps the series start date',async()=>{
+  const a=createApp(undefined,{choice:'all'});
+  a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
+  a.run("plannerEdit('w','2026-11-20')");
+  fillForm(a,{title:'스터디2',date:dateInForm(a),repeat:'weekly'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.run('state.plannerEntries[0].date'),'2026-10-02');
+  assert.deepEqual(titles(a,'2026-10-09'),['스터디2']);
+});
+
 test('ticking a repeating item done affects only that day',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
