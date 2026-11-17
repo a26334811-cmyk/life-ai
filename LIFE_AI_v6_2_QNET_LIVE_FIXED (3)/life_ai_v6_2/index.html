@@ -71,7 +71,7 @@
       width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;
     }
     .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .back{border:0;background:none;font-size:24px;cursor:pointer;color:var(--text);padding:0}
+    .back{border:0;background:none;font-size:24px;cursor:pointer;color:var(--text);padding:6px 14px;margin-left:-14px;min-width:44px;min-height:44px}
     .section-title{font-weight:900;margin:22px 0 12px}
     .opportunity{display:grid;gap:8px}
     .meta{font-size:13px;color:var(--muted)}
@@ -357,14 +357,14 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="name" class="screen">
-    <div class="topbar"><button class="back" onclick="go('start')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('start')">←</button></div>
     <h2>어떻게 불러드릴까요?</h2>
     <div class="field"><input id="nickname" value="" placeholder="예: 예지, 민준" /></div>
     <button class="btn primary" onclick="go('goalChoice')">다음</button>
   </section>
 
   <section id="goalChoice" class="screen">
-    <div class="topbar"><button class="back" onclick="go('name')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('name')">←</button></div>
     <h2>지금 가장 하고 싶은 것은 무엇인가요?</h2>
     <div class="stack">
       <button class="choice" onclick="go('companyChoice')"><strong>💼 취업하고 싶어요</strong><span>›</span></button>
@@ -375,7 +375,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="companyChoice" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>생각해둔 회사가 있나요?</h2>
     <div class="stack">
       <button class="choice" onclick="go('company')"><strong>있어요</strong><span>›</span></button>
@@ -385,7 +385,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="company" class="screen">
-    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>어느 회사에 관심이 있나요?</h2>
     <div class="field"><input id="companyInput" value="" placeholder="회사명을 직접 입력하세요" /></div>
     <div class="stack">
@@ -397,7 +397,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="job" class="screen">
-    <div class="topbar"><button class="back" onclick="go('company')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('company')">←</button></div>
     <h2>어떤 일을 하고 싶나요?</h2>
     <div class="stack">
       <button class="choice" onclick="selectJob('설비기술')"><strong>설비기술</strong><span>›</span></button>
@@ -409,7 +409,7 @@ h3{font-size:16px;line-height:1.4}
 
 
   <section id="jobOnly" class="screen">
-    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>원하는 직무를 알려주세요.</h2>
     <p class="muted">정확하지 않아도 괜찮아요. 나중에 바꿀 수 있어요.</p>
     <div class="field"><input id="jobInput" placeholder="예: 설비기술, 회계, 개발자" /></div>
@@ -417,7 +417,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="certStart" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 자격증을 준비하고 싶나요?</h2>
     <div class="field"><input id="certInput" placeholder="예: 컴퓨터활용능력, 전기기사" /></div>
     <div class="stack">
@@ -428,7 +428,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="policyStart" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 지원을 찾고 있나요?</h2>
     <div class="stack">
       <button class="choice" onclick="quickGoal('취업·구직 지원 찾기')"><strong>💼 취업·구직 지원</strong><span>›</span></button>
@@ -439,7 +439,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="customGoal" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>하고 싶은 일을 편하게 적어주세요.</h2>
     <p class="muted">문장으로 적어도 괜찮아요. 예: 올해 안에 서울로 이직하고 싶어요.</p>
     <div class="field"><input id="customGoalInput" placeholder="내 목표를 한 문장으로 입력" /></div>
@@ -447,7 +447,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="profile" class="screen">
-    <div class="topbar"><button class="back" onclick="go('job')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('job')">←</button></div>
     <h2>더 잘 맞는 기회를 찾기 위해<br>몇 가지만 알려주세요.</h2>
     <div class="field"><label>현재 상태</label><select id="employmentStatus"><option>구직 중</option><option>재직 중</option><option>학생</option><option>기타</option></select></div>
     <div class="field"><label>관련 경력</label><input id="careerInput" placeholder="예: 2년 / 신입" /></div>
@@ -472,7 +472,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="jobDetail" class="screen">
-    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
     <h2>💼 관심 회사 · 관심 직무 채용</h2>
     <div id="legacyJobStatus" class="card">
       <strong>🔎 고용24 실제 공고 확인</strong>
@@ -499,7 +499,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="prepare" class="screen">
-    <div class="topbar"><button class="back" onclick="go('jobDetail')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobDetail')">←</button></div>
     <h2>지원 준비를 시작할까요?</h2>
     <div class="card"><strong>🎯 생성할 목표</strong><p>선택한 회사·직무 지원</p></div>
     <div class="card" style="margin-top:12px"><strong>📅 추가할 일정</strong><p>DEMO 마감 일정</p></div>
@@ -513,7 +513,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="goalDetail" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goals')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goals')">←</button></div>
     <h2 id="goalDetailTitle">🎯 내 목표</h2>
     <div class="big-status"><strong>현재 단계</strong><div id="stageText">지원 준비</div></div>
     <div class="section-title">할 일</div>
@@ -526,7 +526,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="policy" class="screen">
-    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
     <h2>🏛 나에게 맞는 지원 조건 확인</h2>
     <div class="card"><p>🟢 현재 입력 정보</p><p>🟡 세부 자격조건은 실제 정책 데이터 연결 후 확인</p><p id="incomeStatus">🟡 소득 정보가 필요한 정책일 수 있어요</p></div>
     <div id="incomeBox" class="card" style="margin-top:12px">
@@ -543,7 +543,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="cert" class="screen">
-    <div class="topbar"><button class="back" onclick="historyBack()">←</button><span class="tag">DEMO</span></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="historyBack()">←</button><span class="tag">DEMO</span></div>
     <h2 id="certTitle">🏅 자격증 준비</h2>
     <div class="card">
       <label for="certSearchInput"><strong>🔎 자격증 종목 검색</strong></label>
@@ -564,9 +564,9 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
 
-  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요.</p><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus"></div><div id="liveJobResults"></div></section>
+  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요.</p><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus"></div><div id="liveJobResults"></div></section>
   <section id="jobHub" class="screen">
-    <div class="topbar"><button class="back" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
     <button class="btn secondary" onclick="go('liveJobs')">고용24 공고 조회</button><p class="meta">관심 회사와 공고를 이 기기에 저장해요. 새 공고 자동 감지·알림은 제공하지 않아요.</p>
     <details class="card"><summary>＋ 관심 회사 등록</summary>
       <div class="field"><label for="watchCompany">회사명</label><input id="watchCompany" placeholder="예: 삼천리"></div>
@@ -843,7 +843,11 @@ function startOrContinue(){
 function getNick(){
   return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
 }
+/* The certificate screen can be opened from several places; remember where from so ← goes back there. */
+let currentScreen='',certReturnTo='home';
 function go(id){
+  if(id==='cert'&&currentScreen&&currentScreen!=='cert')certReturnTo=currentScreen;
+  currentScreen=id;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
@@ -939,7 +943,7 @@ function uiPrompt(message,defaultValue,opts={}){
 function uiAlert(message,opts={}){
   return uiAsk({message,title:opts.title,alert:true,cancelValue:undefined,fallback:undefined,buttons:[{label:'확인',kind:'primary',value:undefined}]});
 }
-function historyBack(){ go('home'); }
+function historyBack(){ go(certReturnTo||'home'); }
 
 function selectCompany(name){
   const typed=(document.getElementById('companyInput')?.value||'').trim();

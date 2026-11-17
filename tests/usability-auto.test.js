@@ -42,6 +42,25 @@ test('#29 opportunity cards no longer have a "둘러보기" button that only sho
   assert.match(a.run('opportunityCards()'),/준비 중이에요/);
 });
 
+test('#30 every back button has a name and a touch-sized area; cert screen returns to where it came from',()=>{
+  const buttons=[...html.matchAll(/<button class="back"[^>]*>/g)].map(m=>m[0]);
+  assert.ok(buttons.length>=14,'found '+buttons.length);
+  for(const b of buttons)assert.match(b,/aria-label="뒤로"/,b);
+  assert.doesNotMatch(html,/<button class="back" onclick=/);
+  const css=html.match(/\.back\{([^}]*)\}/)[1];
+  assert.match(css,/min-width:44px/);
+  assert.match(css,/min-height:44px/);
+  const a=createApp();
+  a.run('initCertSearch=()=>{}');// the fake DOM has no cert search widgets
+  a.run("go('jobHub')");a.run("go('cert')");a.run('historyBack()');
+  assert.equal(a.run('currentScreen'),'jobHub');
+  a.run("go('home')");a.run("go('cert')");a.run('historyBack()');
+  assert.equal(a.run('currentScreen'),'home');
+  // staying on the cert screen (e.g. re-opening it) must not make ← point at itself
+  a.run("go('goals')");a.run("go('cert')");a.run("go('cert')");a.run('historyBack()');
+  assert.equal(a.run('currentScreen'),'goals');
+});
+
 test('#27 planner row buttons say what they do and name the event',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동 \"가기\"',date:'2026-05-10'}]");
