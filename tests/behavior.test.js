@@ -311,6 +311,24 @@ test('a page without a company says so instead of guessing, and a past deadline 
   assert.equal(a.el('postingDeadline').value,'');
   assert.match(status(a),/원티드 페이지라서 회사명은 직접 입력/);
   assert.match(status(a),/이미 지났어요/);
+  assert.doesNotMatch(status(a),/찾지 못했어요/,'a deadline that was found but is past must not also be reported as not found');
+});
+
+test('a past deadline does not open the paste box, a missing deadline still does',async()=>{
+  const run=async body=>{
+    let opened=false;
+    const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'정비 신입',company:'현대제철',...body})});
+    a.el('postingPaste').closest=()=>({set open(v){opened=v;}});
+    a.el('postingUrl').value='https://example.com/job/7';
+    await a.run('fillPostingFromUrl()');
+    return {opened,text:status(a),deadline:a.el('postingDeadline').value};
+  };
+  const past=await run({deadline:'2026-10-01',description:''});
+  assert.equal(past.opened,false);assert.match(past.text,/이미 지났어요/);assert.equal(past.deadline,'');
+  const pastInText=await run({description:'접수 마감 2026.10.20'});
+  assert.equal(pastInText.opened,false);assert.doesNotMatch(pastInText.text,/찾지 못했어요/);
+  const none=await run({description:''});
+  assert.equal(none.opened,true);assert.match(none.text,/마감일은 링크에서 찾지 못했어요/);
 });
 
 test('the deadline is found in the page description when the page has no structured deadline',async()=>{
