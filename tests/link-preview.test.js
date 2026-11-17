@@ -2,6 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createHandler,parsePage,isPrivateIp,assertPublicUrl,decodeBytes}=require('../netlify/functions/link-preview.js');
 
+const SAME_ORIGIN={'sec-fetch-site':'same-origin'};
 const publicLookup=async()=>[{address:'93.184.216.34',family:4}];
 const page=(body,{status=200,type='text/html; charset=utf-8',headers={}}={})=>({
   status,ok:status>=200&&status<300,
@@ -11,7 +12,7 @@ const page=(body,{status=200,type='text/html; charset=utf-8',headers={}}={})=>({
 });
 const call=async(url,fetchImpl,lookupImpl=publicLookup)=>{
   const handler=createHandler({fetchImpl,lookupImpl});
-  const res=await handler({queryStringParameters:{url}});
+  const res=await handler({queryStringParameters:{url},headers:SAME_ORIGIN});
   return {status:res.statusCode,body:JSON.parse(res.body)};
 };
 
@@ -119,9 +120,33 @@ test('a page with nothing useful reports ok:false so the app can ask for manual 
 
 test('missing or overlong url is rejected',async()=>{
   const handler=createHandler({fetchImpl:async()=>page('x'),lookupImpl:publicLookup});
-  assert.equal((await handler({queryStringParameters:{}})).statusCode,400);
-  assert.equal((await handler({})).statusCode,400);
-  assert.equal((await handler({queryStringParameters:{url:'https://e.com/'+'a'.repeat(2100)}})).statusCode,400);
+  assert.equal((await handler({queryStringParameters:{},headers:SAME_ORIGIN})).statusCode,400);
+  assert.equal((await handler({headers:SAME_ORIGIN})).statusCode,400);
+  assert.equal((await handler({queryStringParameters:{url:'https://e.com/'+'a'.repeat(2100)},headers:SAME_ORIGIN})).statusCode,400);
+});
+
+test('requests that do not come from this app are refused before any page is read',async()=>{
+  let fetched=0;
+  const handler=createHandler({fetchImpl:async()=>{fetched++;return page('<html><head><title>t</title></head></html>');},lookupImpl:publicLookup});
+  const q={url:'https://e.com/a'};
+  const refused=[
+    {queryStringParameters:q},
+    {queryStringParameters:q,headers:{}},
+    {queryStringParameters:q,headers:{'sec-fetch-site':'cross-site'}},
+    {queryStringParameters:q,headers:{'sec-fetch-site':'same-site'}},
+    {queryStringParameters:q,headers:{'Sec-Fetch-Site':'none'}},
+    {queryStringParameters:q,headers:{host:'app.example',origin:'https://evil.example'}},
+    {queryStringParameters:q,headers:{host:'app.example',referer:'https://evil.example/page'}},
+    {queryStringParameters:q,headers:{host:'app.example'}}
+  ];
+  for(const event of refused) assert.equal((await handler(event)).statusCode,403,JSON.stringify(event.headers));
+  assert.equal(fetched,0);
+  const ok=[
+    {queryStringParameters:q,headers:{'Sec-Fetch-Site':'same-origin'}},
+    {queryStringParameters:q,headers:{host:'app.example',referer:'https://app.example/index.html'}},
+    {queryStringParameters:q,headers:{'x-forwarded-host':'app.example',host:'internal',origin:'https://app.example'}}
+  ];
+  for(const event of ok) assert.equal((await handler(event)).statusCode,200,JSON.stringify(event.headers));
 });
 
 test('assertPublicUrl allows normal public links',async()=>{
