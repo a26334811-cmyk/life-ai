@@ -80,6 +80,19 @@ test('sanitizeState drops wrong-typed fields and broken list items but keeps goo
   for(const k of ['completedTasks','habits','plannerEntries','focusHistory','activity','focusSettings'])assert.ok(dropped.includes(k),k);
 });
 
+test('sanitizeState keeps a habit and its good dates when only some check dates are broken',()=>{
+  const raw={habits:[{name:'운동',checks:['2026-05-01','bad','2026-02-30',7,'2026-05-02']},{name:'독서',checks:['2026-05-03']}]};
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.equal(state.habits.length,2);
+  assert.deepEqual(state.habits[0].checks,['2026-05-01','2026-05-02']);
+  assert.equal(state.habits[0].name,'운동');
+  assert.deepEqual(state.habits[1].checks,['2026-05-03']);
+  assert.ok(dropped.includes('habits'),'the user is told something was skipped');
+  assert.deepEqual(raw.habits[0].checks,['2026-05-01','bad','2026-02-30',7,'2026-05-02'],'input is not changed');
+  assert.deepEqual(L.sanitizeState({habits:[{name:'a',checks:['2026-05-01']}]}).dropped,[],'clean data reports nothing');
+  assert.equal(L.validateBackupState({mainGoal:'',nickname:'',activity:[],completedTasks:[],habits:raw.habits}),false,'restoring a backup stays strict');
+});
+
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
   assert.equal(L.sanitizeState(null),null);
   assert.equal(L.sanitizeState([]),null);
