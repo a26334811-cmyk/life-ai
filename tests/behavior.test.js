@@ -472,3 +472,27 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
+
+/* ---------- save failure must not look like success ---------- */
+const saveFourThings=async a=>{
+  a.run('plannerOpenForm()');
+  fillForm(a,{title:'치과',date:'2026-05-12'});
+  await a.run('plannerSave()');
+  a.el('habitName').value='물 마시기';a.run('habitAdd()');
+  a.el('watchCompany').value='삼천리';a.run('addWatchCompany()');
+  a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';
+  a.run('savePosting()');
+};
+
+test('a failed save never shows a "saved" message for planner, habit, posting or watched company',async()=>{
+  const a=createApp(undefined,{failSave:true});
+  await saveFourThings(a);
+  assert.equal(a.toasts.filter(t=>/저장했어요|추가했어요/.test(t)).length,0,a.toasts.join('|'));
+  assert.ok(a.toasts.some(t=>/저장하지 못했어요/.test(t)),'the failure notice is shown');
+});
+
+test('a successful save still shows the confirmation',async()=>{
+  const a=createApp();
+  await saveFourThings(a);
+  for(const word of ['일정을 저장했어요.','습관을 추가했어요.','관심 회사를 저장했어요.','공고와 마감일을 저장했어요.'])assert.ok(a.toasts.includes(word),word);
+});

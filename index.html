@@ -1290,7 +1290,7 @@ async function plannerSave(){
     const index=entries.findIndex(e=>e.id===item.id);
     if(index>=0)entries[index]=item;else entries.push(item);
   }
-  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;persistState();renderCalendar();toast('일정을 저장했어요.');
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast('일정을 저장했어요.');
 }
 async function plannerRemove(id,date){
   const item=plannerEntries().find(x=>x.id===id);
@@ -1611,7 +1611,7 @@ function habitAdd(){
   if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
   if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
   habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
-  persistState();renderCalendar();toast('습관을 추가했어요.');
+  const saved=persistState();renderCalendar();if(saved)toast('습관을 추가했어요.');
 }
 function habitToggle(id,date){
   const habit=habitEntries().find(x=>x.id===id);
@@ -1818,7 +1818,7 @@ function addWatchCompany(){
   if(raw&&!url){toast('http 또는 https 주소를 입력해 주세요.');return;}
   const existing=state.watchCompanies.find(x=>x.name.replace(/\s/g,'')===name.replace(/\s/g,''));
   if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
-  persistState();renderJobHub();toast('관심 회사를 저장했어요.');
+  const saved=persistState();renderJobHub();if(saved)toast('관심 회사를 저장했어요.');
 }
 function removeWatchCompany(id){
   state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
@@ -1921,7 +1921,7 @@ function savePosting(){
   if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
   if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
-  persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();toast('공고와 마감일을 저장했어요.');
+  const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
