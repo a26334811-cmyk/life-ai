@@ -1,11 +1,5 @@
 
-function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`,'i'));
-  return m ? m[1].trim() : '';
-}
-function decodeXml(s){
-  return String(s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-}
+const {xmlText,decodeXml}=require('./lib/xml');
 /* The screen gets a short message; the technical cause goes to detail and the server log. */
 const WORK24_FAIL='지금은 고용24에서 공고를 가져오지 못했어요. 잠시 뒤 다시 시도하거나 고용24 사이트에서 확인해 주세요.';
 function upstreamError(detail){

@@ -50,17 +50,19 @@ test('every file the app asks for is part of the synced set (read from the app, 
   assert.deepEqual(missing,[],'these files are used by the app but missing from the copy to Netlify - add them to scripts/sync-nested.js (or create the file):');
 });
 
-test('the sync only copies single-level folders, so no files may hide in sub-folders',()=>{
-  // sync-nested.js copies only the files directly inside icons/ and netlify/functions/.
+test('files inside sub-folders of icons/ and netlify/functions/ (such as lib/xml.js) are copied too',()=>{
+  // sync-nested.js copies sub-folders; a file that sits there but is missing from the copy would not reach Netlify.
+  const shared=sharedFiles();
   const lost=[];
   for(const dir of ['icons','netlify/functions']){
     const walk=rel=>{
       for(const entry of fs.readdirSync(path.join(root,rel),{withFileTypes:true})){
         if(entry.isDirectory()) walk(rel+'/'+entry.name);
-        else if(rel!==dir) lost.push(rel+'/'+entry.name);
+        else if(rel!==dir&&!entry.name.endsWith('.test.js')&&!shared.includes(rel+'/'+entry.name)) lost.push(rel+'/'+entry.name);
       }
     };
     walk(dir);
   }
-  assert.deepEqual(lost,[],'these files sit in sub-folders and would not reach the deployed copy; teach scripts/sync-nested.js to copy sub-folders first');
+  assert.ok(shared.includes('netlify/functions/lib/xml.js'),'lib/xml.js is part of the copy');
+  assert.deepEqual(lost,[],'these sub-folder files are not copied to the deployed copy; check scripts/sync-nested.js');
 });

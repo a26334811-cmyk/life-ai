@@ -1,12 +1,4 @@
-function xmlText(block, tag){
-  const m = String(block||'').match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}\\s*>`,'i'));
-  return m ? m[1].replace(/^<!\[CDATA\[/,'').replace(/\]\]>$/,'').trim() : '';
-}
-function decodeXml(s){
-  return String(s||'')
-    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-    .replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-}
+const {xmlText,decodeXml}=require('./lib/xml');
 function normalizeServiceKey(raw){
   try { return decodeURIComponent(raw); } catch { return raw; }
 }

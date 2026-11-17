@@ -16,6 +16,13 @@ test('parses jobs and blocks unsafe URLs',async()=>{
   assert.equal(items[0].url,'');
   assert.equal(items[1].url,'https://example.org/job');
 });
+test('reads fields that carry attributes and CDATA text (shared XML helper)',async()=>{
+  const handler=setup('<wantedRoot><wanted><title lang="ko"><![CDATA[설비 &amp; 정비]]></title><company type="x">A</company></wanted></wantedRoot>');
+  const result=await handler({queryStringParameters:{keyword:'설비'}});
+  const {items}=JSON.parse(result.body);
+  assert.equal(items[0].title,'설비 & 정비');
+  assert.equal(items[0].company,'A');
+});
 test('rejects invalid keyword before requesting upstream',async()=>{
   const handler=setup('<wantedRoot/>');
   assert.equal((await handler({queryStringParameters:{keyword:' '}})).statusCode,400);

@@ -16,11 +16,18 @@ const DIRS = ['icons', 'netlify/functions'];
 function sharedFiles() {
   const list = FILES.filter(f => fs.existsSync(path.join(root, f)));
   for (const dir of DIRS) {
-    const full = path.join(root, dir);
-    if (!fs.existsSync(full)) continue;
-    for (const name of fs.readdirSync(full)) {
-      if (fs.statSync(path.join(full, name)).isFile()) list.push(dir + '/' + name);
-    }
+    // Includes files in sub-folders (for example netlify/functions/lib/xml.js).
+    const walk = rel => {
+      const full = path.join(root, rel);
+      if (!fs.existsSync(full)) return;
+      for (const name of fs.readdirSync(full)) {
+        const child = rel + '/' + name;
+        const stat = fs.statSync(path.join(root, child));
+        if (stat.isDirectory()) walk(child);
+        else if (stat.isFile()) list.push(child);
+      }
+    };
+    walk(dir);
   }
   return list;
 }
