@@ -410,3 +410,11 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
+
+test('a saved interview date shows in the planner for that day, except for finished postings',()=>{
+  const a=createApp();
+  const row=(id,company,stage)=>({id,company,title:'공고',stage,interviewDate:'2026-06-01',tasks:[false,false,false,false]});
+  a.run('state.jobPostings='+JSON.stringify([row('a','삼천리','준비 중'),row('b','다른곳','불합격'),row('c','또다른곳','지원 취소')]));
+  assert.deepEqual(titles(a,'2026-06-01'),['삼천리 · 공고 면접']);
+  assert.deepEqual(titles(a,'2026-06-02'),[]);
+});

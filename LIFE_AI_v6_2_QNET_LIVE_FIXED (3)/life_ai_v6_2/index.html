@@ -1244,7 +1244,8 @@ function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
 function plannerForDate(date){
   const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
-  return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
+  const interviews=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.interviewDate===date&&!['합격','불합격','지원 취소'].includes(x.stage)).map(x=>({title:x.company+' · '+x.title+' 면접',date,category:'job',origin:'external'}));
+  return [...own,...jobs,...interviews].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
 function plannerNavigate(days){
   if(plannerView==='month'){
