@@ -727,6 +727,51 @@ function exportLifeAIBackup(){
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
   }catch(e){toast('백업 파일을 만들지 못했어요.');}
 }
+/* Deadline calendar (.ics): one all-day event per unapplied posting (관심·준비 중) whose deadline is today or later.
+   The UID is built from the posting id, so importing the file again updates the events instead of duplicating them. */
+function icsEscape(text){return String(text??'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n|\r/g,'\\n');}
+function icsFold(line){
+  // Content lines are limited to 75 octets; continuation lines start with one space. Never split a character.
+  const out=[];let cur='',bytes=0,limit=75;
+  for(const ch of line){
+    const cp=ch.codePointAt(0),size=cp<0x80?1:cp<0x800?2:cp<0x10000?3:4;
+    if(bytes+size>limit){out.push(cur);cur=' ';bytes=1;limit=75;}
+    cur+=ch;bytes+=size;
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
+function deadlinePostingsForCalendar(){
+  const today=koreaToday();
+  return (Array.isArray(state.jobPostings)?state.jobPostings:[])
+    .filter(p=>p&&p.id&&['관심','준비 중'].includes(p.stage)&&p.deadline&&validDeadline(p.deadline)&&p.deadline>=today);
+}
+function buildDeadlineICS(postings,nowMs){
+  const stamp=new Date(nowMs).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const compact=d=>d.replace(/-/g,'');
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//life-ai//deadline-calendar//KO','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  postings.forEach(p=>{
+    const desc=['지원 마감일이에요.',safeUrl(p.url)].filter(Boolean).join('\n');
+    lines.push('BEGIN:VEVENT','UID:life-ai-posting-'+String(p.id).replace(/[^A-Za-z0-9_-]/g,'')+'@life-ai',
+      'DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+compact(p.deadline),'DTEND;VALUE=DATE:'+compact(plannerDateOffset(p.deadline,1)),
+      'SUMMARY:'+icsEscape('[마감] '+p.company+' · '+p.title),'DESCRIPTION:'+icsEscape(desc),'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.map(icsFold).join('\r\n')+'\r\n';
+}
+function exportDeadlineCalendar(){
+  const list=deadlinePostingsForCalendar();
+  if(!list.length){toast('내보낼 마감일이 없어요. 마감일이 있는 관심·준비 중 공고를 먼저 저장해 주세요.');return;}
+  try{
+    const blob=new Blob([buildDeadlineICS(list,Date.now())],{type:'text/calendar;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-deadlines-'+koreaToday()+'.ics';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('마감일 '+list.length+'건을 캘린더 파일로 저장했어요. 파일을 열어 캘린더에 추가해 주세요.');
+  }catch(e){toast('캘린더 파일을 만들지 못했어요.');}
+}
 function validateLifeAIBackupState(data){return LifeLogic.validateBackupState(data);}
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
 function backupNudgeHTML(){
@@ -1819,7 +1864,7 @@ function renderMy(){
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
     <div class="section-title">내 데이터 백업·복원</div>
     <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
-    <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
+    <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="exportDeadlineCalendar()">📅 마감일 캘린더로 내보내기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>

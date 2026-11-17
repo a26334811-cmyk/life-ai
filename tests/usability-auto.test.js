@@ -94,6 +94,62 @@ test('#83 home shows unapplied postings that close within 3 days',()=>{
   assert.match(a.el('homeContent').innerHTML,/외 1건/);
 });
 
+test('#87 deadline calendar (.ics) has one stable all-day event per unapplied upcoming posting',()=>{
+  const a=createApp();
+  const day=n=>a.run(`plannerDateOffset(koreaToday(),${n})`);
+  const jobs=[
+    {id:'job-1',company:'가나다, 주식회사',title:'신입;사원',url:'https://e.com/a?x=1',deadline:day(2),stage:'관심'},
+    {id:'job-2',company:'두번째',title:'공고B',url:'https://e.com/b',deadline:day(0),stage:'준비 중'},
+    {id:'job-3',company:'지원함',title:'C',url:'https://e.com/c',deadline:day(1),stage:'지원 완료'},
+    {id:'job-4',company:'지남',title:'D',url:'https://e.com/d',deadline:day(-1),stage:'관심'},
+    {id:'job-5',company:'미정',title:'E',url:'https://e.com/e',deadline:'',stage:'관심'}
+  ];
+  a.run(`state.jobPostings=${JSON.stringify(jobs)}`);
+  assert.equal(a.run('deadlinePostingsForCalendar().map(p=>p.id).join()'),'job-1,job-2');
+  const ics=a.run('buildDeadlineICS(deadlinePostingsForCalendar(),Date.now())');
+  assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'));
+  assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
+  assert.equal((ics.match(/BEGIN:VEVENT/g)||[]).length,2);
+  assert.ok(!/[^\r]\n/.test(ics),'all line breaks are CRLF');
+  const unfolded=ics.replace(/\r\n /g,'');
+  const d1=day(2).replace(/-/g,''),d1end=a.run(`plannerDateOffset('${day(2)}',1)`).replace(/-/g,'');
+  assert.ok(unfolded.includes('UID:life-ai-posting-job-1@life-ai'));
+  assert.ok(unfolded.includes('DTSTART;VALUE=DATE:'+d1));
+  assert.ok(unfolded.includes('DTEND;VALUE=DATE:'+d1end));
+  assert.ok(unfolded.includes('SUMMARY:[마감] 가나다\\, 주식회사 · 신입\\;사원'));
+  assert.ok(unfolded.includes('https://e.com/a?x=1'));
+  assert.ok(!unfolded.includes('지원함')&&!unfolded.includes('지남')&&!unfolded.includes('미정'));
+  // UIDs are the same on every export, so re-importing updates instead of duplicating
+  const again=a.run('buildDeadlineICS(deadlinePostingsForCalendar(),Date.now()+86400000)');
+  const uids=s=>(s.match(/UID:.*/g)||[]).join('|');
+  assert.equal(uids(again),uids(ics));
+  // no line is longer than 75 bytes
+  for(const line of ics.split('\r\n'))assert.ok(Buffer.byteLength(line,'utf8')<=75,line);
+});
+
+test('#87 exporting downloads an .ics file, or explains when there is nothing to export',()=>{
+  const {Blob}=require('node:buffer');
+  const a=createApp();
+  const clicked=[];
+  a.context.Blob=Blob;
+  a.context.__blobs=[];
+  a.run('URL={createObjectURL:b=>{__blobs.push(b);return "blob:x"},revokeObjectURL(){}}');
+  a.run('document.createElement=()=>({click(){__clicked.push(this.download)},remove(){}});document.body={appendChild(){}}');
+  a.context.__clicked=clicked;
+  a.run('exportDeadlineCalendar()');
+  assert.equal(clicked.length,0,'nothing to export');
+  assert.match(a.toasts.at(-1),/내보낼 마감일이 없어요/);
+  const deadline=a.run('plannerDateOffset(koreaToday(),1)');
+  a.run(`state.jobPostings=[{id:'j',company:'회사',title:'공고',url:'https://e.com/j',deadline:'${deadline}',stage:'관심'}]`);
+  a.run('exportDeadlineCalendar()');
+  assert.equal(clicked.length,1);
+  assert.match(clicked[0],/^life-ai-deadlines-\d{4}-\d{2}-\d{2}\.ics$/);
+  assert.equal(a.context.__blobs[0].type,'text/calendar;charset=utf-8');
+  assert.match(a.toasts.at(-1),/1건/);
+  a.run('renderMy()');
+  assert.match(a.el('myContent').innerHTML,/exportDeadlineCalendar\(\)/);
+});
+
 test('#27 planner row buttons say what they do and name the event',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동 \"가기\"',date:'2026-05-10'}]");
