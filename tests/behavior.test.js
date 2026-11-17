@@ -410,3 +410,61 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
+
+/* ---------- slow connections give up after 15 seconds (#45) ---------- */
+// A fake fetch that never answers on its own but obeys the abort signal, like the real one.
+const hangingFetch=(seen)=>(url,options)=>new Promise((_,reject)=>{
+  seen.push(options.signal);
+  if(options.signal.aborted)return reject(options.signal.reason);
+  options.signal.addEventListener('abort',()=>reject(options.signal.reason));
+});
+// Make the 15-second timer fire at once so the test does not wait.
+const expireTimeoutNow=a=>{a.context.AbortSignal={timeout:()=>AbortSignal.abort(new DOMException('timed out','TimeoutError')),any:s=>AbortSignal.any(s)};};
+
+test('job search that never answers shows a slow-connection notice with a retry button',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  a.run("state.mainGoal='시설관리 신입'");
+  expireTimeoutNow(a);
+  await a.run('loadLiveJobs()');
+  assert.equal(seen.length,1);
+  assert.match(a.el('liveJobStatus').innerHTML,/연결이 느려요/);
+  assert.match(a.el('liveJobStatus').innerHTML,/loadLiveJobs\(\)/,'retry button is shown');
+  assert.doesNotMatch(a.el('liveJobStatus').innerHTML,/WORK24_AUTH_KEY/);
+});
+
+test('job search request has a 15 second limit that a newer search can still cancel',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  a.run("state.mainGoal='시설관리 신입'");
+  const first=a.run('loadLiveJobs()');
+  a.run('loadLiveJobs()'); // the second search cancels the first one
+  await first;
+  assert.equal(seen[0].aborted,true);
+  assert.equal(seen[0].reason.name,'AbortError');
+  assert.equal(seen[1].aborted,false,'the newer search keeps waiting');
+  assert.doesNotMatch(a.el('liveJobStatus').innerHTML,/연결이 느려요/,'a cancelled search shows no error');
+});
+
+test('cert schedule and cert name search also give up with a retry button',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  expireTimeoutNow(a);
+  a.el('certSearchInput').value='전기기사';
+  await a.run('loadLiveCertSchedule()');
+  assert.match(a.el('liveCertStatus').innerHTML,/연결이 느려요/);
+  assert.match(a.el('liveCertStatus').innerHTML,/loadLiveCertSchedule\(\)/);
+  a.context.setTimeout=fn=>{fn();return 0;};
+  a.run('searchCertNames()');
+  await new Promise(r=>setImmediate(r));
+  assert.match(a.el('certSearchMatches').innerHTML,/연결이 느려요/);
+  assert.match(a.el('certSearchMatches').innerHTML,/searchCertNames\(\)/);
+});
+
+test('a server error message still shows as before, not the slow notice',async()=>{
+  const a=createApp(undefined,{fetch:reply({message:'인증키 문제'},false)});
+  a.el('certSearchInput').value='전기기사';
+  await a.run('loadLiveCertSchedule()');
+  assert.match(a.el('liveCertStatus').innerHTML,/인증키 문제/);
+  assert.doesNotMatch(a.el('liveCertStatus').innerHTML,/연결이 느려요/);
+});

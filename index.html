@@ -1997,7 +1997,7 @@ async function loadLiveJobs(){
   status.innerHTML=`<strong>⏳ 고용24에서 찾는 중…</strong><p class="meta">검색어: ${esc(keyword)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,{signal:liveJobsController.signal});
+    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,{signal:withTimeout(liveJobsController.signal)});
     const data=await r.json();
     if(version!==liveJobsRequestVersion) return;
     if(!r.ok) throw new Error(data.message||'채용정보를 불러오지 못했어요.');
@@ -2018,6 +2018,10 @@ async function loadLiveJobs(){
     }</div>`;
   }catch(e){
     if(version!==liveJobsRequestVersion||e.name==='AbortError') return;
+    if(e.name==='TimeoutError'){
+      status.innerHTML=`<strong>🟡 ${SLOW_CONNECTION_MESSAGE}</strong><p class="meta">고용24에서 15초 안에 답이 오지 않았어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
+      return;
+    }
     status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
   }
 }
@@ -2062,12 +2066,23 @@ function initCertSearch(){
   if(!input.value) input.value=certQueryName();
   if(input.value) searchCertNames();
 }
+const SLOW_CONNECTION_MESSAGE='연결이 느려요. 다시 시도해 주세요.';
+// Gives up after 15 seconds; a manual cancel (the optional signal) still works and is told apart by its AbortError name.
+function withTimeout(signal){
+  const timeout=AbortSignal.timeout(15000);
+  return signal?AbortSignal.any([signal,timeout]):timeout;
+}
 async function fetchJson(url,signal){
-  const r=await fetch(url,{signal});
-  let data;
-  try{data=await r.json();}catch{throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');}
-  if(!r.ok) throw new Error(data.message||'정보를 불러오지 못했어요.');
-  return data;
+  try{
+    const r=await fetch(url,{signal:withTimeout(signal)});
+    let data;
+    try{data=await r.json();}catch(e){if(e.name==='TimeoutError'||e.name==='AbortError')throw e;throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');}
+    if(!r.ok) throw new Error(data.message||'정보를 불러오지 못했어요.');
+    return data;
+  }catch(e){
+    if(e.name==='TimeoutError')throw new Error(SLOW_CONNECTION_MESSAGE);
+    throw e;
+  }
 }
 let certSearchTimer, certSearchController, certScheduleController;
 let certSearchVersion=0, certScheduleVersion=0;
@@ -2094,7 +2109,7 @@ async function searchCertNames(){
       matches.innerHTML=data.items?.length?data.items.map(x=>`
         <button type="button" class="btn ghost" style="display:block;width:100%;text-align:left;margin-top:6px" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="chooseCert(this)">${esc(x.name)} <span class="meta">· ${esc(x.code)}</span></button>`).join(''):
         '<p class="meta">검색 결과가 없어요. 정확한 자격증 이름을 입력해 확인할 수도 있어요.</p>';
-    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(e.message)}</p>`;}
+    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(e.message)}</p><button type="button" class="btn secondary" onclick="searchCertNames()">다시 시도</button>`;}
   },350);
 }
 function chooseCert(button){
