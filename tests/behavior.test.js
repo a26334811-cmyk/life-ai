@@ -81,7 +81,26 @@ test('finishing the timer records it using the deadline time and clears the save
   assert.equal(a.run('focusRunning'),false);
   assert.equal(a.run('focusHistory().length'),1);
   assert.equal('focusRun' in a.saved(),false);
-  assert.equal(a.run('focusRemaining'),0);
+  // The clock goes back to the full length, so Reset / changing minutes does not warn about a "running" timer.
+  assert.equal(a.run('focusRemaining'),25*60);
+});
+
+test('after a finished timer, reset and duration change do not ask for confirmation',async()=>{
+  const a=createApp(undefined,{confirm:false});
+  a.run('focusStartPause()');
+  a.clock.now+=25*60*1000+500;
+  a.tick();
+  await a.run('focusReset()');
+  await a.run('focusChangeMinutes(30)');
+  assert.equal(a.dialogs.filter(d=>d.kind==='confirm').length,0);
+  assert.equal(a.run('focusRemaining'),30*60);
+  // same after reopening an app whose timer ended while it was closed
+  const b=createApp(undefined,{confirm:false});
+  b.run('focusStartPause()');
+  const reopened=createApp(JSON.stringify(b.saved()),{now:b.saved().focusRun.deadline+60000,confirm:false});
+  assert.equal(reopened.run('focusRemaining'),25*60);
+  await reopened.run('focusReset()');
+  assert.equal(reopened.dialogs.filter(d=>d.kind==='confirm').length,0);
 });
 
 /* ---------- notifications (improvement 2) ---------- */

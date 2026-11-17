@@ -1356,6 +1356,7 @@ function focusTick(){
   if(focusRemaining===0){
     const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category||'study',completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
     focusStopTimer();
+    focusRemaining=Number(focusSettings().minutes)*60;
     delete state.focusRun;
     focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
     focusUpdateUI();
@@ -1492,7 +1493,7 @@ function focusRestore(){
     focusInterval=setInterval(focusTick,500);
   }else{
     delete state.focusRun;
-    focusRemaining=0;
+    focusRemaining=Number(focusSettings().minutes)*60;
     focusRecordCompletion({minutes:resumed.minutes,category:resumed.category,completedAt:resumed.finishedAt,date:resumed.date});
     startupNotice=startupNotice||resumed.minutes+'분 집중이 끝났어요. 기록에 저장했어요.';
   }
