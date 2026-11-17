@@ -260,6 +260,84 @@ test('only interested/preparing job postings show their deadline in the planner'
   assert.deepEqual(got.map(t=>t.slice(0,3)).sort(),['회사a','회사b','회사c']);
 });
 
+/* ---------- adding a new item and input checks (#54) ---------- */
+test('a new one-off item is added with the form values and a saved notice',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'치과',date:'2026-05-12',time:'09:30',category:'personal',priority:'high'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  const item=a.saved().plannerEntries[0];
+  assert.equal(item.title,'치과');assert.equal(item.date,'2026-05-12');assert.equal(item.time,'09:30');
+  assert.equal(item.repeat,'none');assert.equal(item.priority,'high');assert.equal(item.done,false);
+  assert.ok(item.id);
+  assert.deepEqual(titles(a,'2026-05-12'),['치과']);
+  assert.deepEqual(titles(a,'2026-05-13'),[]);
+  assert.match(a.toasts.at(-1),/일정을 저장했어요/);
+});
+
+test('new daily, weekly and monthly items are saved and show on the right days',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'매일 운동',date:'2026-05-04',repeat:'daily'});await a.run('plannerSave()');
+  fillForm(a,{title:'주간 회의',date:'2026-05-04',repeat:'weekly'});await a.run('plannerSave()');
+  fillForm(a,{title:'월세',date:'2026-05-04',repeat:'monthly'});await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),3);
+  assert.deepEqual(a.saved().plannerEntries.map(e=>e.repeat),['daily','weekly','monthly']);
+  assert.deepEqual(titles(a,'2026-05-05'),['매일 운동']);
+  assert.deepEqual(titles(a,'2026-05-11').sort(),['매일 운동','주간 회의'].sort());
+  assert.deepEqual(titles(a,'2026-06-04').sort(),['매일 운동','월세'].sort());
+  assert.deepEqual(titles(a,'2026-05-04').sort(),['매일 운동','월세','주간 회의'].sort());
+});
+
+test('a repeat end date stops the repeat after that day',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'스터디',date:'2026-05-01',repeat:'daily',until:'2026-05-03'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.saved().plannerEntries[0].until,'2026-05-03');
+  assert.deepEqual(titles(a,'2026-05-03'),['스터디']);
+  assert.deepEqual(titles(a,'2026-05-04'),[]);
+});
+
+test('a title of exactly 120 characters is accepted',async()=>{
+  const a=createApp();
+  fillForm(a,{title:'가'.repeat(120),date:'2026-05-12'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries.length'),1);
+  assert.equal(a.run('state.plannerEntries[0].title.length'),120);
+});
+
+test('invalid input is refused: nothing is saved and the user is told why',async()=>{
+  const bad=[
+    ['empty title',{title:'',date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['blank title',{title:'   ',date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['121 character title',{title:'가'.repeat(121),date:'2026-05-12'},/제목\(120자 이하\)과 날짜/],
+    ['missing date',{title:'치과',date:''},/제목\(120자 이하\)과 날짜/],
+    ['date that does not exist',{title:'치과',date:'2026-02-30'},/제목\(120자 이하\)과 날짜/],
+    ['date in the wrong format',{title:'치과',date:'2026/05/12'},/제목\(120자 이하\)과 날짜/],
+    ['end date before the start date',{title:'치과',date:'2026-05-12',repeat:'daily',until:'2026-05-11'},/반복 종료일을 확인/],
+    ['end date that does not exist',{title:'치과',date:'2026-05-12',repeat:'daily',until:'2026-02-30'},/반복 종료일을 확인/]
+  ];
+  for(const [name,form,message] of bad){
+    const a=createApp();
+    fillForm(a,form);
+    await a.run('plannerSave()');
+    assert.equal(a.run('plannerEntries().length'),0,name+': no item added');
+    assert.equal(a.storage.has('lifeAIPrototypeV5')&&(a.saved().plannerEntries||[]).length>0,false,name+': nothing stored');
+    assert.equal(a.toasts.length,1,name+': one notice');
+    assert.match(a.toasts[0],message,name);
+  }
+});
+
+test('a refused edit leaves the existing item unchanged',async()=>{
+  const a=createApp();
+  a.run("state.plannerEntries=[{id:'x',title:'치과',date:'2026-05-12',repeat:'none'}]");
+  a.run("plannerEdit('x','2026-05-12')");
+  fillForm(a,{title:'',date:'2026-05-12'});
+  await a.run('plannerSave()');
+  assert.equal(a.run('state.plannerEntries[0].title'),'치과');
+  assert.match(a.toasts.at(-1),/확인해 주세요/);
+});
+
 test('ticking a repeating item done affects only that day',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
@@ -657,4 +735,62 @@ test('month calendar cells show an event count, and the phone CSS hides the 9px 
   assert.match(phone,/\.planner-day \.dot\{display:none\}/);
   assert.match(phone,/\.planner-day \.dot-count\{display:block\}/);
   assert.match(html,/\.bottomnav button\{[^}]*font-size:1[2-3]px/);
+});
+
+/* ---------- slow connections give up after 15 seconds (#45) ---------- */
+// A fake fetch that never answers on its own but obeys the abort signal, like the real one.
+const hangingFetch=(seen)=>(url,options)=>new Promise((_,reject)=>{
+  seen.push(options.signal);
+  if(options.signal.aborted)return reject(options.signal.reason);
+  options.signal.addEventListener('abort',()=>reject(options.signal.reason));
+});
+// Make the 15-second timer fire at once so the test does not wait.
+const expireTimeoutNow=a=>{a.context.AbortSignal={timeout:()=>AbortSignal.abort(new DOMException('timed out','TimeoutError')),any:s=>AbortSignal.any(s)};};
+
+test('job search that never answers shows a slow-connection notice with a retry button',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  a.run("state.mainGoal='시설관리 신입'");
+  expireTimeoutNow(a);
+  await a.run('loadLiveJobs()');
+  assert.equal(seen.length,1);
+  assert.match(a.el('liveJobStatus').innerHTML,/연결이 느려요/);
+  assert.match(a.el('liveJobStatus').innerHTML,/loadLiveJobs\(\)/,'retry button is shown');
+  assert.doesNotMatch(a.el('liveJobStatus').innerHTML,/WORK24_AUTH_KEY/);
+});
+
+test('job search request has a 15 second limit that a newer search can still cancel',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  a.run("state.mainGoal='시설관리 신입'");
+  const first=a.run('loadLiveJobs()');
+  a.run('loadLiveJobs()'); // the second search cancels the first one
+  await first;
+  assert.equal(seen[0].aborted,true);
+  assert.equal(seen[0].reason.name,'AbortError');
+  assert.equal(seen[1].aborted,false,'the newer search keeps waiting');
+  assert.doesNotMatch(a.el('liveJobStatus').innerHTML,/연결이 느려요/,'a cancelled search shows no error');
+});
+
+test('cert schedule and cert name search also give up with a retry button',async()=>{
+  const seen=[];
+  const a=createApp(undefined,{fetch:hangingFetch(seen)});
+  expireTimeoutNow(a);
+  a.el('certSearchInput').value='전기기사';
+  await a.run('loadLiveCertSchedule()');
+  assert.match(a.el('liveCertStatus').innerHTML,/연결이 느려요/);
+  assert.match(a.el('liveCertStatus').innerHTML,/loadLiveCertSchedule\(\)/);
+  a.context.setTimeout=fn=>{fn();return 0;};
+  a.run('searchCertNames()');
+  await new Promise(r=>setImmediate(r));
+  assert.match(a.el('certSearchMatches').innerHTML,/연결이 느려요/);
+  assert.match(a.el('certSearchMatches').innerHTML,/searchCertNames\(\)/);
+});
+
+test('a server error message still shows as before, not the slow notice',async()=>{
+  const a=createApp(undefined,{fetch:reply({message:'인증키 문제'},false)});
+  a.el('certSearchInput').value='전기기사';
+  await a.run('loadLiveCertSchedule()');
+  assert.match(a.el('liveCertStatus').innerHTML,/인증키 문제/);
+  assert.doesNotMatch(a.el('liveCertStatus').innerHTML,/연결이 느려요/);
 });
