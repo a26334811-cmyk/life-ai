@@ -413,6 +413,29 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+test('offline errors are shown in plain Korean; the env-variable hint only appears when the server key is missing',async()=>{
+  const offline=async()=>{throw new TypeError('Failed to fetch');};
+  const a=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:offline});
+  await a.run('loadLiveJobs()');
+  const jobs=a.el('liveJobStatus').innerHTML;
+  assert.match(jobs,/인터넷 연결을 확인하고 다시 시도해 주세요/);
+  assert.doesNotMatch(jobs,/Failed to fetch|WORK24_AUTH_KEY/);
+  const noKey=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:async()=>({ok:false,status:503,json:async()=>({message:'고용24 인증키가 아직 설정되지 않았어요.'})})});
+  await noKey.run('loadLiveJobs()');
+  assert.match(noKey.el('liveJobStatus').innerHTML,/인증키가 아직 설정되지 않았어요/);
+  assert.match(noKey.el('liveJobStatus').innerHTML,/WORK24_AUTH_KEY/);
+  const english=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:async()=>({ok:false,status:500,json:async()=>({message:'upstream exploded'})})});
+  await english.run('loadLiveJobs()');
+  assert.doesNotMatch(english.el('liveJobStatus').innerHTML,/upstream exploded|WORK24_AUTH_KEY/);
+  const c=createApp(undefined,{fetch:offline});
+  c.el('certYear').value='2026';c.el('certSearchInput').value='전기기사';
+  await c.run('loadLiveCertSchedule()');
+  assert.match(c.el('liveCertStatus').innerHTML,/인터넷 연결을 확인하고/);
+  assert.doesNotMatch(c.el('liveCertStatus').innerHTML,/Failed to fetch/);
+  assert.equal(c.run("friendlyErrorMessage(new Error('서버가 준 한국어'),'x')"),'서버가 준 한국어');
+  assert.equal(c.run("friendlyErrorMessage(new Error('Load failed'),'대체 문구')"),'대체 문구');
+});
+
 test('setup text boxes run their "next" action on Enter and show a matching keyboard key',()=>{
   const {html}=require('./helpers/app-harness.js');
   const expected={nickname:["go('goalChoice')",'next'],companyInput:['selectCompany()','go'],jobInput:["selectJob(this.value||'관심 직무')",'go'],
