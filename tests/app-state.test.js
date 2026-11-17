@@ -97,3 +97,33 @@ test('starting a certificate goal saves the schedule that was looked up for it',
  assert.equal(a.run('state.mainGoal'),'전기기사 준비');
  assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');
 });
+
+// #44: entering the certificate screen shows what is already known instead of asking the server again.
+test('certificate screen shows the saved schedule with its lookup date and does not ask the server',()=>{
+ let calls=0;
+ const saved=JSON.stringify({mainGoal:'위험물산업기사 준비',goalType:'cert',parsedGoal:{subject:'위험물산업기사'},
+  certSchedule:{...certData('위험물산업기사','2026-06-20'),year:2026,fetchedAt:'2026-05-01T01:00:00.000Z'}});
+ const a=createApp(saved,{fetch:async()=>{calls++;throw new Error('offline');}});
+ a.el('certYear').options=[{value:'2025'},{value:'2026'}];
+ a.run('initCertSearch()');
+ assert.equal(calls,0);
+ assert.equal(a.el('certSearchInput').value,'위험물산업기사');
+ assert.match(a.el('liveCertStatus').innerHTML,/저장된 일정 · 조회일 2026-05-01/);
+ assert.match(a.el('liveCertResults').innerHTML,/1회/);
+ assert.equal(a.el('certYear').value,'2026');
+});
+test('certificate screen keeps the chosen item and result when you come back, and searches only when nothing is known',async()=>{
+ const a=certApp(JSON.stringify({}),()=>certData('전기기사','2026-07-01'));
+ a.el('certYear').options=[{value:'2026'}];
+ a.el('certYear').value='2026';a.el('certSearchInput').value='전기기사';a.el('certSearchInput').dataset.code='1150';
+ await a.run('loadLiveCertSchedule()');
+ a.el('liveCertResults').innerHTML='';a.el('liveCertStatus').innerHTML='';
+ a.run('initCertSearch()');
+ assert.equal(a.el('certSearchInput').dataset.code,'1150');
+ assert.match(a.el('liveCertStatus').innerHTML,/저장된 일정/);
+ assert.match(a.el('liveCertResults').innerHTML,/1회/);
+ const b=certApp(JSON.stringify({}),()=>certData('전기기사','2026-07-01'));
+ b.el('certYear').options=[{value:'2026'}];b.el('certSearchInput').value='전기기사';
+ b.run('initCertSearch()');
+ assert.match(b.el('certSearchMatches').innerHTML,/종목 검색 중/);
+});

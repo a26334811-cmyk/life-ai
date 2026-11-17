@@ -2108,6 +2108,15 @@ function removeFavoriteCert(code){
 function favoriteCertHTML(){
   return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" onclick="removeFavoriteCert(this.dataset.code)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
 }
+function certRoundsHTML(data){
+  return `<div class="section-title">실제 시험일정</div><div class="stack">${(
+    data.rounds||[]).map(round=>`
+    <div class="card">
+      <h3>${esc(round.round)}</h3>
+      ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
+    </div>`).join('')
+  }</div>`;
+}
 function initCertSearch(){
   const year=document.getElementById('certYear');
   if(!year.options.length){
@@ -2116,6 +2125,19 @@ function initCertSearch(){
   }
   const input=document.getElementById('certSearchInput');
   if(!input.value) input.value=certQueryName();
+  // A schedule already looked up (or saved on this phone) is shown first, without asking the server again.
+  const want=certNameKey(input.value);
+  const known=[lastCertLookup&&{data:lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt},state.certSchedule&&{data:state.certSchedule,fetchedAt:state.certSchedule.fetchedAt}]
+    .find(x=>{const got=x&&certNameKey(x.data?.qualification?.name);return want&&got&&(want===got||got.includes(want)||want.includes(got));});
+  if(known){
+    const status=document.getElementById('liveCertStatus'),box=document.getElementById('liveCertResults');
+    const when=known.fetchedAt?String(known.fetchedAt).slice(0,10):'';
+    if(known.data.year&&[...year.options].some(o=>o.value===String(known.data.year))) year.value=String(known.data.year);
+    status.innerHTML=`<strong>📦 저장된 일정${when?` · 조회일 ${esc(when)}`:''}</strong><p class="meta">${esc(known.data.qualification.name)} · 종목코드 ${esc(known.data.qualification.code||'')}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">최신 일정 다시 조회</button>`;
+    box.innerHTML=known.data.items?.length?certRoundsHTML(known.data):'';
+    document.getElementById('certSearchMatches').innerHTML='';
+    return;
+  }
   if(input.value) searchCertNames();
 }
 async function fetchJson(url,signal){
@@ -2193,13 +2215,7 @@ async function loadLiveCertSchedule(){
       box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
       return;
     }
-    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${(
-      data.rounds||[]).map(round=>`
-      <div class="card">
-        <h3>${esc(round.round)}</h3>
-        ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
-      </div>`).join('')
-    }</div>`;
+    box.innerHTML=certRoundsHTML(data);
   }catch(e){
     if(version!==certScheduleVersion||e.name==='AbortError') return;
     status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
