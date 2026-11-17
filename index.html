@@ -478,42 +478,6 @@ h3{font-size:16px;line-height:1.4}
     <div id="homeContent"></div>
   </section>
 
-  <section id="jobDetail" class="screen">
-    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
-    <h2>💼 관심 회사 · 관심 직무 채용</h2>
-    <div id="legacyJobStatus" class="card">
-      <strong>🔎 고용24 실제 공고 확인</strong>
-      <p class="meta">목표에 입력한 회사·직무를 기준으로 실제 채용공고를 불러옵니다.</p>
-      <button class="btn secondary" onclick="loadLiveJobs()">실제 공고 불러오기</button>
-    </div>
-    <div id="legacyJobResults"></div>
-    <p class="danger"><strong>지원 마감 D-12</strong></p>
-    <div class="card">
-      <h3>✨ 왜 추천했나요?</h3>
-      <p>• 내가 입력한 관심회사 기준<br>• 내가 입력한 관심직무 기준<br>• 현재 프로토타입의 DEMO 추천</p>
-    </div>
-    <div class="section-title">현재 확인된 조건</div>
-    <div class="stack">
-      <div class="card"><span class="status success">🟢 경력</span><p class="meta">실제 조건 미연결 · 입력한 경력 정보를 바탕으로 비교할 예정</p></div>
-      <div class="card"><span class="status success">🟢 학력</span><p class="meta">실제 조건 미연결 · 입력한 학력 정보를 바탕으로 비교할 예정</p></div>
-      <div class="card"><span class="status warn">🟡 자격조건</span><p class="meta">일부 우대조건을 추가로 확인해보세요.</p></div>
-    </div>
-    <p class="muted" style="margin-top:14px">현재는 조건 비교 UI만 보여주는 DEMO예요. 실제 서비스에서는 공식 채용공고의 필수조건만 사용합니다.</p>
-    <div class="actions">
-      <button class="btn ghost" onclick="favorite()">♡ 관심 저장</button>
-      <button class="btn primary" onclick="go('prepare')">🎯 지원 준비</button>
-    </div>
-  </section>
-
-  <section id="prepare" class="screen">
-    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobDetail')">←</button></div>
-    <h2>지원 준비를 시작할까요?</h2>
-    <div class="card"><strong>🎯 생성할 목표</strong><p>선택한 회사·직무 지원</p></div>
-    <div class="card" style="margin-top:12px"><strong>📅 추가할 일정</strong><p>DEMO 마감 일정</p></div>
-    <div class="card" style="margin-top:12px"><strong>☑ 준비할 일</strong><p>지원자격 확인 · 이력서 준비 · 자기소개서 작성 · 증빙자료 확인 · 최종 지원서 검토</p></div>
-    <button class="btn primary" style="margin-top:18px" onclick="startPrep()">지원 준비 시작</button>
-  </section>
-
   <section id="goals" class="screen">
     <div class="topbar"><h2 style="margin:0">🎯 내 목표</h2></div>
     <div id="goalsContent"></div>
@@ -926,8 +890,6 @@ function understandingHTML(){
 }
 function priorityReason(){
   if(state.goalType==='job'){
-    if(state.jobSubmitted) return '이미 제출한 일정은 더 이상 재촉하지 않고 다음 단계만 보여줘요.';
-    if(state.jobPreparationStarted) return '준비 중인 목표가 있으므로 새 정보보다 미완료 행동을 먼저 보여줘요.';
     return '취업 목표가 있으므로 관심 회사와 공고를 저장해 마감일을 챙기는 것부터 보여줘요.';
   }
   if(state.goalType==='cert') return '시험 일정이 준비 계획 전체를 결정하므로 가장 먼저 확인하도록 정했어요.';
@@ -1168,8 +1130,6 @@ function goalPlanCards(){
 
 function currentAction(){
   if(state.goalType==='job'){
-    if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 완료를 기록했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
-    if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
     return {title:'관심 회사와 공고를 관리해보세요', desc:'관심 회사와 공고를 저장하면 마감일과 준비 목록을 함께 챙겨 드려요.', cta:'공고 관리 열기'};
   }
   if(state.goalType==='cert') return {title:'다음 시험 일정을 먼저 확인해보세요', desc:'접수일과 시험일을 알면 준비 계획을 바로 만들 수 있어요.', cta:'자격증 기회 보기'};
@@ -1280,14 +1240,6 @@ function opportunityCards(){
   }
   if(state.goalType==='job'){
     return '<div class="card opportunity"><span class="tag">💼 취업</span><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
-    const company=state.selectedCompany || '관심 회사';
-    const job=state.selectedJob || '관심 직무';
-    return `
-      <div class="stack">
-        <div class="card opportunity"><span class="tag">💼 취업 · DEMO</span><strong>${company} ${job} 채용 예시</strong><span class="meta">고용24 연동 시 실제 공고와 지원 마감일을 확인해요.</span><button class="btn secondary" onclick="go('jobDetail')">자세히 보기</button></div>
-        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${job} 관련 자격 탐색</strong><span class="meta">취업 목표와 연결되는 준비 기회를 보여줘요.</span><button class="btn secondary" onclick="go('cert')">둘러보기</button></div>
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>취업 준비 지원 탐색</strong><span class="meta">현재 정보로 확인 가능한 정책을 살펴봐요.</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
-      </div>`;
   }
   return `
     <div class="stack">
@@ -1295,17 +1247,6 @@ function opportunityCards(){
     </div>`;
 }
 
-function startPrep(){
-  state.jobPreparationStarted=true;
-  addActivity('지원 준비를 시작했어요');
-  toast('지원 준비 목표와 일정이 만들어졌어요.');
-  go('goals');
-}
-function favorite(){
-  state.favorite=!state.favorite;
-  persistState();
-  toast(state.favorite?'관심 목록에 저장했어요.':'관심 저장을 해제했어요.');
-}
 function renderIncomeState(){
   document.getElementById('incomeSelect').value=state.policyIncome||'';
   document.getElementById('incomeStatus').textContent=state.policyIncomeAdded?'소득 정보 입력 완료 · 자격 판정 전':'소득 정보를 선택해 주세요.';
@@ -1320,7 +1261,7 @@ function saveIncome(){
 function renderGoals(){
   const el=document.getElementById('goalsContent');
   const status = state.goalType==='job'
-    ? (state.jobSubmitted?'지원 완료':state.jobPreparationStarted?'지원 준비 중':'기회 탐색 중')
+    ? '기회 탐색 중'
     : state.goalType==='cert'?'시험 일정 확인 단계'
     : state.goalType==='policy'?'조건 확인 단계'
     : '첫 행동 정리 중';
@@ -1348,16 +1289,7 @@ function renderTasks(){
   box.innerHTML=plan.tasks.map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
 }
 async function toggleTask(i){
-  if(state.goalType==='job' && i===4 && !state.completedTasks[i]){
-    const ok=await uiConfirm('지원서를 실제로 제출했나요?',{title:'지원 완료 기록',ok:'제출했어요'});
-    if(!ok){renderTasks();return;}
-    state.completedTasks[i]=true;
-    state.jobSubmitted=true;
-    addActivity('지원 완료를 기록했어요');
-    toast('지원 완료가 기록됐어요.');
-  } else {
-    state.completedTasks[i]=!state.completedTasks[i];
-  }
+  state.completedTasks[i]=!state.completedTasks[i];
   persistState();
   renderTasks();
 }
@@ -2079,8 +2011,6 @@ function renderMy(){
     </div>`;
 }
 
-// Make the DEMO job detail reflect the user's chosen company/job.
-
 const postingStages=['관심','준비 중','지원 완료','면접','합격','불합격','지원 취소'];
 function jobCollections(){
   if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
@@ -2519,24 +2449,7 @@ async function loadLiveCertSchedule(){
   }
 }
 
-function syncJobDetail(){
-  const title=document.querySelector('#jobDetail h2');
-  if(title){
-    const company=state.selectedCompany || (state.parsedGoal?.raw ? '추천 회사' : '관심 회사');
-    const job=state.selectedJob || (state.parsedGoal?.intent==='이직' ? '이직 후보 직무' : '관심 직무');
-    title.textContent=`💼 ${company} · ${job} 채용 예시`;
-  }
-  const prepareGoal=document.querySelector('#prepare .card p');
-  if(prepareGoal) prepareGoal.textContent=`${state.selectedCompany||'관심 회사'} ${state.selectedJob||'관심 직무'} 지원`;
-}
-
-const _go=go;
-go=function(id,mode){
-  if(['jobDetail','prepare'].includes(id)) id='jobHub';
-  _go(id,mode);
-};
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
-
 // Offline support and installable app: the service worker only runs on https or localhost.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
