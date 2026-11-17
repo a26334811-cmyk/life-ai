@@ -91,7 +91,7 @@
     }
     .bottomnav.show{display:grid}
     .bottomnav button{
-      border:0;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;
+      border:0;background:none;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;
     }
     .bottomnav button.active{color:var(--primary)}
     .navicon{display:block;font-size:21px;margin-bottom:4px}
@@ -217,6 +217,7 @@
 .planner-day.today{border:2px solid var(--primary)}
 .planner-day.selected{background:#e8f1ff}
 .planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-day .dot-count{display:none;margin-top:3px;font-size:13px;font-weight:700;color:var(--primary)}
 .planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
 .planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .planner-form label{display:flex;flex-direction:column;gap:5px;font-size:13px}
@@ -224,7 +225,7 @@
 .planner-form .wide{grid-column:1/-1}
 .planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .planner-item .btn{width:auto}
-@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
+@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
 .focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
@@ -1729,7 +1730,7 @@ function renderCalendar(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]}의 일정</p>`
         :`<div class="planner-grid">${['일','월','화','수','목','금','토'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}</button>`).join('')}
+        ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${plannerForDate(date).length?`<span class="dot-count" aria-label="일정 ${plannerForDate(date).length}개">●${plannerForDate(date).length}</span>`:''}</button>`).join('')}
         </div>`}
 
     </div>

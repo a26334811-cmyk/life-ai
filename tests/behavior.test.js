@@ -426,3 +426,20 @@ test('goal text with HTML characters is shown as plain text in opportunity cards
   assert.ok(!u.includes('<b>test'));
   assert.ok(u.includes('&lt;b&gt;test&lt;/b&gt;'));
 });
+
+/* ---------- phone calendar: count instead of tiny titles (#31) ---------- */
+test('month calendar cells show an event count, and the phone CSS hides the 9px titles',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',plannerEntries:[
+    {id:'a',title:'첫째',date:'2026-05-12'},{id:'b',title:'둘째',date:'2026-05-12'},{id:'c',title:'셋째',date:'2026-05-12'},
+    {id:'d',title:'하나',date:'2026-05-13'}]}));
+  a.run('plannerView="month";renderCalendar()');
+  const h=a.el('calendarContent').innerHTML;
+  assert.ok(h.includes('aria-label="일정 3개">●3<'),'3 events on the 12th, even though only 2 titles fit');
+  assert.ok(h.includes('aria-label="일정 1개">●1<'));
+  assert.equal((h.match(/class="dot-count"/g)||[]).length,2,'days without events get no count');
+  const {html}=require('./helpers/app-harness.js');
+  const phone=html.match(/@media\(max-width:520px\)\{[^\n]*planner-day[^\n]*/)[0];
+  assert.match(phone,/\.planner-day \.dot\{display:none\}/);
+  assert.match(phone,/\.planner-day \.dot-count\{display:block\}/);
+  assert.match(html,/\.bottomnav button\{[^}]*font-size:1[2-3]px/);
+});
