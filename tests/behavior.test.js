@@ -410,3 +410,19 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
+
+/* ---------- goal text is escaped in opportunity cards (#32) ---------- */
+test('goal text with HTML characters is shown as plain text in opportunity cards and the goal summary',()=>{
+  const evil='<img src=x onerror=alert(1)>';
+  for(const goalType of ['policy','other']){
+    const a=createApp(JSON.stringify({mainGoal:evil,goalType}));
+    const html=a.run('opportunityCards()');
+    assert.ok(!html.includes('<img'),goalType+' card must not contain a raw tag');
+    assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'),goalType+' card shows the text');
+  }
+  const b=createApp(JSON.stringify({mainGoal:'<b>test</b>',goalType:'other'}));
+  b.run('state.parsedGoal=null');
+  const u=b.run('understandingHTML()');
+  assert.ok(!u.includes('<b>test'));
+  assert.ok(u.includes('&lt;b&gt;test&lt;/b&gt;'));
+});

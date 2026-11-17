@@ -796,7 +796,7 @@ function understandingHTML(){
   if(!p.raw && state.goalType==='job'){
     return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${state.selectedCompany||'회사 미정'}</span> <span class="tag">${state.selectedJob||'직무 미정'}</span></div></div>`;
   }
-  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${state.mainGoal}</p></div>`;
+  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${esc(state.mainGoal)}</p></div>`;
   const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
   const note=p.confidence==='low'
     ? '아직 목표 유형을 확실히 판단하기 어려워요. 우선 일반 목표로 시작하고 이후 필요한 정보를 더 확인할게요.'
@@ -1116,7 +1116,7 @@ function opportunityCards(){
   if(state.goalType==='policy'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${esc(state.mainGoal)}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
         <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
       </div>`;
   }
@@ -1133,7 +1133,7 @@ function opportunityCards(){
   }
   return `
     <div class="stack">
-      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
+      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${esc(state.mainGoal || '내 목표')}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
     </div>`;
 }
 
