@@ -128,8 +128,11 @@ test('backupNudge asks when never backed up, stale, or history is nearly full',(
   assert.equal(L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-15T00:00:00Z'},now),null);
   const stale=L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-01T00:00:00Z'},now);
   assert.equal(stale.kind,'stale');assert.match(stale.message,/19일/);
-  const full=L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-19T00:00:00Z',focusHistory:Array.from({length:450},()=>({}))},now);
+  const full=L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-10T00:00:00Z',focusHistory:Array.from({length:450},()=>({}))},now);
   assert.equal(full.kind,'history');assert.match(full.message,/450\/500/);
+  assert.equal(L.backupNudge({mainGoal:'x',focusHistory:Array.from({length:450},()=>({}))},now).kind,'history','never backed up');
+  assert.equal(L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-19T00:00:00Z',focusHistory:Array.from({length:450},()=>({}))},now),null,'a backup made yesterday silences the full-history warning');
+  assert.equal(L.backupNudge({mainGoal:'x',lastBackupAt:'2026-05-01T00:00:00Z',focusHistory:Array.from({length:10},()=>({}))},now).kind,'stale');
   assert.equal(L.backupNudge({mainGoal:'x',backupSnoozeUntil:'2026-05-25T00:00:00Z'},now),null,'snoozed');
 });
 

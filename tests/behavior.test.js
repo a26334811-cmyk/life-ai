@@ -228,8 +228,10 @@ test('home and MY show the backup reminder until a backup is made, and it can be
 
 test('a nearly full focus history triggers the reminder and overflow warns',()=>{
   const history=Array.from({length:460},(_,i)=>({date:'2026-05-01',minutes:25,category:'study',completedAt:'t'+i}));
-  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-86400000).toISOString(),focusHistory:history}));
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-10*86400000).toISOString(),focusHistory:history}));
   assert.match(a.run('backupNudgeHTML()'),/460\/500/);
+  const backedUp=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-86400000).toISOString(),focusHistory:history}));
+  assert.equal(backedUp.run('backupNudgeHTML()'),'','a recent backup removes the full-history reminder');
   const full=Array.from({length:500},(_,i)=>({date:'2026-05-01',minutes:25,category:'study',completedAt:'t'+i}));
   const b=createApp(JSON.stringify({mainGoal:'x',focusHistory:full}));
   b.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'new',date:'2026-05-10'})");
