@@ -135,7 +135,7 @@
 
   const STRING_KEYS = ['nickname', 'mainGoal', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'policyIncome', 'recoveryMode', 'lastBackupAt', 'backupSnoozeUntil', 'goalId'];
   const BOOLEAN_KEYS = ['jobPreparationStarted', 'policyIncomeAdded', 'jobSubmitted', 'favorite'];
-  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals'];
+  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals', 'taskNames'];
   const OBJECT_KEYS = ['parsedGoal', 'focusSettings', 'focusRun'];
 
   // Ids of habits and planner entries are used inside page markup, so only plain id characters are allowed.
@@ -148,6 +148,7 @@
     plannerEntries: item => isPlain(item) && validId(item.id) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
     jobPostings: item => isPlain(item) && Array.isArray(item.tasks) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
+    taskNames: item => isText(item, 100) && item.trim() !== '',
     watchCompanies: item => isPlain(item) || typeof item === 'string',
     favoriteCerts: item => isPlain(item) || typeof item === 'string'
   };
@@ -211,12 +212,16 @@
           out[key] = cleaned;
           continue;
         }
-        const kept = check ? items.filter(check) : items;
+        let kept = check ? items.filter(check) : items;
+        if (key === 'taskNames' && kept.length > 20) kept = kept.slice(0, 20);
         if (kept.length !== value.length || droppedDate) dropped.push(key);
         out[key] = kept;
       } else {
         out[key] = value; // unknown keys from newer versions are preserved
       }
+    }
+    if (Array.isArray(out.taskNames) && out.taskNames.length && Array.isArray(out.completedTasks)) {
+      fitTaskFlags(out, out.taskNames.length); // one flag per own step
     }
     return { state: out, dropped };
   }
@@ -411,13 +416,14 @@
      The goal in use ("active") lives in the top-level fields (mainGoal, goalType, ...), so every screen keeps working
      on it. The other goals are parked as copies in state.otherGoals; switching swaps the two. */
   const GOAL_FIELDS = ['mainGoal', 'goalType', 'parsedGoal', 'completedTasks', 'policyIncome', 'policyIncomeAdded',
-    'certSchedule', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'favorite'];
+    'certSchedule', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'favorite', 'taskNames'];
   const MAX_GOALS = 5;
 
   const goalDefaults = () => ({
     mainGoal: '', goalType: null, parsedGoal: {}, completedTasks: [false, false, false, false, false],
     policyIncome: '', policyIncomeAdded: false, certSchedule: null,
-    selectedCompany: '', selectedJob: '', employmentStatus: '', career: '', education: '', ownedCert: '', favorite: false
+    selectedCompany: '', selectedJob: '', employmentStatus: '', career: '', education: '', ownedCert: '', favorite: false,
+    taskNames: [] // the user's own to-do steps; empty = the default steps of the goal type
   });
   const clone = value => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
@@ -432,6 +438,7 @@
       if (typeof d[key] === 'string') out[key] = isText(v, 5000) ? v : d[key];
       else if (typeof d[key] === 'boolean') out[key] = typeof v === 'boolean' ? v : d[key];
       else if (key === 'completedTasks') out[key] = Array.isArray(v) && v.length <= 20 && v.every(x => typeof x === 'boolean') ? clone(v) : d[key];
+      else if (key === 'taskNames') out[key] = Array.isArray(v) ? v.filter(n => isText(n, 100) && n.trim()).slice(0, 20) : [];
       else if (key === 'parsedGoal') out[key] = isPlain(v) ? clone(v) : d[key];
       else if (key === 'certSchedule') out[key] = isPlain(v) ? clone(v) : null;
       else if (key === 'goalType') out[key] = v === null || isText(v, 50) ? (v === undefined ? null : v) : null;
@@ -465,6 +472,7 @@
     const defaults = goalDefaults();
     for (const key of GOAL_FIELDS) state[key] = clean[key] !== undefined ? clean[key] : defaults[key];
     if (clean.id) state.goalId = clean.id; else delete state.goalId;
+    if (state.taskNames.length) fitTaskFlags(state, state.taskNames.length); // one flag per step
   }
 
   /* Puts the active goal aside and leaves an empty slot for a new one. Returns false when there is nothing to put
@@ -531,6 +539,161 @@
     return hit ? { id: hit.id, active: hit.active } : null;
   }
 
+  /* ---------- exam schedules of all goals ---------- */
+
+  /* The saved exam schedule of every goal (the active one and the parked ones). */
+  function certSchedulesOf(state) {
+    const s = state || {};
+    const out = [];
+    if (isPlain(s.certSchedule)) out.push({ goalTitle: s.mainGoal || '', schedule: s.certSchedule });
+    for (const g of Array.isArray(s.otherGoals) ? s.otherGoals : []) {
+      if (g && isPlain(g.certSchedule)) out.push({ goalTitle: g.mainGoal, schedule: g.certSchedule });
+    }
+    return out;
+  }
+
+  /* The closest exam date (a period that is still running counts) over all goals.
+     Returns {name, date, end, goalTitle} or null. With more than one schedule the name starts with the exam name. */
+  function nextExam(state, today) {
+    const sets = certSchedulesOf(state);
+    const found = [];
+    for (const { goalTitle, schedule } of sets) {
+      for (const it of scheduleItems(schedule)) {
+        const end = it.endDate || it.startDate;
+        if (!validDate(it.startDate) || !validDate(end) || end < today) continue;
+        const parts = [it.round, it.label].filter(Boolean).join(' · ');
+        found.push({ name: sets.length > 1 && it.qualificationName ? it.qualificationName + ' · ' + parts : parts, date: it.startDate, end, goalTitle });
+      }
+    }
+    found.sort((a, b) => a.date.localeCompare(b.date));
+    return found[0] || null;
+  }
+
+  /* ---------- things coming up soon (banner on the home screen) ---------- */
+  const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+  const ALERT_ORDER = { job: 0, interview: 1, cert: 2, planner: 3 };
+
+  /* Deadlines, interviews, exam dates and high-priority entries from today up to `days` days ahead, soonest first.
+     Each: {kind, title, label, date, left (days from today), go (screen to open)}. */
+  function upcomingAlerts(state, today, days) {
+    const s = state || {};
+    if (!validDate(today)) return [];
+    const limit = dateOffset(today, days);
+    const inWindow = d => validDate(d) && d >= today && d <= limit;
+    const out = [];
+    const add = (kind, title, label, date, go) => out.push({ kind, title, label, date, left: dayDiff(today, date), go });
+    for (const p of Array.isArray(s.jobPostings) ? s.jobPostings : []) {
+      if (!p || typeof p !== 'object') continue;
+      const name = [p.company, p.title].filter(Boolean).join(' · ');
+      if (['관심', '준비 중'].includes(p.stage) && inWindow(p.deadline)) add('job', name, '마감', p.deadline, 'jobHub');
+      if (p.interviewDate && !['합격', '불합격', '지원 취소'].includes(p.stage) && inWindow(p.interviewDate)) add('interview', name, '면접', p.interviewDate, 'jobHub');
+    }
+    for (const { schedule } of certSchedulesOf(s)) {
+      for (const it of scheduleItems(schedule)) {
+        const name = [it.qualificationName, it.label].filter(Boolean).join(' ');
+        const end = it.endDate || it.startDate;
+        if (/접수/.test(it.type || it.label || '')) {
+          if (inWindow(end)) add('cert', name, '마감', end, 'cert');
+          if (it.startDate !== end && inWindow(it.startDate)) add('cert', name, '시작', it.startDate, 'cert');
+        } else if (inWindow(it.startDate)) {
+          add('cert', name, /발표/.test(it.label || '') ? '발표' : '', it.startDate, 'cert');
+        }
+      }
+    }
+    for (const e of Array.isArray(s.plannerEntries) ? s.plannerEntries : []) {
+      if (!e || e.priority !== 'high') continue;
+      for (let i = 0; i <= days; i++) {
+        const d = dateOffset(today, i);
+        if (occurs(e, d) && !isDone(e, d)) { add('planner', e.title, '', d, 'calendar'); break; }
+      }
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date) || ALERT_ORDER[a.kind] - ALERT_ORDER[b.kind]);
+  }
+
+  /* ---------- schedule search ---------- */
+
+  /* Finds planner entries, saved postings and exam dates whose text contains `query` (spaces and case ignored).
+     Each: {kind, id, title, date, sub}. Upcoming first (soonest first), then past ones (newest first). At most 30. */
+  function searchSchedule(state, query, today) {
+    const norm = t => String(t == null ? '' : t).replace(/\s+/g, '').toLowerCase();
+    const q = norm(query);
+    if (!q || !validDate(today)) return [];
+    const s = state || {};
+    const out = [];
+    for (const e of Array.isArray(s.plannerEntries) ? s.plannerEntries : []) {
+      if (!e || !norm([e.title, e.note].join(' ')).includes(q) || !validDate(e.date)) continue;
+      let date = e.date;
+      if (isRepeating(e)) {
+        for (let i = 0; i <= 400; i++) { const d = dateOffset(today, i); if (occurs(e, d)) { date = d; break; } }
+      }
+      const rep = { daily: '매일 반복', weekly: '매주 반복', monthly: '매월 반복' }[e.repeat];
+      out.push({ kind: 'entry', id: e.id, title: e.title, date, sub: [e.time, rep].filter(Boolean).join(' · ') });
+    }
+    for (const p of Array.isArray(s.jobPostings) ? s.jobPostings : []) {
+      if (!p || !norm([p.company, p.title].join(' ')).includes(q)) continue;
+      out.push({ kind: 'job', id: p.id, title: [p.company, p.title].filter(Boolean).join(' · '), date: validDate(p.deadline) ? p.deadline : '', sub: validDate(p.deadline) ? '공고 마감' : '공고 (마감일 미정)' });
+    }
+    for (const { schedule } of certSchedulesOf(s)) {
+      for (const it of scheduleItems(schedule)) {
+        const title = [it.qualificationName, it.label].filter(Boolean).join(' ');
+        if (!norm(title).includes(q) || !validDate(it.startDate)) continue;
+        out.push({ kind: 'cert', id: '', title, date: it.startDate, sub: '시험 일정' });
+      }
+    }
+    const upcoming = out.filter(r => r.date && r.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+    const rest = out.filter(r => !r.date || r.date < today).sort((a, b) => b.date.localeCompare(a.date));
+    return upcoming.concat(rest).slice(0, 30);
+  }
+
+  /* ---------- editable to-do steps of a goal ----------
+     state.taskNames holds the user's own step names; an empty list means "use the default steps of the goal type".
+     state.completedTasks always has one flag per step. */
+  const MAX_TASKS = 20;
+  const taskText = name => String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, 100);
+
+  function goalTaskNames(state, defaults) {
+    const own = Array.isArray(state && state.taskNames) ? state.taskNames.filter(n => isText(n, 100) && n.trim()) : [];
+    return own.length ? own : defaults.slice();
+  }
+  function fitTaskFlags(state, count) {
+    const old = Array.isArray(state.completedTasks) ? state.completedTasks : [];
+    state.completedTasks = Array.from({ length: count }, (_, i) => old[i] === true);
+  }
+  function startEditingTasks(state, defaults) {
+    state.taskNames = goalTaskNames(state, defaults);
+    fitTaskFlags(state, state.taskNames.length);
+  }
+  function addGoalTask(state, defaults, name) {
+    const text = taskText(name);
+    if (!text) return { ok: false, reason: 'empty' };
+    startEditingTasks(state, defaults);
+    if (state.taskNames.length >= MAX_TASKS) return { ok: false, reason: 'full' };
+    state.taskNames.push(text);
+    fitTaskFlags(state, state.taskNames.length);
+    return { ok: true };
+  }
+  function renameGoalTask(state, defaults, index, name) {
+    const text = taskText(name);
+    startEditingTasks(state, defaults);
+    if (!Number.isInteger(index) || index < 0 || index >= state.taskNames.length) return { ok: false, reason: 'missing' };
+    if (!text) return { ok: false, reason: 'empty' };
+    state.taskNames[index] = text;
+    return { ok: true };
+  }
+  function removeGoalTask(state, defaults, index) {
+    startEditingTasks(state, defaults);
+    if (!Number.isInteger(index) || index < 0 || index >= state.taskNames.length) return { ok: false, reason: 'missing' };
+    if (state.taskNames.length <= 1) return { ok: false, reason: 'last' };
+    state.taskNames.splice(index, 1);
+    state.completedTasks.splice(index, 1);
+    fitTaskFlags(state, state.taskNames.length);
+    return { ok: true };
+  }
+  function resetGoalTasks(state, defaults) {
+    state.taskNames = [];
+    fitTaskFlags(state, defaults.length);
+  }
+
   /* A swipe on a touch screen. dx/dy = how far the finger moved (px), ms = how long it took.
      Returns 'next' (finger moved left), 'prev' (finger moved right) or null when it was not a clear sideways swipe
      (too short, too slow, or mostly vertical, i.e. the user was scrolling). */
@@ -559,6 +722,8 @@
   const api = {
     GOAL_FIELDS, MAX_GOALS, goalCount, canAddGoal, snapshotGoal, applyGoal, parkActiveGoal, restoreParkedGoal,
     switchGoal, removeGoal, goalList, findGoalByTitle, swipeDirection, stepTab,
+    certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
+    MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
