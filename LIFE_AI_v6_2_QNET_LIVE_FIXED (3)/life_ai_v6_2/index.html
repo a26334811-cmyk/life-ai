@@ -1243,7 +1243,7 @@ function plannerDateOffset(date,days){return LifeLogic.dateOffset(date,days);}
 function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
 function plannerForDate(date){
   const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
-  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
+  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
   return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
 function plannerNavigate(days){

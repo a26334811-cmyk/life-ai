@@ -215,6 +215,14 @@ test('saving "all" with the date field untouched keeps the series start date',as
   assert.deepEqual(titles(a,'2026-10-09'),['스터디2']);
 });
 
+test('only interested/preparing job postings show their deadline in the planner',()=>{
+  const a=createApp();
+  const mk=(id,stage)=>({id,company:'회사'+id,title:'공고',deadline:'2026-05-12',...(stage?{stage}:{})});
+  a.run(`state.jobPostings=${JSON.stringify([mk('a','관심'),mk('b','준비 중'),mk('c',''),mk('d','지원 완료'),mk('e','불합격'),mk('f','지원 취소'),mk('g','면접')])}`);
+  const got=titles(a,'2026-05-12');
+  assert.deepEqual(got.map(t=>t.slice(0,3)).sort(),['회사a','회사b','회사c']);
+});
+
 test('ticking a repeating item done affects only that day',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
