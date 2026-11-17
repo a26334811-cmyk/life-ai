@@ -340,6 +340,7 @@ h3{font-size:16px;line-height:1.4}
 .habit-row{align-items:center;border-bottom:1px solid var(--line);padding:5px 0}
 .habit-row .check{border:0;padding:10px 0}
 .habit-row p.meta{margin:0 0 8px 30px}
+.habit-row .habit-yesterday{width:auto;display:inline;padding:2px 8px;font-size:12px}
 .habit-row .habit-remove{width:auto;min-width:58px;padding:8px;font-size:12px;color:var(--muted)}
 .habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
@@ -1355,6 +1356,12 @@ async function plannerRemove(id,date){
   plannerEditing='';plannerEditingDate='';plannerFormOpen=false;persistState();renderCalendar();
 }
 function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
+function plannerPostpone(id){
+  const e=plannerEntries().find(x=>x.id===id);
+  if(!e||LifeLogic.isRepeating(e)||!validDeadline(e.date)||!e.date)return;
+  e.date=plannerDateOffset(e.date,1);
+  persistState();renderCalendar();toast('일정을 '+e.date+'로 미뤘어요.');
+}
 function plannerEscapeAttr(s){return esc(String(s||''));}
 let focusInterval=null;
 let focusDeadline=0;
@@ -1391,6 +1398,29 @@ function focusSaveRun(){
 }
 function focusStopTimer(){
   focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusWakeRelease();
+}
+/* Keep the screen on while the timer runs (optional). Browsers drop the lock when the page is hidden,
+   so it is requested again when the page becomes visible. Unsupported devices do nothing. */
+let focusWakeSentinel=null;
+function focusWakeAcquire(){
+  try{
+    if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel||document.hidden)return;
+    if(typeof navigator==='undefined'||!navigator.wakeLock||typeof navigator.wakeLock.request!=='function')return;
+    navigator.wakeLock.request('screen').then(sentinel=>{
+      if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel){try{sentinel.release();}catch(e){}return;}
+      focusWakeSentinel=sentinel;
+      if(typeof sentinel.addEventListener==='function')sentinel.addEventListener('release',()=>{if(focusWakeSentinel===sentinel)focusWakeSentinel=null;});
+    }).catch(()=>{});
+  }catch(e){}
+}
+function focusWakeRelease(){
+  const sentinel=focusWakeSentinel;focusWakeSentinel=null;
+  try{if(sentinel)Promise.resolve(sentinel.release()).catch(()=>{});}catch(e){}
+}
+function focusChangeKeepAwake(checked){
+  focusSettings().keepAwake=Boolean(checked);persistState();
+  if(checked)focusWakeAcquire();else focusWakeRelease();
 }
 function focusTick(){
   if(!focusRunning)return;
@@ -1415,6 +1445,7 @@ function focusStartPause(){
     focusRunning=true;
     focusInterval=setInterval(focusTick,500);
     focusSaveRun();
+    focusWakeAcquire();
   }
   focusUpdateUI();
 }
@@ -1424,7 +1455,7 @@ async function focusReset(){
   focusRemaining=Number(focusSettings().minutes)*60;
   delete state.focusRun;persistState();focusUpdateUI();
 }
-if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning){focusTick();focusWakeAcquire();}});
 async function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
@@ -1534,6 +1565,7 @@ function focusRestore(){
   else if(resumed.status==='running'){
     focusRemaining=resumed.remaining;focusDeadline=resumed.deadline;focusRunning=true;
     focusInterval=setInterval(focusTick,500);
+    focusWakeAcquire();
   }else{
     delete state.focusRun;
     focusRemaining=Number(focusSettings().minutes)*60;
@@ -1641,6 +1673,7 @@ function focusPanelHTML(){
     </select></label></div>
     <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
     <label class="check focus-notify"><input type="checkbox" ${cfg.notify?'checked':''} onchange="focusChangeNotify(this.checked)"><span>화면이 가려져 있을 때 브라우저 알림도 받기</span></label>
+    <label class="check focus-notify"><input type="checkbox" id="focusKeepAwake" ${cfg.keepAwake?'checked':''} onchange="focusChangeKeepAwake(this.checked)"><span>집중하는 동안 화면 켜 두기 (지원하는 기기만)</span></label>
     <p class="meta">타이머는 저장돼서 앱을 다시 열어도 이어져요. 단, 알림과 알람은 앱이 백그라운드에서 살아 있을 때만 울려요. 완전히 종료됐거나 절전 중이면 다시 열 때 끝난 시간이 기록돼요.</p></details>
   </div>`;
 }
@@ -1659,10 +1692,23 @@ function habitAdd(){
 function habitToggle(id,date){
   const habit=habitEntries().find(x=>x.id===id);
   if(!habit)return;
+  if(!validDeadline(date)||!date||date>koreaToday())return; // future days cannot be checked
   if(!Array.isArray(habit.checks))habit.checks=[];
   if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
   else habit.checks.push(date);
   persistState();renderCalendar();
+}
+async function habitRename(id){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  const answer=await uiPrompt('새 습관 이름을 입력해 주세요. 체크 기록은 그대로 남아요.',habit.name||'',{title:'습관 이름 수정',maxLength:60});
+  if(answer===null||answer===undefined)return;
+  const name=String(answer).trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(name===habit.name)return;
+  if(habitEntries().some(x=>x.id!==id&&x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habit.name=name;
+  persistState();renderCalendar();toast('습관 이름을 바꿨어요.');
 }
 async function habitRemove(id){
   if(!await uiConfirm('습관과 완료 기록을 삭제할까요?',{title:'습관 삭제',ok:'삭제',danger:true}))return;
@@ -1671,11 +1717,11 @@ async function habitRemove(id){
 }
 function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday());}
 function habitPanelHTML(){
-  const today=koreaToday(),habits=habitEntries();
+  const today=koreaToday(),yesterday=plannerDateOffset(today,-1),habits=habitEntries();
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
-    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" onclick="habitRename('${esc(h.id)}')">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
     <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
@@ -1684,6 +1730,21 @@ function plannerAgenda(){
   const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
   return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
     .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+/* Unfinished one-time personal entries from the last 14 days (repeating ones are skipped). */
+function plannerOverdue(){
+  const today=koreaToday(),from=plannerDateOffset(today,-14);
+  return plannerEntries().filter(e=>e&&!LifeLogic.isRepeating(e)&&!e.done&&validDeadline(e.date)&&e.date&&e.date>=from&&e.date<today)
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function plannerGoToDate(date){plannerActiveTab='calendar';plannerSelect(date);}
+function plannerOverdueHTML(){
+  const list=plannerOverdue();
+  if(!list.length)return '';
+  return `<div class="card" id="overduePanel"><h3>⏳ 밀린 일정</h3>
+    <p class="meta">최근 14일 안에 끝내지 못한 일정이에요. 괜찮아요, 하나씩 정리해 봐요.</p>
+    ${list.map(e=>`<div class="planner-item"><div><strong>${esc(e.title)}</strong><p class="meta">${esc(e.date)} · ${esc(e.time||'종일')}</p></div><div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${esc(e.date)}')">✓ 완료</button><button class="btn ghost" onclick="plannerGoToDate('${esc(e.date)}')">날짜로 이동</button></div></div>`).join('')}
+  </div>`;
 }
 /* life-ai principle: encourage progress while allowing rest without judgment. */
 function recoveryMode(){return state.recoveryMode==='rest'?'rest':state.recoveryMode==='gentle'?'gentle':'normal';}
@@ -1748,6 +1809,7 @@ function renderCalendar(){
     <section class="planner-tabpanel" data-tab="today" role="tabpanel" ${plannerActiveTab==='today'?'':'hidden'}>
       ${recoveryPanelHTML()}
       ${plannerFocusHTML()}
+      ${plannerOverdueHTML()}
       ${focusPanelHTML()}
     </section>
     <section class="planner-tabpanel" data-tab="habits" role="tabpanel" ${plannerActiveTab==='habits'?'':'hidden'}>
@@ -1781,7 +1843,7 @@ function renderCalendar(){
     </div>
     <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
-      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button>${LifeLogic.isRepeating(e)?'':`<button class="btn ghost" aria-label="내일로 미루기" onclick="plannerPostpone('${plannerEscapeAttr(e.id)}')">내일</button>`}<button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
     <div class="card">
       <div class="planner-form-heading">
@@ -1979,7 +2041,13 @@ async function deletePosting(id){
 }
 function setPostingStage(id,stage){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||!postingStages.includes(stage))return;
+  if(p.stage!==stage)p.stageChangedAt=koreaToday();
   p.stage=stage;persistState();renderJobHub();
+}
+function postingStageLine(p){
+  if(!p.stageChangedAt||!validDeadline(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
+  const n=Math.round((Date.parse(koreaToday()+'T00:00:00Z')-Date.parse(p.stageChangedAt+'T00:00:00Z'))/86400000);
+  return `<p class="meta">${esc(p.stage)} · ${n<=0?'오늘 바꿨어요':n+'일째'}</p>`;
 }
 function setPostingTask(id,index,checked){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
@@ -1999,10 +2067,18 @@ function jobCalendarHTML(){
   const interviews=state.jobPostings.filter(x=>x.interviewDate&&x.interviewDate>=today&&!['합격','불합격','지원 취소'].includes(x.stage)).sort((a,b)=>a.interviewDate.localeCompare(b.interviewDate));
   return `<div class="card">${interviews.length?'<h3>다가오는 면접</h3>'+interviews.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${esc(fmtDate(p.interviewDate))}</p>`).join(''):''}<h3>취업 지원 마감</h3>${future.length?rows(future):'<p class="meta">다가오는 지원 마감이 없어요.</p>'}${unknown.length?`<h3>마감일 확인 필요</h3>${rows(unknown)}`:''}${past.length?`<details><summary>마감된 공고 ${past.length}개</summary>${rows(past)}</details>`:''}<p class="meta">지원 완료·면접·결과를 기록한 공고는 지원 마감 목록에서 제외해요.</p><button class="btn secondary" onclick="go('jobHub')">공고 관리</button></div>`;
 }
+/* Display order only (stored order is not changed): open + nearest deadline, open + no deadline,
+   applied/finished, then open postings whose deadline has passed. */
+function postingsForDisplay(){
+  const today=koreaToday();
+  const rank=p=>!['관심','준비 중'].includes(p.stage)?2:!p.deadline?1:p.deadline>=today?0:3;
+  return state.jobPostings.map((p,i)=>({p,i,r:rank(p)}))
+    .sort((a,b)=>a.r-b.r||(a.r===0?a.p.deadline.localeCompare(b.p.deadline):0)||a.i-b.i).map(x=>x.p);
+}
 function renderJobHub(){
   jobCollections();
   document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
-  document.getElementById('savedPostings').innerHTML=state.jobPostings.map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p><a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+  document.getElementById('savedPostings').innerHTML=postingsForDisplay().map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p>${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
 }
 
 function esc(s){
