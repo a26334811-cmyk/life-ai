@@ -64,10 +64,15 @@ test('private, loopback and metadata addresses are recognised',()=>{
   for(const ip of ['93.184.216.34','8.8.8.8','172.32.0.1','2606:2800:220:1:248:1893:25c8:1946'])assert.equal(isPrivateIp(ip),false,ip);
 });
 
+test('IPv6 forms that carry an internal IPv4 address are refused',()=>{
+  for(const ip of ['::7f00:1','::127.0.0.1','::a00:1','::808:808','64:ff9b::7f00:1','64:ff9b::127.0.0.1','64:ff9b::a9fe:a9fe','64:ff9b:1::1','2002:7f00:1::','2002:a9fe:a9fe::1','2002:c0a8:1::','0:0:0:0:0:ffff:7f00:1'])assert.equal(isPrivateIp(ip),true,ip);
+  for(const ip of ['64:ff9b::808:808','64:ff9b::8.8.8.8','2002:808:808::1','::ffff:8.8.8.8','::ffff:808:808'])assert.equal(isPrivateIp(ip),false,ip);
+});
+
 test('unsafe links are refused before any request is made',async()=>{
   let fetched=0;
   const fetchImpl=async()=>{fetched++;return page('x');};
-  for(const url of ['http://localhost/a','http://127.0.0.1/','http://[::1]/','http://169.254.169.254/latest/meta-data/','http://10.0.0.1/','https://user:pw@example.com/','ftp://example.com/','javascript:alert(1)','http://example.com:8080/','https://printer.local/','https://db.internal/','not a url']){
+  for(const url of ['http://localhost/a','http://127.0.0.1/','http://[::1]/','http://[::7f00:1]/','http://[64:ff9b::7f00:1]/','http://[2002:7f00:1::]/','http://169.254.169.254/latest/meta-data/','http://10.0.0.1/','https://user:pw@example.com/','ftp://example.com/','javascript:alert(1)','http://example.com:8080/','https://printer.local/','https://db.internal/','not a url']){
     const r=await call(url,fetchImpl);
     assert.equal(r.body.ok,false,url);assert.ok(r.status>=400,url);
   }

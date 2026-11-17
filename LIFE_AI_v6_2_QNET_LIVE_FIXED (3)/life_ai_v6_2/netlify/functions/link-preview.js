@@ -15,6 +15,26 @@ const TIMEOUT_MS = 7000;
 const USER_AGENT = 'life-ai-link-preview/1.0 (reads one page for its owner)';
 
 /* ---------- address safety ---------- */
+// "::7f00:1" or "64:ff9b::1.2.3.4" -> eight 16-bit numbers, or null when the text is not a valid IPv6 address.
+function expandIpv6(text) {
+  let s = text;
+  const tail = s.match(/^(.*:)(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (tail) {
+    const n = tail.slice(2).map(Number);
+    if (n.some(x => x > 255)) return null;
+    s = tail[1] + ((n[0] << 8) | n[1]).toString(16) + ':' + ((n[2] << 8) | n[3]).toString(16);
+  }
+  const halves = s.split('::');
+  if (halves.length > 2) return null;
+  const toNumbers = part => (part ? part.split(':') : []).map(g => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN));
+  const head = toNumbers(halves[0]);
+  const rest = halves.length === 2 ? toNumbers(halves[1]) : [];
+  const fill = 8 - head.length - rest.length;
+  if (halves.length === 2 ? fill < 1 : fill !== 0) return null;
+  const all = head.concat(Array(halves.length === 2 ? fill : 0).fill(0), rest);
+  return all.length === 8 && all.every(Number.isInteger) ? all : null;
+}
+
 function isPrivateIp(ip) {
   const family = net.isIP(ip);
   if (family === 4) {
@@ -27,10 +47,16 @@ function isPrivateIp(ip) {
     if (lower === '::' || lower === '::1') return true;
     const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mapped) return isPrivateIp(mapped[1]);
-    const mappedHex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (mappedHex) {
-      const hi = parseInt(mappedHex[1], 16), lo = parseInt(mappedHex[2], 16);
-      return isPrivateIp([hi >> 8, hi & 255, lo >> 8, lo & 255].join('.'));
+    const groups = expandIpv6(lower);
+    if (groups) {
+      const v4 = (hi, lo) => isPrivateIp([hi >> 8, hi & 255, lo >> 8, lo & 255].join('.'));
+      const firstFiveZero = groups.slice(0, 5).every(g => g === 0);
+      if (firstFiveZero && groups[5] === 0xffff) return v4(groups[6], groups[7]); // ::ffff:a.b.c.d (IPv4-mapped)
+      if (groups.slice(0, 6).every(g => g === 0)) return true; // ::a.b.c.d (IPv4-compatible, obsolete)
+      if (groups[0] === 0x64 && groups[1] === 0xff9b) { // 64:ff9b::/96 NAT64 carries an IPv4; 64:ff9b:1::/48 is local use
+        return groups.slice(2, 6).every(g => g === 0) ? v4(groups[6], groups[7]) : true;
+      }
+      if (groups[0] === 0x2002) return v4(groups[1], groups[2]); // 2002::/16 6to4 carries an IPv4
     }
     return /^(fc|fd|fe[89ab])/.test(lower) || lower.startsWith('ff');
   }
