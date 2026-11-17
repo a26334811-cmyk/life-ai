@@ -2185,7 +2185,7 @@ function handleSharedLink(){
   document.getElementById('postingUrl').value=shared.url;
   if(shared.title)document.getElementById('postingTitle').value=shared.title;
   toast('공유한 링크를 가져왔어요. 정보를 확인해 주세요.');
-  fillPostingFromUrl();
+  postingSetStatus('"링크에서 정보 가져오기"를 누르면 회사명과 마감일을 찾아 볼게요.');
   return true;
 }
 function savePosting(){

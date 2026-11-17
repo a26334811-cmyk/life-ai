@@ -540,18 +540,24 @@ test('pasting the posting text finds the deadline and the link',()=>{
   assert.equal(none.el('postingDeadline').value,'');
 });
 
-test('a link shared from the phone opens the job screen with the form filled and read automatically',async()=>{
+test('a link shared from the phone fills the form but only contacts the server after the button is pressed',async()=>{
   const urls=[];
   const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),search:'?title='+encodeURIComponent('삼천리 시설관리')+'&text='+encodeURIComponent('보세요 https://example.com/job/9'),
     fetch:async url=>{urls.push(url);return {ok:true,json:async()=>({ok:true,title:'삼천리 시설관리 신입',company:'삼천리',deadline:'2026-12-20',description:''})};}});
   await new Promise(r=>setImmediate(r));
   assert.equal(a.el('postingUrl').value,'https://example.com/job/9');
+  assert.equal(a.el('postingTitle').value,'삼천리 시설관리');
+  assert.equal(urls.length,0,'opening the app from a link never contacts the server by itself');
+  assert.equal(a.el('postingCompany').value,'');
+  assert.equal(a.el('postingDeadline').value,'');
+  assert.match(a.el('postingFetchStatus').textContent,/링크에서 정보 가져오기/);
+  assert.equal(a.historyCalls.length,1,'share parameters are removed so a reload does not repeat it');
+  assert.equal(a.el('postingEditor').open,true);
+  await a.run('fillPostingFromUrl()');
+  assert.equal(urls.length,1,'the button sends the request');
   assert.equal(a.el('postingTitle').value,'삼천리 시설관리','shared title is kept, page title only fills empty fields');
   assert.equal(a.el('postingCompany').value,'삼천리');
   assert.equal(a.el('postingDeadline').value,'2026-12-20');
-  assert.equal(urls.length,1);
-  assert.equal(a.historyCalls.length,1,'share parameters are removed so a reload does not repeat it');
-  assert.equal(a.el('postingEditor').open,true);
 });
 
 test('sharing a link that is already saved does not create a second form',async()=>{
