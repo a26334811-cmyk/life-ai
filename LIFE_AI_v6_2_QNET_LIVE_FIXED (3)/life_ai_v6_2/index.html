@@ -1027,7 +1027,7 @@ function currentAction(){
   if(state.goalType==='job'){
     if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 완료를 기록했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
     if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
-    return {title:'관심 회사와 공고를 관리해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
+    return {title:'관심 회사와 공고를 관리해보세요', desc:'관심 회사와 공고를 저장하면 마감일과 준비 목록을 함께 챙겨 드려요.', cta:'공고 관리 열기'};
   }
   if(state.goalType==='cert') return {title:'다음 시험 일정을 먼저 확인해보세요', desc:'접수일과 시험일을 알면 준비 계획을 바로 만들 수 있어요.', cta:'자격증 기회 보기'};
   if(state.goalType==='policy') return {title:'내가 받을 수 있는 지원부터 확인해보세요', desc:'현재 정보로 확인하고, 부족한 조건만 추가로 물어볼게요.', cta:'지원 조건 보기'};

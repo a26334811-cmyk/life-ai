@@ -16,6 +16,19 @@ test('home first-card reason is a sentence for every goal type (never an object)
   assert.match(a.run('priorityReason()'),/관심 회사와 공고/);
 });
 
+/* #78 */
+test('job goal home card describes what the button really opens',()=>{
+  const a=createApp();
+  a.run("quickGoal('취업 기회 탐색')");
+  const action=JSON.parse(a.run('JSON.stringify(currentAction())'));
+  assert.equal(action.cta,'공고 관리 열기');
+  assert.doesNotMatch(action.desc,/예시/);
+  assert.match(action.desc,/마감일과 준비 목록/);
+  a.run('renderHome()');
+  assert.match(a.el('homeContent').innerHTML,/공고 관리 열기/);
+  assert.doesNotMatch(a.el('homeContent').innerHTML,/추천 기회 보기|예시 기회/);
+});
+
 /* #72 */
 const feedWithCards=a=>{
   const feed=a.el('opportunityFeed');
