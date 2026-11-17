@@ -100,7 +100,8 @@ test('restore refuses broken files and keeps the current records',async()=>{
   await refuses(JSON.stringify({format:'other',version:1,state:baseState}),{expectToast:/올바른 life-ai 백업 파일이 아니에요/});
   await refuses(JSON.stringify({format:'life-ai-backup',version:2,state:baseState}),{expectToast:/올바른 life-ai 백업 파일이 아니에요/});
   await refuses(JSON.stringify({format:'life-ai-backup',version:1}),{expectToast:/올바른 life-ai 백업 파일이 아니에요/});
-  await refuses(JSON.stringify(goodPayload({...baseState,activity:'x'})),{expectToast:/올바른 life-ai 백업 파일이 아니에요/});
+  // 활동 기록이 배열이 아닌 것은 "구조가 올바르지 않아요"로 안내된다(백업 검사를 logic.js 한 곳으로 모은 뒤의 문구)
+  await refuses(JSON.stringify(goodPayload({...baseState,activity:'x'})),{expectToast:/올바른 life-ai 백업 파일이 아니에요|구조가 올바르지 않아요/});
   // right outline, but a record inside is malformed
   await refuses(JSON.stringify(goodPayload({...baseState,plannerEntries:[{title:'x',date:'nope'}]})),{expectToast:/구조가 올바르지 않아요/});
 });

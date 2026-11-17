@@ -1331,7 +1331,7 @@ async function plannerRemove(id,date){
 function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
 function plannerPostpone(id){
   const e=plannerEntries().find(x=>x.id===id);
-  if(!e||LifeLogic.isRepeating(e)||!validDeadline(e.date)||!e.date)return;
+  if(!e||LifeLogic.isRepeating(e)||!LifeLogic.validDate(e.date)||!e.date)return;
   e.date=plannerDateOffset(e.date,1);
   persistState();renderCalendar();toast('일정을 '+e.date+'로 미뤘어요.');
 }
@@ -1666,7 +1666,7 @@ function habitAdd(){
 function habitToggle(id,date){
   const habit=habitEntries().find(x=>x.id===id);
   if(!habit)return;
-  if(!validDeadline(date)||!date||date>koreaToday())return; // future days cannot be checked
+  if(!LifeLogic.validDate(date)||!date||date>koreaToday())return; // future days cannot be checked
   if(!Array.isArray(habit.checks))habit.checks=[];
   if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
   else habit.checks.push(date);
@@ -1708,7 +1708,7 @@ function plannerAgenda(){
 /* Unfinished one-time personal entries from the last 14 days (repeating ones are skipped). */
 function plannerOverdue(){
   const today=koreaToday(),from=plannerDateOffset(today,-14);
-  return plannerEntries().filter(e=>e&&!LifeLogic.isRepeating(e)&&!e.done&&validDeadline(e.date)&&e.date&&e.date>=from&&e.date<today)
+  return plannerEntries().filter(e=>e&&!LifeLogic.isRepeating(e)&&!e.done&&LifeLogic.validDate(e.date)&&e.date&&e.date>=from&&e.date<today)
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'));
 }
 function plannerGoToDate(date){plannerActiveTab='calendar';plannerSelect(date);}
@@ -2017,7 +2017,7 @@ function setPostingStage(id,stage){
   p.stage=stage;persistState();renderJobHub();
 }
 function postingStageLine(p){
-  if(!p.stageChangedAt||!validDeadline(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
+  if(!p.stageChangedAt||!LifeLogic.validDate(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
   const n=Math.round((Date.parse(koreaToday()+'T00:00:00Z')-Date.parse(p.stageChangedAt+'T00:00:00Z'))/86400000);
   return `<p class="meta">${esc(p.stage)} · ${n<=0?'오늘 바꿨어요':n+'일째'}</p>`;
 }
