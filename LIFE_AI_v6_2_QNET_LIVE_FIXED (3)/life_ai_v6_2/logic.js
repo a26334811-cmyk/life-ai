@@ -531,6 +531,22 @@
     return hit ? { id: hit.id, active: hit.active } : null;
   }
 
+  /* A swipe on a touch screen. dx/dy = how far the finger moved (px), ms = how long it took.
+     Returns 'next' (finger moved left), 'prev' (finger moved right) or null when it was not a clear sideways swipe
+     (too short, too slow, or mostly vertical, i.e. the user was scrolling). */
+  function swipeDirection(dx, dy, ms) {
+    if (![dx, dy, ms].every(Number.isFinite)) return null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || ms > 700) return null;
+    return dx < 0 ? 'next' : 'prev';
+  }
+  /* The tab after/before `current`, or null at the ends of the list. */
+  function stepTab(tabs, current, direction) {
+    const i = tabs.indexOf(current);
+    if (i < 0 || (direction !== 'next' && direction !== 'prev')) return null;
+    const j = direction === 'next' ? i + 1 : i - 1;
+    return j >= 0 && j < tabs.length ? tabs[j] : null;
+  }
+
   function goalProgress(state) {
     const s = state || {};
     const flags = s.goalType === 'job'
@@ -542,7 +558,7 @@
 
   const api = {
     GOAL_FIELDS, MAX_GOALS, goalCount, canAddGoal, snapshotGoal, applyGoal, parkActiveGoal, restoreParkedGoal,
-    switchGoal, removeGoal, goalList, findGoalByTitle,
+    switchGoal, removeGoal, goalList, findGoalByTitle, swipeDirection, stepTab,
     goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,

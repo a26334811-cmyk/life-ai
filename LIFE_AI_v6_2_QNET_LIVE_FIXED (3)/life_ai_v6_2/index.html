@@ -232,6 +232,12 @@
 .planner-item .btn{width:auto}
 .planner-item-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
 .goal-card.active{border:2px solid #1763db}
+#calendarContent{touch-action:pan-y pinch-zoom}
+@keyframes planner-slide-next{from{opacity:.2;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes planner-slide-prev{from{opacity:.2;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.planner-tabpanel.slide-next{animation:planner-slide-next .18s ease-out}
+.planner-tabpanel.slide-prev{animation:planner-slide-prev .18s ease-out}
+@media(prefers-reduced-motion:reduce){.planner-tabpanel.slide-next,.planner-tabpanel.slide-prev{animation:none}}
 @media(max-width:520px){.planner-item{flex-direction:column}.planner-item-actions{justify-content:flex-start}.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
@@ -1003,7 +1009,7 @@ function go(id,mode){
   if(id==='home') renderHome();
   if(id==='goals') renderGoals();
   if(id==='goalDetail') renderTasks();
-  if(id==='calendar') renderCalendar();
+  if(id==='calendar'){renderCalendar();plannerShowSwipeHint();}
   if(id==='my') renderMy();
   if(id==='jobHub') renderJobHub();
   if(id==='liveJobs'){const k=document.getElementById('liveJobKeyword');if(k)k.value=defaultLiveJobKeyword();}
@@ -1938,15 +1944,65 @@ function plannerFocusHTML(){
   </div>`;
 }
 let plannerActiveTab='today';
-function plannerSwitchTab(tab){
-  if(!['today','calendar','habits','stats'].includes(tab))return;
+const PLANNER_TABS=['today','calendar','habits','stats'];
+/* slide: 'next' | 'prev' when the tab was changed by a swipe, so the new tab slides in from that side. */
+function plannerSwitchTab(tab,slide){
+  if(!PLANNER_TABS.includes(tab))return;
   plannerActiveTab=tab;
-  document.querySelectorAll('#calendarContent .planner-tabpanel').forEach(panel=>{panel.hidden=panel.dataset.tab!==tab;});
+  document.querySelectorAll('#calendarContent .planner-tabpanel').forEach(panel=>{
+    panel.hidden=panel.dataset.tab!==tab;
+    if(!panel.hidden&&slide&&panel.classList){
+      panel.classList.remove('slide-next','slide-prev');
+      void panel.offsetWidth; // restart the animation
+      panel.classList.add('slide-'+slide);
+    }
+  });
   document.querySelectorAll('#calendarContent .planner-tabbar button').forEach(button=>{
     const selected=button.dataset.tab===tab;
     button.setAttribute('aria-selected',String(selected));
     button.tabIndex=selected?0:-1;
+    if(selected&&slide&&button.scrollIntoView)button.scrollIntoView({block:'nearest',inline:'nearest'});
   });
+}
+/* Swipe sideways on the schedule screen to move to the next / previous tab (today → calendar → habits → stats).
+   Not for touches that start on a field (typing, date picker) or at the very edge of the screen (the phone's own Back gesture). */
+let plannerSwipe=null;
+function plannerTouchStart(event){
+  const touch=event.touches&&event.touches[0];
+  plannerSwipe=null;
+  if(!touch||event.touches.length>1)return;
+  if(event.target&&event.target.closest&&event.target.closest('input,select,textarea,[data-no-swipe]'))return;
+  const width=typeof window!=='undefined'&&window.innerWidth?window.innerWidth:0;
+  if(width&&(touch.clientX<24||touch.clientX>width-24))return;
+  plannerSwipe={x:touch.clientX,y:touch.clientY,at:Date.now()};
+}
+function plannerTouchEnd(event){
+  const start=plannerSwipe;plannerSwipe=null;
+  const touch=event.changedTouches&&event.changedTouches[0];
+  if(!start||!touch)return false;
+  const direction=LifeLogic.swipeDirection(touch.clientX-start.x,touch.clientY-start.y,Date.now()-start.at);
+  const next=direction&&LifeLogic.stepTab(PLANNER_TABS,plannerActiveTab,direction);
+  if(!next)return false;
+  plannerSwitchTab(next,direction);
+  if(typeof window!=='undefined'&&window.scrollTo)window.scrollTo(0,0); // the new tab starts at its top
+  return true;
+}
+(function(){
+  const area=document.getElementById('calendarContent');
+  if(!area||!area.addEventListener)return;
+  area.addEventListener('touchstart',plannerTouchStart,{passive:true});
+  area.addEventListener('touchend',plannerTouchEnd,{passive:true});
+  area.addEventListener('touchcancel',()=>{plannerSwipe=null;},{passive:true});
+})();
+let plannerSwipeHintShown=false;
+function plannerShowSwipeHint(){ // once per phone: tell about the swipe
+  if(plannerSwipeHintShown)return;
+  plannerSwipeHintShown=true;
+  try{
+    if(localStorage.getItem('lifeAISwipeHint'))return;
+    localStorage.setItem('lifeAISwipeHint','1');
+    toast('화면을 좌우로 밀어서 탭을 옮길 수 있어요.');
+  }catch(e){}
 }
 let plannerRenderedToday='';
 /* Phone left open past midnight: when the app becomes visible on a new day, move today's date forward and redraw. */

@@ -37,7 +37,7 @@ test('planner has four tabbed panels and defaults to Today',()=>{
     assert.ok(html.includes("'"+tab+"'"),tab);
   }
   assert.match(html,/let plannerActiveTab='today'/);
-  assert.match(html,/function plannerSwitchTab\(tab\)/);
+  assert.match(html,/function plannerSwitchTab\(tab(,slide)?\)/);
   assert.match(html,/planner-tabpanel\[hidden\]/);
 });
 
