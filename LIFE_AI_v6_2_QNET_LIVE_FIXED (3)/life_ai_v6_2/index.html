@@ -964,7 +964,7 @@ function uiAsk(config){
   return next;
 }
 function uiConfirm(message,opts={}){
-  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:1,
+  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:opts.danger?0:1,
     buttons:[{label:opts.cancel||'취소',kind:'ghost',value:false},{label:opts.ok||'확인',kind:opts.danger?'danger':'primary',value:true}]});
 }
 function uiChoice(message,choices,opts={}){
