@@ -1455,6 +1455,7 @@ function focusNotify(){
   if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
   if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
   if(mode==='sound'){
+    let played=false;
     try{
       const ctx=focusAudioContext;
       if(ctx&&ctx.state==='running'){
@@ -1465,8 +1466,14 @@ function focusNotify(){
         gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.7);
         oscillator.connect(gain).connect(ctx.destination);
         oscillator.start();oscillator.stop(ctx.currentTime+.72);
+        played=true;
       }
     }catch(e){}
+    // Sound can only start after a tap. If it was not ready (app reopened while the timer ran), vibrate and flash instead.
+    if(!played){
+      if(navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+      if(panel)panel.classList.add('focus-flash');
+    }
   }
 }
 function focusHistory(){
