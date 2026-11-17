@@ -243,10 +243,12 @@
     if (!hasUserData(state)) return null;
     if (state.backupSnoozeUntil && Date.parse(state.backupSnoozeUntil) > now) return null;
     const count = Array.isArray(state.focusHistory) ? state.focusHistory.length : 0;
-    if (count >= Math.floor(limit * 0.9)) {
+    const last = Date.parse(state.lastBackupAt || '');
+    // A backup made within the last 7 days answers the "history nearly full" warning; later checks still apply.
+    const recentlyBackedUp = Number.isFinite(last) && now - last < 7 * 86400000;
+    if (count >= Math.floor(limit * 0.9) && !recentlyBackedUp) {
       return { kind: 'history', message: '집중 기록이 ' + count + '/' + limit + '개예요. 가득 차면 오래된 기록부터 지워져요. 지금 백업해 두면 안전해요.' };
     }
-    const last = Date.parse(state.lastBackupAt || '');
     if (!Number.isFinite(last)) {
       if (recordCount(state) < 3) return null;
       return { kind: 'never', message: '아직 백업한 적이 없어요. 브라우저 데이터를 지우면 기록이 사라지니 한 번 백업해 두세요.' };

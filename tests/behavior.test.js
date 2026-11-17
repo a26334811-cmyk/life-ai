@@ -414,8 +414,10 @@ test('home and MY show the backup reminder until a backup is made, and it can be
 
 test('a nearly full focus history triggers the reminder and overflow warns',()=>{
   const history=Array.from({length:460},(_,i)=>({date:'2026-05-01',minutes:25,category:'study',completedAt:'t'+i}));
-  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-86400000).toISOString(),focusHistory:history}));
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-10*86400000).toISOString(),focusHistory:history}));
   assert.match(a.run('backupNudgeHTML()'),/460\/500/);
+  const backedUp=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-86400000).toISOString(),focusHistory:history}));
+  assert.equal(backedUp.run('backupNudgeHTML()'),'','a recent backup removes the full-history reminder');
   const full=Array.from({length:500},(_,i)=>({date:'2026-05-01',minutes:25,category:'study',completedAt:'t'+i}));
   const b=createApp(JSON.stringify({mainGoal:'x',focusHistory:full}));
   b.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'new',date:'2026-05-10'})");
@@ -915,4 +917,111 @@ test('reset removes the main save and the kept damaged original, and the prompt 
   b.context.location.reload=()=>{};
   await b.run('resetPrototype()');
   assert.equal(b.storage.get(damagedKeys(b.storage)[0]),'{not json','cancelled reset keeps everything');
+});
+
+test('offline errors are shown in plain Korean; the env-variable hint only appears when the server key is missing',async()=>{
+  const offline=async()=>{throw new TypeError('Failed to fetch');};
+  const a=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:offline});
+  await a.run('loadLiveJobs()');
+  const jobs=a.el('liveJobStatus').innerHTML;
+  assert.match(jobs,/인터넷 연결을 확인하고 다시 시도해 주세요/);
+  assert.doesNotMatch(jobs,/Failed to fetch|WORK24_AUTH_KEY/);
+  const noKey=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:async()=>({ok:false,status:503,json:async()=>({message:'고용24 인증키가 아직 설정되지 않았어요.'})})});
+  await noKey.run('loadLiveJobs()');
+  assert.match(noKey.el('liveJobStatus').innerHTML,/인증키가 아직 설정되지 않았어요/);
+  assert.match(noKey.el('liveJobStatus').innerHTML,/WORK24_AUTH_KEY/);
+  const english=createApp(JSON.stringify({mainGoal:'전기기사',goalType:'job'}),{fetch:async()=>({ok:false,status:500,json:async()=>({message:'upstream exploded'})})});
+  await english.run('loadLiveJobs()');
+  assert.doesNotMatch(english.el('liveJobStatus').innerHTML,/upstream exploded|WORK24_AUTH_KEY/);
+  const c=createApp(undefined,{fetch:offline});
+  c.el('certYear').value='2026';c.el('certSearchInput').value='전기기사';
+  await c.run('loadLiveCertSchedule()');
+  assert.match(c.el('liveCertStatus').innerHTML,/인터넷 연결을 확인하고/);
+  assert.doesNotMatch(c.el('liveCertStatus').innerHTML,/Failed to fetch/);
+  assert.equal(c.run("friendlyErrorMessage(new Error('서버가 준 한국어'),'x')"),'서버가 준 한국어');
+  assert.equal(c.run("friendlyErrorMessage(new Error('Load failed'),'대체 문구')"),'대체 문구');
+});
+
+test('changing a posting stage keeps open cards open and says it was saved',()=>{
+  const a=createApp();
+  const row=id=>({id,company:'회사'+id,title:'공고',stage:'관심',url:'https://example.com/'+id,tasks:[false,false,false,false]});
+  a.run('state.jobPostings='+JSON.stringify([row('a'),row('b')]));
+  const cards=[{dataset:{posting:'a'},open:true},{dataset:{posting:'b'},open:false}];
+  let drawn=0;
+  a.context.document.querySelectorAll=sel=>{
+    if(sel.includes('[open]'))return cards.filter(c=>c.open);
+    return cards;
+  };
+  // A redraw replaces the cards: all closed again until the app reopens them.
+  a.context.renderJobHub=()=>{drawn++;cards.forEach(c=>{c.open=false;});};
+  a.run("setPostingStage('b','지원 완료')");
+  assert.equal(drawn,1);
+  assert.equal(a.run("state.jobPostings[1].stage"),'지원 완료');
+  assert.deepEqual(cards.map(c=>c.open),[true,true]);
+  assert.ok(a.toasts.includes('저장했어요.'));
+  a.run("setInterviewDate('a','2099-03-04')");
+  assert.equal(a.toasts.filter(t=>t==='저장했어요.').length,2);
+});
+
+test('saved posting cards carry their id so they can be reopened after a redraw',()=>{
+  const a=createApp();
+  a.run("state.jobPostings=[{id:'x1',company:'회사',title:'공고',stage:'관심',url:'https://example.com/1',tasks:[false,false,false,false]}]");
+  a.run('renderJobHub()');
+  assert.match(a.el('savedPostings').innerHTML,/<details data-posting="x1">/);
+});
+
+test('setup text boxes run their "next" action on Enter and show a matching keyboard key',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  const expected={nickname:["go('goalChoice')",'next'],companyInput:['selectCompany()','go'],jobInput:["selectJob(this.value||'관심 직무')",'go'],
+    certInput:["quickGoal((this.value||'자격증')+' 준비')",'go'],customGoalInput:['createCustomGoal()','go']};
+  for(const [id,[action,hint]] of Object.entries(expected)){
+    const tag=html.match(new RegExp('<input id="'+id+'"[^>]*>'))[0];
+    assert.ok(tag.includes('enterkeyhint="'+hint+'"'),id+' keyboard hint');
+    assert.ok(tag.includes("event.key==='Enter'")&&tag.includes(action),id+' Enter action');
+  }
+});
+
+test('editing or adding a planner item scrolls to the form and focuses the title',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',plannerEntries:[{id:'p',title:'a',date:'2026-05-10'}]}));
+  const calls=[];
+  a.el('plannerEditor').scrollIntoView=o=>calls.push(['scroll',o.block]);
+  a.el('plannerTitle').focus=()=>calls.push(['focus']);
+  a.run("plannerEdit('p','2026-05-10')");
+  assert.deepEqual(calls,[['scroll','center'],['focus']]);
+  calls.length=0;
+  a.run('plannerOpenForm()');
+  assert.deepEqual(calls,[['scroll','center'],['focus']]);
+});
+
+test('restoring a backup keeps the previous data under beforeRestore',async()=>{
+  const old=JSON.stringify({mainGoal:'예전 목표',goalType:'cert',nickname:'a'});
+  const a=createApp(old,{search:''});
+  a.run('location.reload=()=>{}');
+  const backup={format:'life-ai-backup',version:1,state:{mainGoal:'백업 목표',nickname:'b',activity:[],completedTasks:[]}};
+  const input={files:[{size:100,text:async()=>JSON.stringify(backup)}]};
+  a.context.__input=input;
+  await a.run('importLifeAIBackup(__input)');
+  assert.equal(a.storage.get('lifeAIPrototypeV5.beforeRestore'),old);
+  assert.equal(a.saved().mainGoal,'백업 목표');
+  assert.match(a.dialogs.find(d=>d.kind==='alert').message,/beforeRestore/);
+});
+
+test('habit checkbox uses the date at click time, and a new day redraws the planner',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',habits:[{id:'h',name:'공부',checks:[]}]}));
+  a.run('renderCalendar()');
+  assert.match(a.el('calendarContent').innerHTML,/habitToggle\('h',koreaToday\(\)\)/);
+  assert.equal(a.run('plannerSelected'),'2026-05-10');
+  a.clock.now+=24*3600*1000;
+  a.run('plannerDayRollover()');
+  assert.equal(a.run('plannerSelected'),'2026-05-11');
+  a.run("habitToggle('h',koreaToday())");
+  assert.deepEqual(a.saved().habits[0].checks,['2026-05-11']);
+});
+
+test('a saved interview date shows in the planner for that day, except for finished postings',()=>{
+  const a=createApp();
+  const row=(id,company,stage)=>({id,company,title:'공고',stage,interviewDate:'2026-06-01',tasks:[false,false,false,false]});
+  a.run('state.jobPostings='+JSON.stringify([row('a','삼천리','준비 중'),row('b','다른곳','불합격'),row('c','또다른곳','지원 취소')]));
+  assert.deepEqual(titles(a,'2026-06-01'),['삼천리 · 공고 면접']);
+  assert.deepEqual(titles(a,'2026-06-02'),[]);
 });

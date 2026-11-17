@@ -366,7 +366,7 @@ h3{font-size:16px;line-height:1.4}
   <section id="name" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('start')">←</button></div>
     <h2>어떻게 불러드릴까요?</h2>
-    <div class="field"><input id="nickname" value="" placeholder="예: 예지, 민준" /></div>
+    <div class="field"><input id="nickname" value="" placeholder="예: 예지, 민준" enterkeyhint="next" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();go('goalChoice')}" /></div>
     <button class="btn primary" onclick="go('goalChoice')">다음</button>
   </section>
 
@@ -394,7 +394,7 @@ h3{font-size:16px;line-height:1.4}
   <section id="company" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>어느 회사에 관심이 있나요?</h2>
-    <div class="field"><input id="companyInput" value="" placeholder="회사명을 직접 입력하세요" /></div>
+    <div class="field"><input id="companyInput" value="" placeholder="회사명을 직접 입력하세요" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectCompany()}" /></div>
     <div class="stack">
       <button class="choice" onclick="selectCompany('포스코')"><span><strong>포스코</strong><div class="meta">DEMO 선택지</div></span><span>›</span></button>
       <button class="choice" onclick="selectCompany('삼성전자')"><span><strong>삼성전자</strong><div class="meta">목표 입력 예시</div></span><span>›</span></button>
@@ -419,14 +419,14 @@ h3{font-size:16px;line-height:1.4}
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>원하는 직무를 알려주세요.</h2>
     <p class="muted">정확하지 않아도 괜찮아요. 나중에 바꿀 수 있어요.</p>
-    <div class="field"><input id="jobInput" placeholder="예: 설비기술, 회계, 개발자" /></div>
+    <div class="field"><input id="jobInput" placeholder="예: 설비기술, 회계, 개발자" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectJob(this.value||'관심 직무')}" /></div>
     <button class="btn primary" onclick="selectJob(document.getElementById('jobInput').value || '관심 직무')">이 직무로 계속</button>
   </section>
 
   <section id="certStart" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 자격증을 준비하고 싶나요?</h2>
-    <div class="field"><input id="certInput" placeholder="예: 컴퓨터활용능력, 전기기사" /></div>
+    <div class="field"><input id="certInput" placeholder="예: 컴퓨터활용능력, 전기기사" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();quickGoal((this.value||'자격증')+' 준비')}" /></div>
     <div class="stack">
       <button class="choice" onclick="quickGoal('컴퓨터활용능력 준비')"><strong>컴퓨터활용능력</strong><span>›</span></button>
       <button class="choice" onclick="quickGoal('전기기사 준비')"><strong>전기기사</strong><span>›</span></button>
@@ -449,7 +449,7 @@ h3{font-size:16px;line-height:1.4}
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>하고 싶은 일을 편하게 적어주세요.</h2>
     <p class="muted">문장으로 적어도 괜찮아요. 예: 올해 안에 서울로 이직하고 싶어요.</p>
-    <div class="field"><input id="customGoalInput" placeholder="내 목표를 한 문장으로 입력" /></div>
+    <div class="field"><input id="customGoalInput" placeholder="내 목표를 한 문장으로 입력" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();createCustomGoal()}" /></div>
     <button class="btn primary" onclick="createCustomGoal()">AI가 목표 정리하기</button>
   </section>
 
@@ -873,13 +873,17 @@ async function importLifeAIBackup(input){
     const safe=result.state;
     delete safe.focusRun; // also for older backup files made while a timer was running
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
+    // Keep the data being replaced under a second name so a wrong restore can still be undone.
+    let keptBefore=false;
+    if(snapshot!==null){try{localStorage.setItem('lifeAIPrototypeV5.beforeRestore',snapshot);keptBefore=true;}catch(keepError){}}
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
     }catch(error){
+      try{localStorage.removeItem('lifeAIPrototypeV5.beforeRestore');}catch(removeError){}
       try{if(snapshot!==null)localStorage.setItem('lifeAIPrototypeV5',snapshot);}catch(rollbackError){}
       throw new Error('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
     }
-    await uiAlert('복원이 완료됐어요. 앱을 새로고침합니다.',{title:'복원 완료'});
+    await uiAlert('복원이 완료됐어요. '+(keptBefore?'복원 전 기록은 이 기기에 따로 보관했어요(lifeAIPrototypeV5.beforeRestore). 잘못 복원했다면 이 보관본으로 되돌릴 수 있어요. 다시 복원하면 보관본은 새 내용으로 바뀌어요.':'복원 전 기록은 따로 보관하지 못했어요.')+'\n앱을 새로고침합니다.',{title:'복원 완료'});
     location.reload();
   }catch(e){toast(e.message||'백업 파일을 읽지 못했어요.');}
 }
@@ -1379,7 +1383,8 @@ function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
 function plannerForDate(date){
   const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
-  return [...own,...jobs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
+  const interviews=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.interviewDate===date&&!['합격','불합격','지원 취소'].includes(x.stage)).map(x=>({title:x.company+' · '+x.title+' 면접',date,category:'job',origin:'external'}));
+  return [...own,...jobs,...interviews].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
 }
 function plannerNavigate(days){
   if(plannerView==='month'){
@@ -1392,10 +1397,15 @@ function plannerNavigate(days){
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
 function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
 let plannerFormOpen=false;
-function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
+/* After the form opens, bring it into view and put the cursor in the title box (it can be far below the day list). */
+function plannerRevealEditor(){
+  document.getElementById('plannerEditor')?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  document.getElementById('plannerTitle')?.focus?.({preventScroll:true});
+}
+function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
 function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
 let plannerEditingDate='';
-function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
+function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
 async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
@@ -1832,7 +1842,7 @@ function habitPanelHTML(){
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
-    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" onclick="habitRename('${esc(h.id)}')">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}',koreaToday())"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" onclick="habitRename('${esc(h.id)}')">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
     <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
@@ -1897,9 +1907,20 @@ function plannerSwitchTab(tab){
     button.tabIndex=selected?0:-1;
   });
 }
+let plannerRenderedToday='';
+/* Phone left open past midnight: when the app becomes visible on a new day, move today's date forward and redraw. */
+function plannerDayRollover(){
+  if(!plannerRenderedToday)return;
+  const today=koreaToday();
+  if(today===plannerRenderedToday)return;
+  if(plannerSelected===plannerRenderedToday)plannerSelected=today;
+  renderCalendar();
+}
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden)plannerDayRollover();});
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
+  plannerRenderedToday=today;
   if(!LifeLogic.validDate(plannerSelected))plannerSelected=today;
   const startOfWeek=date=>plannerDateOffset(date,-new Date(date+'T12:00:00Z').getUTCDay());
   let dates=[];
@@ -2151,7 +2172,13 @@ async function deletePosting(id){
 function setPostingStage(id,stage){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||!postingStages.includes(stage))return;
   if(p.stage!==stage)p.stageChangedAt=koreaToday();
-  p.stage=stage;persistState();renderJobHub();
+  p.stage=stage;
+  const saved=persistState();
+  // Redrawing the list closes every card, so remember which ones were open and open them again.
+  const openIds=[...(document.querySelectorAll?.('#savedPostings details[data-posting][open]')||[])].map(d=>d.dataset.posting);
+  renderJobHub();
+  document.querySelectorAll?.('#savedPostings details[data-posting]').forEach(d=>{if(openIds.includes(d.dataset.posting)||d.dataset.posting===id)d.open=true;});
+  if(saved)toast('저장했어요.');
 }
 function postingStageLine(p){
   if(!p.stageChangedAt||!LifeLogic.validDate(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
@@ -2165,7 +2192,8 @@ function setPostingTask(id,index,checked){
 function setInterviewDate(id,value){
   if(value&&!LifeLogic.validDate(value)){toast('면접 날짜를 확인해 주세요.');return;}
   const posting=state.jobPostings.find(x=>x.id===id);if(!posting)return;
-  posting.interviewDate=value;persistState();
+  posting.interviewDate=value;
+  if(persistState())toast('저장했어요.');
 }
 function jobCalendarHTML(){
   jobCollections();if(!state.jobPostings.length)return '<div class="card"><p>저장한 취업 공고가 없어요.</p><button class="btn secondary" onclick="go(\'jobHub\')">공고 저장하기</button></div>';
@@ -2187,7 +2215,7 @@ function postingsForDisplay(){
 function renderJobHub(){
   jobCollections();
   document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
-  document.getElementById('savedPostings').innerHTML=postingsForDisplay().map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p>${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+  document.getElementById('savedPostings').innerHTML=postingsForDisplay().map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p>${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
 }
 
 function esc(s){
@@ -2231,7 +2259,7 @@ async function loadLiveJobs(){
     const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,{signal:withTimeout(liveJobsController.signal)});
     const data=await r.json();
     if(version!==liveJobsRequestVersion) return;
-    if(!r.ok) throw new Error(data.message||'채용정보를 불러오지 못했어요.');
+    if(!r.ok){const err=new Error(data.message||'채용정보를 불러오지 못했어요.');err.serverStatus=r.status;throw err;}
     if(!data.items?.length){
       status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
       return;
@@ -2253,7 +2281,9 @@ async function loadLiveJobs(){
       status.innerHTML=`<strong>🟡 ${SLOW_CONNECTION_MESSAGE}</strong><p class="meta">고용24에서 15초 안에 답이 오지 않았어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
       return;
     }
-    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
+    // The environment-variable hint only makes sense when the server says the key is missing (503).
+    const keyMissing=e.serverStatus===503;
+    status.innerHTML=`<strong>🟡 ${isNetworkError(e)?'인터넷 연결이 필요해요':'실데이터 연결 대기'}</strong><p class="meta">${esc(friendlyErrorMessage(e,'채용정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'))}</p>${keyMissing?'<p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p>':''}<button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
   }
 }
 function certQueryName(){
@@ -2340,6 +2370,14 @@ function withTimeout(signal){
   const timeout=AbortSignal.timeout(15000);
   return signal?AbortSignal.any([signal,timeout]):timeout;
 }
+
+/* Browsers give English errors like "Failed to fetch" / "Load failed" when offline; show plain Korean instead. */
+function isNetworkError(e){return ['TypeError','AbortError','TimeoutError'].includes(e?.name);}
+function friendlyErrorMessage(e,fallback){
+  if(e?.name==='TimeoutError')return SLOW_CONNECTION_MESSAGE;
+  if(isNetworkError(e))return '인터넷 연결을 확인하고 다시 시도해 주세요.';
+  return /[가-힣]/.test(e?.message||'')?e.message:fallback;
+}
 async function fetchJson(url,signal){
   try{
     const r=await fetch(url,{signal:withTimeout(signal)});
@@ -2377,7 +2415,7 @@ async function searchCertNames(){
       matches.innerHTML=data.items?.length?data.items.map(x=>`
         <button type="button" class="btn ghost" style="display:block;width:100%;text-align:left;margin-top:6px" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="chooseCert(this)">${esc(x.name)} <span class="meta">· ${esc(x.code)}</span></button>`).join(''):
         '<p class="meta">검색 결과가 없어요. 정확한 자격증 이름을 입력해 확인할 수도 있어요.</p>';
-    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(e.message)}</p><button type="button" class="btn secondary" onclick="searchCertNames()">다시 시도</button>`;}
+    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(friendlyErrorMessage(e,'종목을 검색하지 못했어요. 잠시 후 다시 시도해 주세요.'))}</p><button type="button" class="btn secondary" onclick="searchCertNames()">다시 시도</button>`;}
   },350);
 }
 function chooseCert(button){
@@ -2423,7 +2461,7 @@ async function loadLiveCertSchedule(){
     box.innerHTML=certRoundsHTML(data);
   }catch(e){
     if(version!==certScheduleVersion||e.name==='AbortError') return;
-    status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
+    status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(friendlyErrorMessage(e,'잠시 후 다시 시도해 주세요.'))}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
   }
 }
 
