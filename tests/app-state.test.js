@@ -64,3 +64,23 @@ test('renaming preserves checklist and saved qualification schedule',async()=>{
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');
  assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
 });
+
+const homeWith=events=>{
+ const schedule={qualification:{name:'전기기사'},rounds:[{round:'1회',events}]};
+ const a=app();a.run('state.certSchedule='+JSON.stringify(schedule));a.run('renderHome()');
+ return a.el('homeContent').innerHTML;
+};
+test('home next exam keeps an application period that already started but has not ended',()=>{
+ // fake clock is 2026-05-10
+ const html=homeWith([
+  {label:'필기원서접수',startDate:'2026-05-05',endDate:'2026-05-12'},
+  {label:'지난 시험',startDate:'2026-04-01',endDate:'2026-04-01'},
+  {label:'필기시험',startDate:'2026-06-01',endDate:'2026-06-01'}]);
+ assert.match(html,/1회 · 필기원서접수/);
+ assert.doesNotMatch(html,/지난 시험/);
+ assert.doesNotMatch(html,/미등록/);
+});
+test('home next exam shows nothing once every period has ended',()=>{
+ const html=homeWith([{label:'필기원서접수',startDate:'2026-05-01',endDate:'2026-05-09'}]);
+ assert.match(html,/미등록/);
+});
