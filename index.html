@@ -1842,12 +1842,19 @@ function applyPostingInfo(info){
   if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
   let note='';
   if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';
-  else if(deadline&&postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
-  if(!filled.length&&!note)return '읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.';
+  else if(deadline){
+    if(postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
+    else{
+      // The deadline box already has a value: it is kept, but the user is told what the text says.
+      const typed=String(document.getElementById('postingDeadline')?.value||'').trim();
+      note=typed===deadline.date?' 글에 적힌 마감일('+deadline.date+')이 입력한 값과 같아요.':' 글에는 마감일이 '+deadline.date+'로 적혀 있어요. 지금 입력한 값과 달라요.';
+    }
+  }
+  if(!filled.length&&!note)return {found:false,message:'읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.'};
   let message=filled.length?'채운 항목: '+filled.join(', ')+'.':'';
   if(filled.includes('회사명')&&info.companyInferred)message+=' 회사명은 페이지 정보로 추정한 값이에요.';
   if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
-  return (message+note+' 내용을 확인해 주세요.').trim();
+  return {found:true,message:(message+note+' 내용을 확인해 주세요.').trim()};
 }
 async function fillPostingFromUrl(){
   const url=safeUrl((document.getElementById('postingUrl')?.value||'').trim());
@@ -1861,7 +1868,7 @@ async function fillPostingFromUrl(){
     const data=await response.json().catch(()=>({}));
     if(version!==postingFetchVersion)return;
     if(!response.ok||!data.ok)throw new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');
-    let message=applyPostingInfo(data);
+    let message=applyPostingInfo(data).message;
     if(!document.getElementById('postingDeadline')?.value){
       // Many sites draw the deadline with JavaScript, so a link alone cannot show it. Point to the paste box and open it.
       message+=' 마감일은 링크에서 찾지 못했어요. 공고 화면의 글을 복사해 아래 "붙여넣기" 칸에 넣으면 찾아 드려요.';
@@ -1879,8 +1886,7 @@ async function fillPostingFromUrl(){
 function fillPostingFromPaste(){
   const text=document.getElementById('postingPaste')?.value||'';
   if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
-  const message=applyPostingInfo({description:text});
-  const found=!message.startsWith('읽었지만');
+  const {found,message}=applyPostingInfo({description:text});
   const linkFilled=postingFillField('postingUrl',LifeLogic.firstUrl(text));
   if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
   else postingSetStatus(linkFilled?'글 안의 링크를 채웠어요. 마감일은 찾지 못했으니 직접 입력해 주세요.':'글에서 마감일로 볼 만한 날짜를 찾지 못했어요. 직접 입력해 주세요.');
