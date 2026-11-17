@@ -26,7 +26,23 @@ test('#28 finished focus session stays visible on the timer card until the next 
   assert.equal(a.el('focusDoneNote').textContent,'');
 });
 
-test('#27planner row buttons say what they do and name the event',()=>{
+test('#29 opportunity cards no longer have a "둘러보기" button that only shows a toast',()=>{
+  const a=createApp();
+  for(const goalType of ['cert','policy','other']){
+    a.run(`state.goalType='${goalType}';state.mainGoal='전기기사 준비'`);
+    const out=a.run('opportunityCards()');
+    assert.doesNotMatch(out,/둘러보기/,goalType);
+    assert.doesNotMatch(out,/onclick="toast\(/,goalType);
+  }
+  a.run("state.goalType='cert'");
+  assert.match(a.run('opportunityCards()'),/onclick="go\('jobHub'\)"/);
+  a.run("state.goalType='policy'");
+  assert.match(a.run('opportunityCards()'),/준비 중이에요/);
+  a.run("state.goalType='other'");
+  assert.match(a.run('opportunityCards()'),/준비 중이에요/);
+});
+
+test('#27 planner row buttons say what they do and name the event',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동 \"가기\"',date:'2026-05-10'}]");
   a.run("plannerSelected='2026-05-10'");

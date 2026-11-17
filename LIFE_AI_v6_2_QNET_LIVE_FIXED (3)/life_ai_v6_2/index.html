@@ -1112,14 +1112,14 @@ function opportunityCards(){
     return `
       <div class="stack">
         <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${esc(state.mainGoal.replace(' 준비',''))}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
-        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="toast('외부 테스트 전에는 DEMO 기회만 보여줘요.')">둘러보기</button></div>
+        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="go('jobHub')">취업 관리 열기</button></div>
       </div>`;
   }
   if(state.goalType==='policy'){
     return `
       <div class="stack">
         <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
-        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
+        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><span class="meta">🛠 준비 중이에요</span></div>
       </div>`;
   }
   if(state.goalType==='job'){
@@ -1135,7 +1135,7 @@ function opportunityCards(){
   }
   return `
     <div class="stack">
-      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
+      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><span class="meta">🛠 준비 중이에요</span></div>
     </div>`;
 }
 
