@@ -1181,9 +1181,7 @@ function renderHome(){
   const c=document.getElementById('homeContent');
   document.getElementById('hello').textContent=`안녕하세요, ${getNick()}님 👋`;
   const a=currentAction();
-  const completed=Array.isArray(state.completedTasks)?state.completedTasks.filter(Boolean).length:0;
-  const taskTotal=Array.isArray(state.completedTasks)?state.completedTasks.length:0;
-  const progress=taskTotal?Math.round(completed/taskTotal*100):0;
+  const {done:completed,total:taskTotal,percent:progress}=LifeLogic.goalProgress(state);
   const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
   const favorites=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
   const savedSchedule=Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[];

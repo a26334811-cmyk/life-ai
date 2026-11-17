@@ -356,7 +356,18 @@
     };
   }
 
+  /* Goal progress shown on Home. A job goal has no 5-step list, so it counts the prepare checks of every saved posting. */
+  function goalProgress(state) {
+    const s = state || {};
+    const flags = s.goalType === 'job'
+      ? (Array.isArray(s.jobPostings) ? s.jobPostings : []).flatMap(p => (p && Array.isArray(p.tasks) ? p.tasks : []))
+      : (Array.isArray(s.completedTasks) ? s.completedTasks : []);
+    const done = flags.filter(Boolean).length;
+    return { done, total: flags.length, percent: flags.length ? Math.round(done / flags.length * 100) : 0 };
+  }
+
   const api = {
+    goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth,
