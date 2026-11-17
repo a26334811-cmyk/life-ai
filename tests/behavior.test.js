@@ -410,3 +410,18 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await b.run('fillPostingFromUrl()');
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
+
+/* ---------- reset also removes the kept damaged original ---------- */
+test('reset removes the main save and the kept damaged original, and the prompt says so',async()=>{
+  const a=createApp('{not json',{search:''});
+  a.context.location.reload=()=>{};
+  assert.equal(a.storage.get('lifeAIPrototypeV5.damaged'),'{not json');
+  await a.run('resetPrototype()');
+  assert.equal(a.storage.has('lifeAIPrototypeV5'),false);
+  assert.equal(a.storage.has('lifeAIPrototypeV5.damaged'),false);
+  assert.match(a.dialogs[a.dialogs.length-1].message,/손상 원본도 함께 지워져요/);
+  const b=createApp('{not json',{search:'',confirm:false});
+  b.context.location.reload=()=>{};
+  await b.run('resetPrototype()');
+  assert.equal(b.storage.get('lifeAIPrototypeV5.damaged'),'{not json','cancelled reset keeps everything');
+});

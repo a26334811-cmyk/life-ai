@@ -771,8 +771,9 @@ async function importLifeAIBackup(input){
 }
 
 async function resetPrototype(){
-  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
+  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n보관해 둔 손상 원본도 함께 지워져요.\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
   try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
+  try { localStorage.removeItem('lifeAIPrototypeV5.damaged'); } catch(e) {}
   location.reload();
 }
 
