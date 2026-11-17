@@ -419,6 +419,19 @@ test('pasting the real Hyundai Steel posting text fills the deadline 2026-11-22'
   assert.match(status(a),/마감일/);
 });
 
+test('MY shows the goal type in Korean, never the internal code',()=>{
+  const names={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
+  for(const [code,name] of Object.entries(names)){
+    const a=createApp(JSON.stringify({mainGoal:'x',goalType:code}));a.run('renderMy()');
+    assert.ok(a.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">'+name+'</p>'),code);
+    assert.ok(!a.el('myContent').innerHTML.includes('<p class="meta">'+code+'</p>'),code);
+  }
+  const none=createApp();none.run('renderMy()');
+  assert.ok(none.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">미설정</p>'));
+  const odd=createApp(JSON.stringify({mainGoal:'x',goalType:'constructor'}));odd.run('renderMy()');
+  assert.ok(odd.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">미설정</p>'));
+});
+
 test('MY shows when the last backup was made',()=>{
   const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-05-01T01:00:00.000Z'}));
   a.run('renderMy()');

@@ -1738,6 +1738,8 @@ function renderCalendar(){
   document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
 
+const GOAL_TYPE_NAMES={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
+function goalTypeName(type){return Object.hasOwn(GOAL_TYPE_NAMES,type)?GOAL_TYPE_NAMES[type]:'미설정';}
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
@@ -1746,7 +1748,7 @@ function renderMy(){
     <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표 없음')}</strong></div>
     <div class="section-title">AI가 알고 있는 정보</div>
     <div class="stack">
-      <div class="card"><strong>목표 유형</strong><p class="meta">${state.goalType || '미설정'}</p></div>
+      <div class="card"><strong>목표 유형</strong><p class="meta">${goalTypeName(state.goalType)}</p></div>
       ${state.goalType==='job'?`
       <div class="card"><strong>관심 회사·직무</strong><p class="meta">${state.selectedCompany||'미입력'} · ${state.selectedJob||'미입력'}</p></div>
       <div class="card"><strong>취업 정보</strong><p class="meta">${state.employmentStatus||'미입력'} · ${state.career||'경력 미입력'} · ${state.education||'학력 미입력'}</p></div>
