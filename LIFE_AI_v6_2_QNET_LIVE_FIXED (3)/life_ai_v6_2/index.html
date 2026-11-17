@@ -710,18 +710,24 @@ async function editCurrentGoal(){
 const LIFE_AI_BACKUP_FORMAT='life-ai-backup';
 const LIFE_AI_BACKUP_VERSION=1;
 function exportLifeAIBackup(){
+  const hadBackupAt=Object.prototype.hasOwnProperty.call(state,'lastBackupAt'),previousBackupAt=state.lastBackupAt;
   try{
-    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
+    const exportedAt=new Date().toISOString();
+    state.lastBackupAt=exportedAt; // set before copying so the file holds the date of this backup
+    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:JSON.parse(JSON.stringify(state))};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
     link.href=url;link.download='life-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
-    state.lastBackupAt=new Date().toISOString();delete state.backupSnoozeUntil;persistState();
+    delete state.backupSnoozeUntil;persistState();
     refreshBackupNudges();
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
-  }catch(e){toast('백업 파일을 만들지 못했어요.');}
+  }catch(e){
+    if(hadBackupAt)state.lastBackupAt=previousBackupAt;else delete state.lastBackupAt;
+    toast('백업 파일을 만들지 못했어요.');
+  }
 }
 function validateLifeAIBackupState(data){return LifeLogic.validateBackupState(data);}
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */

@@ -411,6 +411,44 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+/* ---------- backup file contents ---------- */
+// Fakes the browser pieces exportLifeAIBackup needs and returns the JSON text of the backup file it "downloads".
+function captureBackup(a,failBlob){
+  const out={text:null};
+  a.context.Blob=class{constructor(parts){if(failBlob)throw new Error('blob');out.text=parts.join('');}};
+  a.context.URL={createObjectURL:()=>'blob:x',revokeObjectURL(){}};
+  a.context.document.createElement=()=>({click(){},remove(){}});
+  a.context.document.body={appendChild(){}};
+  return out;
+}
+
+test('the backup file holds the date of this very backup, even the first one',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-04-01T00:00:00.000Z'}));
+  const out=captureBackup(a);
+  a.run('exportLifeAIBackup()');
+  const file=JSON.parse(out.text);
+  assert.equal(file.state.lastBackupAt,file.exportedAt);
+  assert.equal(a.saved().lastBackupAt,file.exportedAt);
+  const first=createApp();const firstOut=captureBackup(first);
+  first.run('exportLifeAIBackup()');
+  const firstFile=JSON.parse(firstOut.text);
+  assert.equal(firstFile.state.lastBackupAt,firstFile.exportedAt,'first backup has a date too');
+  // restoring that file must not trigger the "never backed up" reminder
+  const restored=createApp(JSON.stringify(firstFile.state));
+  assert.equal(restored.run('LifeLogic.backupNudge(state,Date.now())'),null);
+});
+
+test('a failed backup puts the previous last-backup date back',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-04-01T00:00:00.000Z'}));
+  captureBackup(a,true);
+  a.run('exportLifeAIBackup()');
+  assert.equal(a.run('state.lastBackupAt'),'2026-04-01T00:00:00.000Z');
+  assert.match(a.toasts[a.toasts.length-1],/만들지 못했어요/);
+  const b=createApp();captureBackup(b,true);
+  b.run('exportLifeAIBackup()');
+  assert.equal(b.run("'lastBackupAt' in state"),false);
+});
+
 /* ---------- reset also removes the kept damaged original ---------- */
 test('reset removes the main save and the kept damaged original, and the prompt says so',async()=>{
   const a=createApp('{not json',{search:''});
