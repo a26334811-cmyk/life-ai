@@ -2,7 +2,31 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createApp,html}=require('./helpers/app-harness');
 
-test('#27 planner row buttons say what they do and name the event',()=>{
+test('#28 finished focus session stays visible on the timer card until the next action',async()=>{
+  const a=createApp();
+  a.run('focusStartPause()');
+  a.clock.now+=25*60*1000+500;
+  a.tick();
+  assert.equal(a.run('focusHistory().length'),1,'recording still works');
+  assert.equal(a.run('focusDoneText()'),'✅ 25분 집중을 마쳤어요');
+  assert.equal(a.el('focusDoneNote').textContent,'✅ 25분 집중을 마쳤어요');
+  assert.match(a.run('focusPanelHTML()'),/id="focusDoneNote" role="status" aria-live="polite">✅ 25분 집중을 마쳤어요</);
+  assert.match(a.run('document.title'),/끝났어요/);
+  // the message must survive later re-renders (toast is gone after 1.8s)
+  a.run('renderCalendar()');
+  assert.match(a.el('calendarContent').innerHTML,/25분 집중을 마쳤어요/);
+  // starting again clears it
+  a.run('focusStartPause()');
+  assert.equal(a.el('focusDoneNote').textContent,'');
+  assert.doesNotMatch(a.run('document.title'),/끝났어요/);
+  // reset clears it too
+  a.clock.now+=25*60*1000+500;a.tick();
+  assert.equal(a.run('focusDoneText()'),'✅ 25분 집중을 마쳤어요');
+  await a.run('focusReset()');
+  assert.equal(a.el('focusDoneNote').textContent,'');
+});
+
+test('#27planner row buttons say what they do and name the event',()=>{
   const a=createApp();
   a.run("state.plannerEntries=[{id:'d',title:'운동 \"가기\"',date:'2026-05-10'}]");
   a.run("plannerSelected='2026-05-10'");
