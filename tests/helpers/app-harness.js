@@ -17,12 +17,16 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.hidden   document.hidden
    opts.notification  {permission, requestResult} to fake the Notification API
    opts.fetch    fake fetch(url, options) used by the app
+   opts.failSave setItem throws (a full storage); it is read on every save, so a test can switch it off again
+   opts.trackHistory  fake history.pushState/replaceState recorded in app.historyLog
    opts.search   makes `location` exist with this query string (e.g. '?url=...' from the phone's Share sheet) */
 function createApp(saved, opts = {}) {
   const elements = new Map();
   const storage = new Map(saved ? [['lifeAIPrototypeV5', saved]] : []);
   const clock = { now: opts.now || Date.parse('2026-05-10T03:00:00Z') };
   const timers = [];
+  const pendingTimeouts = []; // setTimeout callbacks wait here; flushTimeouts() runs them on demand
+  let reloads = 0;
   const toasts = [];
   const dialogs = [];
 
@@ -46,7 +50,7 @@ function createApp(saved, opts = {}) {
       setItem: (k, v) => { if (opts.failSave) throw new Error('quota'); storage.set(k, v); },
       removeItem: k => storage.delete(k)
     },
-    setTimeout: () => 0, clearTimeout() {},
+    setTimeout: fn => { pendingTimeouts.push(fn); return 0; }, clearTimeout() {},
     setInterval: fn => { timers.push(fn); return timers.length; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
     requestAnimationFrame() {},
@@ -63,7 +67,7 @@ function createApp(saved, opts = {}) {
   }
   if (opts.fetch) context.fetch = (...args) => opts.fetch(...args);
   if (opts.search !== undefined) {
-    context.location = { search: opts.search, pathname: '/index.html', protocol: 'https:', hostname: 'app.example' };
+    context.location = { search: opts.search, pathname: '/index.html', protocol: 'https:', hostname: 'app.example', reload() { reloads++; } };
     context.history = {
       replaceState: (a, b, url) => {
         if (url === undefined) { historyLog.push({ type: 'replace', state: a }); return; } // screen history only; the address stays
@@ -100,6 +104,8 @@ function createApp(saved, opts = {}) {
     run: code => vm.runInContext(code, context),
     el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, historyLog, context,
     tick() { timers.filter(Boolean).forEach(fn => fn()); },
+    flushTimeouts() { pendingTimeouts.splice(0).forEach(fn => fn()); },
+    get reloads() { return reloads; },
     saved() { return JSON.parse(storage.get('lifeAIPrototypeV5')); }
   };
 }

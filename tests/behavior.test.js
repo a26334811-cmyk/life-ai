@@ -506,6 +506,30 @@ test('bottom menu buttons switch tabs without stacking history',()=>{
   for(const id of ['home','opportunities','goals','calendar','my'])assert.ok(html.includes(`onclick="go('${id}','replace')"`),id);
 });
 
+/* ---------- two tabs open at once ---------- */
+test('when another tab saves new records, this tab re-reads them instead of overwriting later',()=>{
+  const a=createApp(undefined,{search:''});
+  a.flushTimeouts();
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5.damaged',newValue:'x',oldValue:null})");
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'same',oldValue:'same'})");
+  a.flushTimeouts();
+  assert.equal(a.reloads,0,'unrelated keys and unchanged values are ignored');
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'{\"habits\":[]}',oldValue:'{}'})");
+  assert.match(a.toasts.at(-1),/다른 창에서 기록이 바뀌었어요/);
+  a.run("onStateStorageEvent({key:'lifeAIPrototypeV5',newValue:'{\"habits\":[1]}',oldValue:'{\"habits\":[]}'})");
+  a.flushTimeouts();
+  assert.equal(a.reloads,1,'reloads once even if several changes arrive together');
+  // storage cleared in another tab
+  const b=createApp(undefined,{search:''});
+  b.run('onStateStorageEvent({key:null,newValue:null,oldValue:null})');b.flushTimeouts();
+  assert.equal(b.reloads,1);
+});
+
+test('the app listens for the storage event',()=>{
+  const {script}=require('./helpers/app-harness.js');
+  assert.match(script,/window\.addEventListener\('storage',onStateStorageEvent\)/);
+});
+
 /* ---------- save failure must not look like success ---------- */
 const saveFourThings=async a=>{
   a.run('plannerOpenForm()');
