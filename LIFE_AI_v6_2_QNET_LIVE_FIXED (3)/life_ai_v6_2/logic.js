@@ -5,6 +5,15 @@
   'use strict';
 
   const FOCUS_MINUTES = [5, 10, 15, 25, 30, 45, 50, 60];
+  const FOCUS_CATEGORIES = [
+    { name: 'study', label: '📚 자격증·공부' },
+    { name: 'job', label: '💼 취업 준비' },
+    { name: 'personal', label: '🌿 개인 목표' }
+  ];
+  // Returns the value when it is a known focus category, otherwise the first one ('study').
+  function focusCategoryName(value) {
+    return FOCUS_CATEGORIES.some(c => c.name === value) ? value : FOCUS_CATEGORIES[0].name;
+  }
   const FOCUS_HISTORY_LIMIT = 500;
   const DANGEROUS_KEYS = ['__proto__', 'prototype', 'constructor'];
 
@@ -182,7 +191,7 @@
     if (!isPlain(run)) return { status: 'idle' };
     const minutes = Number(run.minutes);
     if (!FOCUS_MINUTES.includes(minutes)) return { status: 'idle' };
-    const category = ['study', 'job', 'personal'].includes(run.category) ? run.category : 'study';
+    const category = focusCategoryName(run.category);
     const base = { minutes, category };
     if (run.status === 'paused') {
       const remaining = Math.min(minutes * 60, Math.max(1, Math.ceil(Number(run.remaining))));
@@ -333,7 +342,7 @@
 
   const api = {
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
-    FOCUS_MINUTES, FOCUS_HISTORY_LIMIT,
+    FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth,
     occurs, isRepeating, isDone, toggleDone, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,

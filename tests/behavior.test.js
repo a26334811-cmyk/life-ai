@@ -21,6 +21,24 @@ test('a running focus timer survives reload and keeps counting',()=>{
   assert.equal(b.run('focusSettings().minutes'),25);
 });
 
+test('focus panel lists every duration and category from the shared lists, and settings are repaired once',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',focusSettings:{minutes:25,alarm:'vibrate',category:'bogus'}}));
+  assert.equal(a.run('focusSettings().category'),'study');
+  const html=a.run('focusPanelHTML()');
+  for(const n of JSON.parse(a.run('JSON.stringify(LifeLogic.FOCUS_MINUTES)')))assert.ok(html.includes(`<option value="${n}"`),'minutes '+n);
+  for(const c of JSON.parse(a.run('JSON.stringify(LifeLogic.FOCUS_CATEGORIES)')))assert.ok(html.includes(`<option value="${c.name}"`)&&html.includes(c.label),'category '+c.name);
+  assert.equal((html.match(/<option value="study" selected>/g)||[]).length,1);
+  a.run("focusChangeCategory('job')");assert.equal(a.run('focusSettings().category'),'job');
+  a.run("focusChangeCategory('hacker')");assert.equal(a.run('focusSettings().category'),'job');
+  a.run("focusRecordCompletion({minutes:25})");
+  assert.equal(a.run('state.focusHistory[0].category'),'job');
+  a.run("focusRecordCompletion({minutes:30,category:'personal',completedAt:'2026-05-10T04:00:00.000Z'})");
+  const history=a.run('focusHistoryHTML()');
+  assert.ok(history.includes('💼 취업 준비: 0시간 25분'));
+  assert.ok(history.includes('🌿 개인 목표: 0시간 30분'));
+  assert.ok(history.includes('📚 자격증·공부: 0시간 0분'));
+});
+
 test('a paused focus timer is restored with its remaining time',()=>{
   const a=createApp();
   a.run('focusStartPause()');

@@ -1293,6 +1293,7 @@ function focusSettings(){
   if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
   if(!LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
   if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
+  state.focusSettings.category=LifeLogic.focusCategoryName(state.focusSettings.category);
   return state.focusSettings;
 }
 function focusFormat(seconds){
@@ -1311,9 +1312,9 @@ function focusUpdateUI(){
 function focusSaveRun(){
   const cfg=focusSettings(),total=Number(cfg.minutes)*60;
   if(focusRunning){
-    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category};
   }else if(focusRemaining>0&&focusRemaining<total){
-    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category};
   }else delete state.focusRun;
   persistState();
 }
@@ -1325,7 +1326,7 @@ function focusTick(){
   focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
   focusUpdateUI();
   if(focusRemaining===0){
-    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category||'study',completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
+    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category,completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
     focusStopTimer();
     delete state.focusRun;
     focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
@@ -1407,7 +1408,7 @@ function focusHistory(){
 }
 function focusRecordCompletion(done){
   const minutes=Number(done?.minutes||focusSettings().minutes);
-  const category=done?.category||focusSettings().category||'study';
+  const category=done?.category||focusSettings().category;
   const completedAt=done?.completedAt||new Date().toISOString();
   // The same finished session can be seen by two open tabs; record it only once.
   if(focusHistory().some(x=>x.completedAt===completedAt))return;
@@ -1421,7 +1422,7 @@ function focusRecordCompletion(done){
   if(document.getElementById('calendarContent'))renderCalendar();
 }
 function focusChangeCategory(value){
-  if(!['study','job','personal'].includes(value))return;
+  if(LifeLogic.focusCategoryName(value)!==value)return;
   focusSettings().category=value;
   if(state.focusRun&&typeof state.focusRun==='object')state.focusRun.category=value;
   persistState();
@@ -1539,8 +1540,8 @@ function focusHistoryHTML(){
   const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
-  const categories={study:'📚 자격증·공부',job:'💼 취업 준비',personal:'🌿 개인 목표'};
-  const breakdown=Object.entries(categories).map(([key,label])=>({label,minutes:history.filter(x=>x.category===key).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  const categories=Object.fromEntries(LifeLogic.FOCUS_CATEGORIES.map(c=>[c.name,c.label]));
+  const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:history.filter(x=>x.category===c.name).reduce((n,x)=>n+Number(x.minutes||0),0)}));
   return `<div class="card"><h3>📊 집중 기록</h3>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
@@ -1560,8 +1561,8 @@ function focusPanelHTML(){
     <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
       <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
-    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study" ${(!cfg.category||cfg.category==='study')?'selected':''}>📚 자격증·공부</option><option value="job" ${cfg.category==='job'?'selected':''}>💼 취업 준비</option><option value="personal" ${cfg.category==='personal'?'selected':''}>🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
-      ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+      ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
     </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
       ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
@@ -1731,7 +1732,7 @@ function renderCalendar(){
     <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
     </section>
   `;
-  document.getElementById('focusCategory').value=focusSettings().category||'study';
+  document.getElementById('focusCategory').value=focusSettings().category;
   document.getElementById('plannerCategory').value=existing?.category||'personal';
   document.getElementById('plannerPriority').value=existing?.priority||'normal';
   document.getElementById('plannerRepeat').value=existing?.repeat||'none';

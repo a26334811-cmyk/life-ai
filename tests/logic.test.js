@@ -120,6 +120,14 @@ test('readBackup checks file text, format, version and state in one place',()=>{
   assert.equal(L.BACKUP_FORMAT,'life-ai-backup');assert.equal(L.BACKUP_VERSION,1);
 });
 
+test('focus categories come from one list and unknown values fall back to the first',()=>{
+  assert.deepEqual(L.FOCUS_CATEGORIES.map(c=>c.name),['study','job','personal']);
+  assert.ok(L.FOCUS_CATEGORIES.every(c=>typeof c.label==='string'&&c.label));
+  for(const c of L.FOCUS_CATEGORIES)assert.equal(L.focusCategoryName(c.name),c.name);
+  for(const bad of [undefined,null,'',7,'work','__proto__'])assert.equal(L.focusCategoryName(bad),'study');
+  assert.equal(L.resumeFocus({status:'paused',minutes:25,category:'work',remaining:60},0).category,'study');
+});
+
 test('resumeFocus restores running, paused and finished timers',()=>{
   const now=Date.parse('2026-05-10T03:00:00Z');
   const running=L.resumeFocus({status:'running',deadline:now+90500,minutes:25,category:'job'},now);
