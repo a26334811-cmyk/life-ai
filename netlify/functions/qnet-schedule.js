@@ -10,6 +10,15 @@ function decodeXml(s){
 function normalizeServiceKey(raw){
   try { return decodeURIComponent(raw); } catch { return raw; }
 }
+// data.go.kr answers key and quota problems with an XML error code and an English message. Show plain Korean instead.
+const KEY_ERROR_CODES=['20','21','30','31','32','33'];
+function apiErrorFromXml(xml,label){
+  const code=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
+  if(!code||['00','0'].includes(code)) return null;
+  if(KEY_ERROR_CODES.includes(code)) return new Error('인증키를 확인해 주세요. 공공데이터포털 인증키가 만료됐거나 등록되지 않았을 수 있어요.');
+  if(code==='22') return new Error('오늘 조회할 수 있는 횟수를 넘었어요. 내일 다시 시도해 주세요.');
+  return new Error(`${label} 응답에 문제가 있어요(코드 ${code}). 잠시 후 다시 시도해 주세요.`);
+}
 function toIsoDate(s){
   const m=String(s||'').match(/^(20\d{2})[.\/-]?(\d{2})[.\/-]?(\d{2})$/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
@@ -55,10 +64,10 @@ async function loadQualifications(key){
     const params=new URLSearchParams({serviceKey:key,pageNo:String(pageNo),numOfRows:'1000'});
     const r=await fetchWithTimeout(`${base}?${params}`);
     const xml=await r.text();
-    if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
+    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 종목 목록')||new Error(`Q-Net 종목 조회 오류 ${r.status}`);
     if(/<html[\s>]/i.test(xml)) throw new Error('Q-Net 종목 목록 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
-    const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
-    if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 종목 목록 API: ${xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg')||errCode}`);
+    const apiError=apiErrorFromXml(xml,'Q-Net 종목 목록');
+    if(apiError) throw apiError;
     const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
     if(!blocks.length) throw new Error('Q-Net 종목 목록을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');
     let added=0;
@@ -97,11 +106,10 @@ async function fetchOfficialSchedule(key, qual, year){
     });
     const r=await fetchWithTimeout(`${base}?${params.toString()}`);
     const xml=await r.text();
-    if(!r.ok) throw new Error(`Q-Net 시험일정 API 오류 ${r.status}`);
+    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 시험일정')||new Error(`Q-Net 시험일정 API 오류 ${r.status}`);
     if(/<html[\s>]/i.test(xml)) throw new Error('Q-Net 시험일정 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
-    const errCode=xmlText(xml,'returnReasonCode')||xmlText(xml,'resultCode');
-    const errMsg=xmlText(xml,'returnAuthMsg')||xmlText(xml,'resultMsg');
-    if(errCode&&!['00','0'].includes(errCode)) throw new Error(`Q-Net 시험일정 API: ${errMsg||errCode}`);
+    const apiError=apiErrorFromXml(xml,'Q-Net 시험일정');
+    if(apiError) throw apiError;
     const countText=xmlText(xml,'totalCount');
     const count=Number(countText);
     if(!countText||!Number.isFinite(count)||count<0) throw new Error('Q-Net 시험일정 XML의 전체 건수를 읽지 못했어요.');
