@@ -220,6 +220,15 @@ test('README and the PR draft say the company name can be a marked guess from th
   assert.match(html,/info\.companyInferred/,'the app still marks guessed company names');
 });
 
+test('bottom menu bar has an opaque background and no blur effect',()=>{
+  const rules=[...html.matchAll(/\.bottomnav\{([^}]*)\}/g)].map(m=>m[1]);
+  assert.ok(rules.length>0);
+  for(const body of rules){
+    assert.doesNotMatch(body,/backdrop-filter:\s*blur/);
+    assert.doesNotMatch(body,/background:\s*rgba/);
+  }
+});
+
 test('netlify.toml sends basic security headers for every page',()=>{
   const block=read('netlify.toml').split('[[headers]]').find(b=>b.includes('for = "/*"'));
   assert.ok(block,'a headers block for /*');
