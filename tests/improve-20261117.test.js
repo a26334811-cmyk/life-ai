@@ -16,6 +16,25 @@ test('home first-card reason is a sentence for every goal type (never an object)
   assert.match(a.run('priorityReason()'),/관심 회사와 공고/);
 });
 
+/* #74 */
+test('Work24 search: the keyword box starts with the current keyword, can be edited, and an empty result shows it',async()=>{
+  const urls=[];
+  const a=createApp(undefined,{fetch:async url=>{urls.push(url);return {ok:true,json:async()=>({items:[]})};}});
+  a.run("quickGoal('취업 기회 탐색')");
+  a.run("go('liveJobs')");
+  assert.equal(a.el('liveJobKeyword').value,'취업 기회 탐색');
+  await a.run('loadLiveJobs()');
+  assert.match(decodeURIComponent(urls[0]),/keyword=취업 기회 탐색/);
+  assert.match(a.el('liveJobStatus').innerHTML,/검색어: 취업 기회 탐색/);
+  a.el('liveJobKeyword').value='삼천리 시설관리';
+  await a.run('loadLiveJobs()');
+  assert.match(decodeURIComponent(urls[1]),/keyword=삼천리 시설관리/);
+  assert.match(a.el('liveJobStatus').innerHTML,/검색어: 삼천리 시설관리/);
+  a.el('liveJobKeyword').value='   ';
+  await a.run('loadLiveJobs()');
+  assert.match(decodeURIComponent(urls[2]),/keyword=취업 기회 탐색/,'blank box falls back to the default keyword');
+});
+
 /* #78 */
 test('job goal home card describes what the button really opens',()=>{
   const a=createApp();
