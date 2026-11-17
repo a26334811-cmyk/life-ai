@@ -1353,6 +1353,29 @@ function focusSaveRun(){
 }
 function focusStopTimer(){
   focusRunning=false;clearInterval(focusInterval);focusInterval=null;
+  focusWakeRelease();
+}
+/* Keep the screen on while the timer runs (optional). Browsers drop the lock when the page is hidden,
+   so it is requested again when the page becomes visible. Unsupported devices do nothing. */
+let focusWakeSentinel=null;
+function focusWakeAcquire(){
+  try{
+    if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel||document.hidden)return;
+    if(typeof navigator==='undefined'||!navigator.wakeLock||typeof navigator.wakeLock.request!=='function')return;
+    navigator.wakeLock.request('screen').then(sentinel=>{
+      if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel){try{sentinel.release();}catch(e){}return;}
+      focusWakeSentinel=sentinel;
+      if(typeof sentinel.addEventListener==='function')sentinel.addEventListener('release',()=>{if(focusWakeSentinel===sentinel)focusWakeSentinel=null;});
+    }).catch(()=>{});
+  }catch(e){}
+}
+function focusWakeRelease(){
+  const sentinel=focusWakeSentinel;focusWakeSentinel=null;
+  try{if(sentinel)Promise.resolve(sentinel.release()).catch(()=>{});}catch(e){}
+}
+function focusChangeKeepAwake(checked){
+  focusSettings().keepAwake=Boolean(checked);persistState();
+  if(checked)focusWakeAcquire();else focusWakeRelease();
 }
 function focusTick(){
   if(!focusRunning)return;
@@ -1376,6 +1399,7 @@ function focusStartPause(){
     focusRunning=true;
     focusInterval=setInterval(focusTick,500);
     focusSaveRun();
+    focusWakeAcquire();
   }
   focusUpdateUI();
 }
@@ -1385,7 +1409,7 @@ async function focusReset(){
   focusRemaining=Number(focusSettings().minutes)*60;
   delete state.focusRun;persistState();focusUpdateUI();
 }
-if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning)focusTick();});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning){focusTick();focusWakeAcquire();}});
 async function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
@@ -1495,6 +1519,7 @@ function focusRestore(){
   else if(resumed.status==='running'){
     focusRemaining=resumed.remaining;focusDeadline=resumed.deadline;focusRunning=true;
     focusInterval=setInterval(focusTick,500);
+    focusWakeAcquire();
   }else{
     delete state.focusRun;
     focusRemaining=0;
@@ -1602,6 +1627,7 @@ function focusPanelHTML(){
     </select></label></div>
     <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
     <label class="check focus-notify"><input type="checkbox" ${cfg.notify?'checked':''} onchange="focusChangeNotify(this.checked)"><span>화면이 가려져 있을 때 브라우저 알림도 받기</span></label>
+    <label class="check focus-notify"><input type="checkbox" id="focusKeepAwake" ${cfg.keepAwake?'checked':''} onchange="focusChangeKeepAwake(this.checked)"><span>집중하는 동안 화면 켜 두기 (지원하는 기기만)</span></label>
     <p class="meta">타이머는 저장돼서 앱을 다시 열어도 이어져요. 단, 알림과 알람은 앱이 백그라운드에서 살아 있을 때만 울려요. 완전히 종료됐거나 절전 중이면 다시 열 때 끝난 시간이 기록돼요.</p></details>
   </div>`;
 }

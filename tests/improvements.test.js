@@ -18,6 +18,61 @@ test('a forgotten habit can be checked for yesterday, which keeps the streak; fu
   assert.equal(a.saved().habits[0].checks.includes('2026-05-11'),false,'tomorrow is refused');
 });
 
+/* ---------- #91 keep screen awake while the focus timer runs ---------- */
+const installWakeLock=a=>{
+  a.run(`globalThis.__wl={requests:0,released:0,sentinels:[]};
+    navigator.wakeLock={request:async()=>{__wl.requests++;const s={released:false,release:async()=>{if(!s.released){s.released=true;__wl.released++;}}};__wl.sentinels.push(s);return s;}};`);
+  return ()=>JSON.parse(a.run('JSON.stringify({requests:__wl.requests,released:__wl.released})'));
+};
+const flush=()=>new Promise(r=>setImmediate(r));
+
+test('wake lock is requested on start and released on pause/finish/reset when the option is on',async()=>{
+  const a=createApp(JSON.stringify({focusSettings:{minutes:25,alarm:'vibrate',keepAwake:true}}));
+  const stats=installWakeLock(a);
+  a.run('focusStartPause()');await flush();
+  assert.deepEqual(stats(),{requests:1,released:0});
+  a.run('focusStartPause()');await flush();               // pause
+  assert.deepEqual(stats(),{requests:1,released:1});
+  a.run('focusStartPause()');await flush();               // resume
+  assert.equal(stats().requests,2);
+  a.clock.now+=26*60*1000;a.tick();await flush();         // finished
+  assert.deepEqual(stats(),{requests:2,released:2});
+  a.run('focusStartPause()');await flush();
+  await a.run('focusReset()');await flush();
+  assert.deepEqual(stats(),{requests:3,released:3});
+});
+
+test('wake lock is not requested when the option is off or the device does not support it',async()=>{
+  const a=createApp();
+  const stats=installWakeLock(a);
+  a.run('focusStartPause()');await flush();
+  assert.equal(stats().requests,0,'option is off by default');
+  const b=createApp(JSON.stringify({focusSettings:{minutes:25,alarm:'vibrate',keepAwake:true}}));
+  b.run('focusStartPause()');await flush();               // navigator.wakeLock missing: must not throw
+  assert.equal(b.run('focusRunning'),true);
+});
+
+test('wake lock is requested again when the page becomes visible; turning the option on/off while running works',async()=>{
+  const a=createApp();
+  const stats=installWakeLock(a);
+  a.run('focusStartPause()');await flush();
+  a.run('focusChangeKeepAwake(true)');await flush();
+  assert.equal(stats().requests,1);
+  assert.equal(a.saved().focusSettings.keepAwake,true);
+  a.run('focusChangeKeepAwake(true)');await flush();
+  assert.equal(stats().requests,1,'no second lock while one is held');
+  a.run('__wl.sentinels[0].released=true;focusWakeSentinel=null;focusWakeAcquire()');await flush(); // the browser dropped it
+  assert.equal(stats().requests,2);
+  a.run('focusChangeKeepAwake(false)');await flush();
+  assert.equal(a.saved().focusSettings.keepAwake,false);
+  assert.equal(a.run('focusWakeSentinel'),null);
+});
+
+test('the keep-awake checkbox is shown in the notification settings',()=>{
+  const a=createApp(JSON.stringify({focusSettings:{minutes:25,alarm:'vibrate',keepAwake:true}}));
+  assert.match(a.run('focusPanelHTML()'),/id="focusKeepAwake" checked/);
+});
+
 /* ---------- #88 overdue entries card ---------- */
 test('overdue card lists unfinished one-time entries from the last 14 days only',()=>{
   const e=(id,date,extra)=>({id,title:id,date,repeat:'none',done:false,...extra});
