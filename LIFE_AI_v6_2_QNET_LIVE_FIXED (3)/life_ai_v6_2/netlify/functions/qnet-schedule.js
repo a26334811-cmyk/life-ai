@@ -158,9 +158,11 @@ exports.handler=async(event)=>{
   const key=normalizeServiceKey(rawKey);
   const name=(event.queryStringParameters?.name||'').trim();
   const year=String(event.queryStringParameters?.year||new Date().getFullYear());
-  if(!/^20\d{2}$/.test(year)) return {statusCode:400,body:JSON.stringify({message:'시행년도를 올바르게 선택해 주세요.'})};
+  if(!/^20\d{2}$/.test(year)) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'시행년도를 올바르게 선택해 주세요.'})};
+  if(name.length>50) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름은 50자 이하로 입력해 주세요.'})};
   if(event.queryStringParameters?.mode==='search'){
     const query=(event.queryStringParameters?.q||'').trim();
+    if(query.length>50) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'검색어는 50자 이하로 입력해 주세요.'})};
     if(query.length<2) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'검색어를 두 글자 이상 입력해 주세요.'})};
     try{
       const {items,totalCount}=await listQualifications(key);

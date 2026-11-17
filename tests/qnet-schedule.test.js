@@ -64,6 +64,22 @@ test('invalid year and missing service key fail clearly',async()=>{
   assert.equal((await handler({queryStringParameters:{name:'전기기사'}})).statusCode,503);
 });
 
+test('too-long names and search words are refused before any lookup, and errors carry a content type',async()=>{
+  const handler=setup(()=>{throw Error('must not fetch');});
+  const long='가'.repeat(51);
+  const byName=await handler({queryStringParameters:{name:long}});
+  assert.equal(byName.statusCode,400);
+  assert.match(byName.headers['content-type'],/application\/json/);
+  assert.ok(!byName.body.includes(long),'the long text is not echoed back');
+  const bySearch=await handler({queryStringParameters:{mode:'search',q:long}});
+  assert.equal(bySearch.statusCode,400);
+  assert.match(bySearch.body,/50자/);
+  const badYear=await handler({queryStringParameters:{name:'전기기사',year:'x'}});
+  assert.match(badYear.headers['content-type'],/application\/json/);
+  const ok=await setup(()=>'<response><body><items></items></body></response>')({queryStringParameters:{mode:'search',q:'가'.repeat(50)}});
+  assert.notEqual(ok.statusCode,400,'exactly 50 characters is still accepted');
+});
+
 test('Q-Net qualification endpoint rejects HTML error pages',async()=>{
   const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
   const result=await handler({queryStringParameters:{mode:'search',q:'설비보전'}});
