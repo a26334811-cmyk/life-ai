@@ -51,6 +51,17 @@ test('posting validation rejects unsafe links and invalid dates',()=>{
  const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='javascript:alert(1)';a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),0);
  a.el('postingUrl').value='https://example.com';a.el('postingDeadline').value='2026-02-30';a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),0);
 });
+test('editing a saved job cannot reuse another job\'s link, but may keep its own',()=>{
+ const a=app();
+ a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';a.run('savePosting()');
+ a.el('postingCompany').value='다른 회사';a.el('postingTitle').value='정비';a.el('postingUrl').value='https://example.com/jobs/2';a.run('savePosting()');
+ const second=a.run('state.jobPostings[0].id');
+ a.el('postingId').value=second;a.el('postingCompany').value='다른 회사';a.el('postingTitle').value='정비';a.el('postingUrl').value='https://example.com/jobs/1';a.run('savePosting()');
+ assert.equal(a.run('state.jobPostings.length'),2);
+ assert.equal(a.run('state.jobPostings[0].url'),'https://example.com/jobs/2');
+ a.el('postingId').value=second;a.el('postingTitle').value='정비 수정';a.el('postingUrl').value='https://example.com/jobs/2';a.run('savePosting()');
+ assert.equal(a.run('state.jobPostings[0].title'),'정비 수정');
+});
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);

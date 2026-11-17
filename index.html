@@ -2206,7 +2206,7 @@ function savePosting(){
   if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
   if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
-  if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
+  if(state.jobPostings.some(x=>x.id!==id&&x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
   if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
   const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
