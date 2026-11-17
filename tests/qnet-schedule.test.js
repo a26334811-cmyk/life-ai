@@ -213,3 +213,24 @@ test('a failed HTTP answer that carries a key error still gives the key message'
   const message=await failure(setup(()=>({status:401,body:errorXml('30','SERVICE_KEY_IS_NOT_REGISTERED_ERROR')})),scheduleQuery);
   assert.match(message,/인증키를 확인해 주세요/);
 });
+
+test('after page 1 the remaining qualification pages are requested at the same time',async()=>{
+  const handler=setup(()=>'');
+  let inFlight=0,maxInFlight=0;
+  const requested=[];
+  global.fetch=async(url)=>{
+    const page=Number(new URL(url).searchParams.get('pageNo'));
+    requested.push(page);
+    inFlight++;maxInFlight=Math.max(maxInFlight,inFlight);
+    await new Promise(r=>setTimeout(r,20));
+    inFlight--;
+    const first=(page-1)*2;
+    return {ok:true,text:async()=>`<response><totalCount>6</totalCount>${qual(String(1000+first),'종목'+first)}${qual(String(1001+first),'종목'+(first+1))}</response>`};
+  };
+  const result=await handler({queryStringParameters:{mode:'search',q:'종목'}});
+  assert.equal(result.statusCode,200);
+  assert.equal(JSON.parse(result.body).loadedCount,6);
+  assert.equal(requested[0],1,'page 1 first');
+  assert.deepEqual([...requested].sort(),[1,2,3]);
+  assert.equal(maxInFlight,2,'pages 2 and 3 were in flight together');
+});

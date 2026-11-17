@@ -76,8 +76,7 @@ async function loadQualifications(){
   // 키가 없거나 틀려도 같은 목록을 준다) 암호화 안 된 주소에 키가 실려 가지 않도록 키를 보내지 않는다.
   const base='http://openapi.q-net.or.kr/api/service/rest/InquiryListNationalQualifcationSVC/getList';
   const unique=new Map();
-  let totalCount=0;
-  for(let pageNo=1;pageNo<=30;pageNo++){
+  const readPage=async pageNo=>{
     const params=new URLSearchParams({pageNo:String(pageNo),numOfRows:'1000'});
     const r=await fetchWithTimeout(`${base}?${params}`);
     const xml=await r.text();
@@ -87,15 +86,25 @@ async function loadQualifications(){
     if(apiError) throw apiError;
     const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
     if(!blocks.length) throw new Error('Q-Net 종목 목록을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');
-    let added=0;
+    return {blocks,total:Number(xmlText(xml,'totalCount'))};
+  };
+  const addPage=blocks=>{
     for(const b of blocks){
       const code=decodeXml(xmlText(b,'jmcd')),name=decodeXml(xmlText(b,'jmfldnm'));
       const qualgbCd=decodeXml(xmlText(b,'qualgbcd'));
-      if(code&&name&&!unique.has(code)){unique.set(code,{code,name,qualgbCd});added++;}
+      if(code&&name&&!unique.has(code)) unique.set(code,{code,name,qualgbCd});
     }
-    totalCount=Number(xmlText(xml,'totalCount'))||unique.size;
-    if(unique.size>=totalCount) break;
-    if(!added||pageNo===30) throw new Error('Q-Net 종목 목록의 일부만 조회됐어요. 다시 시도해 주세요.');
+  };
+  // Page 1 tells us the total count; the remaining pages are then requested at the same time.
+  const first=await readPage(1);
+  addPage(first.blocks);
+  const totalCount=first.total||unique.size;
+  if(unique.size<totalCount){
+    const pageCount=Math.ceil(totalCount/first.blocks.length);
+    if(pageCount>30) throw new Error('Q-Net 종목 목록의 일부만 조회됐어요. 다시 시도해 주세요.');
+    const rest=await Promise.all(Array.from({length:pageCount-1},(_,i)=>readPage(i+2)));
+    for(const page of rest) addPage(page.blocks);
+    if(unique.size<totalCount) throw new Error('Q-Net 종목 목록의 일부만 조회됐어요. 다시 시도해 주세요.');
   }
   const items=[...unique.values()].filter(x=>x.qualgbCd==='T');
   if(!items.length) throw new Error('조회 가능한 국가기술자격 종목이 없어요.');
