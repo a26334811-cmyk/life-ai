@@ -337,6 +337,7 @@ h3{font-size:16px;line-height:1.4}
 .habit-row{align-items:center;border-bottom:1px solid var(--line);padding:5px 0}
 .habit-row .check{border:0;padding:10px 0}
 .habit-row p.meta{margin:0 0 8px 30px}
+.habit-row .habit-yesterday{width:auto;display:inline;padding:2px 8px;font-size:12px}
 .habit-row .habit-remove{width:auto;min-width:58px;padding:8px;font-size:12px;color:var(--muted)}
 .habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
@@ -1613,6 +1614,7 @@ function habitAdd(){
 function habitToggle(id,date){
   const habit=habitEntries().find(x=>x.id===id);
   if(!habit)return;
+  if(!validDeadline(date)||!date||date>koreaToday())return; // future days cannot be checked
   if(!Array.isArray(habit.checks))habit.checks=[];
   if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
   else habit.checks.push(date);
@@ -1625,11 +1627,11 @@ async function habitRemove(id){
 }
 function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday());}
 function habitPanelHTML(){
-  const today=koreaToday(),habits=habitEntries();
+  const today=koreaToday(),yesterday=plannerDateOffset(today,-1),habits=habitEntries();
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
-    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일</p></div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
     <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
