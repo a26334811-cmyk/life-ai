@@ -18,6 +18,19 @@ test('search reads all pages and normalizes spaces',async()=>{
   await handler({queryStringParameters:{mode:'search',q:'전기'}});
   assert.equal(pages.length,2);
 });
+test('종목 목록 요청(http)에는 인증키를 싣지 않고, 시험일정(https) 요청에만 싣는다',async()=>{
+  const seen=[];
+  const handler=setup(url=>{seen.push(url);return url.hostname==='openapi.q-net.or.kr'
+    ?`<response><totalCount>1</totalCount>${qual('1150','전기기사')}</response>`
+    :`<response><header><resultCode>00</resultCode></header><body><totalCount>0</totalCount></body></response>`;});
+  await handler({queryStringParameters:{mode:'search',q:'전기'}});
+  await handler({queryStringParameters:{name:'전기기사',year:'2026'}});
+  const list=seen.filter(u=>u.hostname==='openapi.q-net.or.kr');
+  const sched=seen.filter(u=>u.hostname==='apis.data.go.kr');
+  assert.ok(list.length>=1&&sched.length>=1);
+  for(const u of list) assert.equal(u.searchParams.has('serviceKey'),false);
+  for(const u of sched){ assert.equal(u.protocol,'https:'); assert.equal(u.searchParams.has('serviceKey'),true); }
+});
 test('partial names do not silently select a different exam level',async()=>{
   const handler=setup(()=>`<response><totalCount>2</totalCount>${qual('1150','전기기사')}${qual('2150','전기산업기사')}</response>`);
   const result=await handler({queryStringParameters:{name:'전기'}});

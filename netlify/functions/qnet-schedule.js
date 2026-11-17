@@ -39,7 +39,7 @@ let catalogPending;
 async function listQualifications(key){
   if(catalogCache?.key===key&&catalogCache.expires>Date.now()) return catalogCache.value;
   if(catalogPending?.key===key) return catalogPending.promise;
-  const promise=loadQualifications(key);
+  const promise=loadQualifications();
   catalogPending={key,promise};
   try{
     const value=await promise;
@@ -47,12 +47,14 @@ async function listQualifications(key){
     return value;
   }finally{ if(catalogPending?.promise===promise) catalogPending=null; }
 }
-async function loadQualifications(key){
+async function loadQualifications(){
+  // 이 종목 목록 서버는 https(443)가 닫혀 있어 http로만 부를 수 있다. 인증키를 검사하지도 않으므로(2026-11-17 확인:
+  // 키가 없거나 틀려도 같은 목록을 준다) 암호화 안 된 주소에 키가 실려 가지 않도록 키를 보내지 않는다.
   const base='http://openapi.q-net.or.kr/api/service/rest/InquiryListNationalQualifcationSVC/getList';
   const unique=new Map();
   let totalCount=0;
   for(let pageNo=1;pageNo<=30;pageNo++){
-    const params=new URLSearchParams({serviceKey:key,pageNo:String(pageNo),numOfRows:'1000'});
+    const params=new URLSearchParams({pageNo:String(pageNo),numOfRows:'1000'});
     const r=await fetchWithTimeout(`${base}?${params}`);
     const xml=await r.text();
     if(!r.ok) throw new Error(`Q-Net 종목 조회 오류 ${r.status}`);
