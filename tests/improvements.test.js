@@ -18,6 +18,21 @@ test('a forgotten habit can be checked for yesterday, which keeps the streak; fu
   assert.equal(a.saved().habits[0].checks.includes('2026-05-11'),false,'tomorrow is refused');
 });
 
+/* ---------- #84 posting display order ---------- */
+test('saved postings are shown by deadline urgency without changing the stored order',()=>{
+  const mk=(id,deadline,stage)=>({id,company:id,title:id,url:'https://x.example/'+id,deadline,stage,tasks:[false,false,false,false]});
+  const list=[mk('past','2026-05-01','관심'),mk('applied','2026-05-12','지원 완료'),mk('none1','','관심'),
+    mk('late','2026-06-01','준비 중'),mk('soon','2026-05-11','관심'),mk('today','2026-05-10','준비 중'),mk('none2','','준비 중'),mk('result','','합격')];
+  const a=createApp(JSON.stringify({jobPostings:list}));
+  const ids=JSON.parse(a.run('JSON.stringify(postingsForDisplay().map(p=>p.id))'));
+  assert.deepEqual(ids,['today','soon','late','none1','none2','applied','result','past']);
+  a.run('renderJobHub()');
+  const html=a.el('savedPostings').innerHTML;
+  assert.ok(html.indexOf('<h3>today ·')<html.indexOf('<h3>past ·'));
+  assert.deepEqual(a.saved().jobPostings?.map(p=>p.id)??list.map(p=>p.id),list.map(p=>p.id));
+  assert.deepEqual(JSON.parse(a.run('JSON.stringify(state.jobPostings.map(p=>p.id))')),list.map(p=>p.id));
+});
+
 /* ---------- #85 posting stage date ---------- */
 const postingsSeed=()=>JSON.stringify({jobPostings:[
   {id:'a',company:'가회사',title:'공고A',url:'https://a.example/1',deadline:'2026-05-20',stage:'관심',tasks:[false,false,false,false],createdAt:'2026-05-01T00:00:00.000Z'},
