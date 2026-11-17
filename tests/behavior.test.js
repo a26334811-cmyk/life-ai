@@ -432,6 +432,14 @@ test('MY shows the goal type in Korean, never the internal code',()=>{
   assert.ok(odd.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">미설정</p>'));
 });
 
+test('MY no longer shows the leftover demo test questions',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',goalType:'cert'}));a.run('renderMy()');
+  const html=a.el('myContent').innerHTML;
+  assert.ok(!html.includes('테스트하면서 생각해볼 것'));
+  assert.ok(!html.includes('무슨 앱인지 알겠나요'));
+  assert.ok(html.includes('처음부터 다시 시작'),'the rest of MY is still rendered');
+});
+
 test('MY shows when the last backup was made',()=>{
   const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-05-01T01:00:00.000Z'}));
   a.run('renderMy()');
