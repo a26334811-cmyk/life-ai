@@ -1262,10 +1262,15 @@ function plannerNavigate(days){
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
 function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
 let plannerFormOpen=false;
-function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
+/* After the form opens, bring it into view and put the cursor in the title box (it can be far below the day list). */
+function plannerRevealEditor(){
+  document.getElementById('plannerEditor')?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  document.getElementById('plannerTitle')?.focus?.({preventScroll:true});
+}
+function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
 function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
 let plannerEditingDate='';
-function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();}
+function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
 async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');

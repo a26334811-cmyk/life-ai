@@ -413,6 +413,18 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+test('editing or adding a planner item scrolls to the form and focuses the title',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',plannerEntries:[{id:'p',title:'a',date:'2026-05-10'}]}));
+  const calls=[];
+  a.el('plannerEditor').scrollIntoView=o=>calls.push(['scroll',o.block]);
+  a.el('plannerTitle').focus=()=>calls.push(['focus']);
+  a.run("plannerEdit('p','2026-05-10')");
+  assert.deepEqual(calls,[['scroll','center'],['focus']]);
+  calls.length=0;
+  a.run('plannerOpenForm()');
+  assert.deepEqual(calls,[['scroll','center'],['focus']]);
+});
+
 test('restoring a backup keeps the previous data under beforeRestore',async()=>{
   const old=JSON.stringify({mainGoal:'예전 목표',goalType:'cert',nickname:'a'});
   const a=createApp(old,{search:''});
