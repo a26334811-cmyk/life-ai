@@ -491,6 +491,21 @@ test('a failed save never shows a "saved" message for planner, habit, posting or
   assert.ok(a.toasts.some(t=>/저장하지 못했어요/.test(t)),'the failure notice is shown');
 });
 
+test('a failed save shows a lasting banner with a backup button, and the next good save hides it',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.match(html,/id="saveFailBanner"[^>]*hidden[\s\S]*?exportLifeAIBackup\(\)">지금 백업/);
+  const opts={failSave:true};
+  const a=createApp(undefined,opts);
+  a.run('persistState()');
+  assert.equal(a.el('saveFailBanner').hidden,false);
+  // the banner does not depend on the one-time toast: a second failure keeps it visible
+  a.run('persistState()');
+  assert.equal(a.el('saveFailBanner').hidden,false);
+  opts.failSave=false;
+  assert.equal(a.run('persistState()'),true);
+  assert.equal(a.el('saveFailBanner').hidden,true);
+});
+
 test('a successful save still shows the confirmation',async()=>{
   const a=createApp();
   await saveFourThings(a);
