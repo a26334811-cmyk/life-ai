@@ -270,6 +270,8 @@
         iso = make(year);
         // "1월 5일까지" read in December means next year
         if (iso && iso < dateOffset(today, -31)) iso = make(year + 1);
+        // "12월 28일까지" read in early January means last month, not 11 months from now
+        else if (iso && iso > dateOffset(today, 183)) iso = make(year - 1) || iso;
       }
       if (iso && iso >= dateOffset(today, -366 * 2) && iso <= dateOffset(today, 366 * 2)) found.push({ index, length, iso, hasYear });
     };

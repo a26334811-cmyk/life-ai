@@ -149,6 +149,15 @@ test('extractDeadline finds the deadline in typical Korean posting text',()=>{
   for(const [text,expected] of cases)assert.equal(L.extractDeadline(text,today)?.date,expected,text);
 });
 
+test('extractDeadline year-less dates pick the closest year around new year',()=>{
+  const jan=L.extractDeadline('12월 28일까지 접수','2027-01-03');
+  assert.equal(jan.date,'2026-12-28');assert.equal(jan.past,true,'December deadline read in January is already over');
+  const dec=L.extractDeadline('마감 1월 5일','2026-12-20');
+  assert.equal(dec.date,'2027-01-05');assert.equal(dec.past,false);
+  assert.equal(L.extractDeadline('마감 1월 5일','2027-01-03').date,'2027-01-05');
+  assert.equal(L.extractDeadline('마감 12월 28일','2026-11-17').date,'2026-12-28');
+});
+
 test('extractDeadline stays quiet when there is no clear deadline',()=>{
   const today='2026-11-16';
   for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
