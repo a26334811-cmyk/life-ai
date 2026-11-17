@@ -187,6 +187,8 @@
 
     .dashboard-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
     .soft-overview{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:8px 16px;box-shadow:0 3px 14px rgba(20,60,90,.035);margin:12px 0 16px}
+    .card.urgent-postings{border-color:#f1d49b;background:#fff7e6;margin:0 0 16px}
+    .urgent-postings p{margin:0 0 10px}
     .soft-overview-row{display:flex;align-items:center;gap:12px;padding:12px 0;min-width:0}
     .soft-overview-row+.soft-overview-row{border-top:1px solid var(--line)}
     .soft-overview-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:14px;background:#edf4f9;font-size:19px}
@@ -1065,6 +1067,7 @@ function renderHome(){
 
       </details>
     </div>
+    ${urgentPostingsHTML()}
     <div class="dashboard-grid">
       <div class="dashboard-panel"><div class="card">
         <span class="tag">✨ 오늘 가장 먼저</span><h2 style="margin:12px 0 8px">${esc(a.title)}</h2>
@@ -1110,6 +1113,19 @@ function filterOpportunities(filter){
     button.setAttribute('aria-pressed',String(button.dataset.filter===filter));
   });
   if(!count) feed.innerHTML='<div class="card"><p class="meta">현재 목표에 연결된 해당 종류의 기회가 없어요.</p></div>';
+}
+/* Saved postings not yet applied to (관심·준비 중) whose deadline is today or within the next 3 days. */
+function urgentPostings(){
+  const today=koreaToday(),limit=plannerDateOffset(today,3);
+  const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
+  return jobs.filter(p=>p&&['관심','준비 중'].includes(p.stage)&&validDeadline(p.deadline)&&p.deadline>=today&&p.deadline<=limit)
+    .sort((a,b)=>a.deadline.localeCompare(b.deadline));
+}
+function urgentPostingsHTML(){
+  const list=urgentPostings();
+  if(!list.length)return '';
+  const rows=list.slice(0,3).map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br><span class="meta">${esc(fmtDate(p.deadline))} · ${esc(daysUntil(p.deadline))}</span></p>`).join('');
+  return `<div class="card urgent-postings" role="note"><h3>⏰ 마감 임박 공고 ${list.length}건</h3>${rows}${list.length>3?`<p class="meta">외 ${list.length-3}건</p>`:''}<button class="btn secondary" onclick="go('jobHub')">취업 관리에서 보기</button></div>`;
 }
 function opportunityCards(){
   if(state.goalType==='cert'){
