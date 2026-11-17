@@ -45,6 +45,25 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
+  // Sunday-based start of the week that contains `date` (YYYY-MM-DD).
+  function weekStart(date) {
+    return dateOffset(date, -new Date(date + 'T12:00:00Z').getUTCDay());
+  }
+
+  // Start, end and every date of the week or month that contains `today`.
+  function periodDates(today, period) {
+    let start, end;
+    if (period === 'month') {
+      start = today.slice(0, 7) + '-01';
+      end = today.slice(0, 7) + '-' + String(daysInMonth(Number(today.slice(0, 4)), Number(today.slice(5, 7)))).padStart(2, '0');
+    } else {
+      start = weekStart(today);
+      end = dateOffset(start, 6);
+    }
+    const count = Math.round((new Date(end + 'T12:00:00Z') - new Date(start + 'T12:00:00Z')) / 86400000) + 1;
+    return { start, end, dates: Array.from({ length: count }, (_, i) => dateOffset(start, i)) };
+  }
+
   function isRepeating(item) {
     return Boolean(item) && ['daily', 'weekly', 'monthly'].includes(item.repeat);
   }
@@ -380,7 +399,7 @@
     goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
-    validDate, koreaDate, dateOffset, daysInMonth,
+    validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates,
     occurs, isRepeating, isDone, toggleDone, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,

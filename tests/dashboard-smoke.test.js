@@ -53,13 +53,17 @@ test('day view hides weekday grid and weekly report starts on Sunday',()=>{
   assert.match(html,/plannerView==='day'\s*\?/);
   assert.match(html,/planner-day-summary/);
   assert.match(html,/이번 주/);
-  assert.match(html,/weekStart=plannerDateOffset\(today,-new Date\(today\+'T12:00:00Z'\).getUTCDay\(\)\)/);
+  assert.match(html,/weekStart=LifeLogic\.weekStart\(today\)/);
+  assert.match(html,/LifeLogic\.periodDates\(today,monthly\?'month':'week'\)/);
+  assert.equal(require('../logic.js').weekStart('2026-11-17'),'2026-11-15','the week starts on Sunday');
 });
 
 test('weekly insights is default and monthly insights has calendar month bounds',()=>{
   assert.match(html,/let insightsPeriod='week'/);
   assert.match(html,/function insightsSetPeriod\(period\)/);
-  assert.match(html,/monthStart=today.slice\(0,7\)\+'-01'/);
+  assert.match(html,/LifeLogic\.periodDates\(today,monthly\?'month':'week'\)/);
+  const november=require('../logic.js').periodDates('2026-11-17','month');
+  assert.equal(november.start,'2026-11-01');assert.equal(november.end,'2026-11-30');
   assert.match(html,/월간/);
   assert.match(html,/id="progressInsights"/);
 });

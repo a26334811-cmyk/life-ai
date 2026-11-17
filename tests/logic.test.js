@@ -304,3 +304,29 @@ test('sanitizeState drops job postings without a task list or text id/company/ti
   assert.ok(dropped.includes('jobPostings'));
   assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:[{id:'p2',company:'a',title:'b'}]}),false);
 });
+
+test('weekStart gives the Sunday of the week, also across month and year ends',()=>{
+  assert.equal(L.weekStart('2026-11-15'),'2026-11-15','a Sunday is its own week start');
+  assert.equal(L.weekStart('2026-11-17'),'2026-11-15');
+  assert.equal(L.weekStart('2026-11-21'),'2026-11-15','Saturday');
+  assert.equal(L.weekStart('2026-01-01'),'2025-12-28','week that starts in the previous year');
+  assert.equal(L.weekStart('2026-03-01'),'2026-03-01');
+  assert.equal(L.weekStart('2026-04-01'),'2026-03-29','week that starts in the previous month');
+});
+
+test('periodDates lists the dates of the week or month that contains today',()=>{
+  const week=L.periodDates('2026-12-31','week');
+  assert.equal(week.start,'2026-12-27');
+  assert.equal(week.end,'2027-01-02');
+  assert.deepEqual(week.dates,['2026-12-27','2026-12-28','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
+  const nov=L.periodDates('2026-11-17','month');
+  assert.equal(nov.start,'2026-11-01');
+  assert.equal(nov.end,'2026-11-30');
+  assert.equal(nov.dates.length,30);
+  assert.equal(nov.dates[29],'2026-11-30');
+  const dec=L.periodDates('2026-12-31','month');
+  assert.equal(dec.end,'2026-12-31');
+  assert.equal(dec.dates.length,31);
+  assert.equal(L.periodDates('2024-02-10','month').dates.length,29,'leap year February');
+  assert.equal(L.periodDates('2026-02-10','month').end,'2026-02-28');
+});

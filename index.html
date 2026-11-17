@@ -1722,12 +1722,7 @@ function insightsSetPeriod(period){
 function progressInsightsHTML(){
   const today=koreaToday();
   const monthly=insightsPeriod==='month';
-  const weekStart=plannerDateOffset(today,-new Date(today+'T12:00:00Z').getUTCDay());
-  const monthStart=today.slice(0,7)+'-01';
-  const monthEnd=plannerDateOffset(new Date(Date.UTC(Number(today.slice(0,4)),Number(today.slice(5,7)),1,12)).toISOString().slice(0,10),-1);
-  const start=monthly?monthStart:weekStart;
-  const end=monthly?monthEnd:plannerDateOffset(weekStart,6);
-  const dates=Array.from({length:Math.round((new Date(end+'T12:00:00Z')-new Date(start+'T12:00:00Z'))/86400000)+1},(_,i)=>plannerDateOffset(start,i));
+  const {start,end,dates}=LifeLogic.periodDates(today,monthly?'month':'week');
   const habits=habitEntries();
   const history=focusHistory();
   const days=dates.map(date=>{
@@ -1800,7 +1795,7 @@ async function focusHistoryRemove(id){
 }
 function focusHistoryHTML(){
   const history=focusHistory();
-  const today=koreaToday(),weekStart=plannerDateOffset(today,-new Date(today+'T12:00:00Z').getUTCDay());
+  const today=koreaToday(),weekStart=LifeLogic.weekStart(today);
   const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
@@ -1969,7 +1964,7 @@ function renderCalendar(){
   const today=koreaToday();
   plannerRenderedToday=today;
   if(!LifeLogic.validDate(plannerSelected))plannerSelected=today;
-  const startOfWeek=date=>plannerDateOffset(date,-new Date(date+'T12:00:00Z').getUTCDay());
+  const startOfWeek=LifeLogic.weekStart;
   let dates=[];
   if(plannerView==='day')dates=[plannerSelected];
   else if(plannerView==='week')dates=Array.from({length:7},(_,i)=>plannerDateOffset(startOfWeek(plannerSelected),i));
