@@ -104,9 +104,9 @@ test('changing focus duration resets once after confirmation without second rese
 });
 
 test('backup import validates nested records and warns when saving fails',()=>{
-  assert.match(html,/function validateLifeAIBackupState\(data\)/);
-  assert.match(html,/LifeLogic\.validateBackupState\(data\)/);
-  assert.match(html,/if\(!validateLifeAIBackupState\(migrated\)\)/);
+  assert.doesNotMatch(html,/validateLifeAIBackupState/);
+  assert.match(html,/LifeLogic\.readBackup\(await file\.text\(\)\)/);
+  assert.match(html,/if\(!result\.ok\)throw new Error\(result\.message\)/);
   assert.match(html,/const snapshot=localStorage\.getItem\('lifeAIPrototypeV5'\)/);
   assert.match(html,/lifeAISaveWarningShown/);
   assert.match(html,/기록을 저장하지 못했어요/);

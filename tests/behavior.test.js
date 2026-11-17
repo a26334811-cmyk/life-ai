@@ -21,6 +21,24 @@ test('a running focus timer survives reload and keeps counting',()=>{
   assert.equal(b.run('focusSettings().minutes'),25);
 });
 
+test('focus panel lists every duration and category from the shared lists, and settings are repaired once',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',focusSettings:{minutes:25,alarm:'vibrate',category:'bogus'}}));
+  assert.equal(a.run('focusSettings().category'),'study');
+  const html=a.run('focusPanelHTML()');
+  for(const n of JSON.parse(a.run('JSON.stringify(LifeLogic.FOCUS_MINUTES)')))assert.ok(html.includes(`<option value="${n}"`),'minutes '+n);
+  for(const c of JSON.parse(a.run('JSON.stringify(LifeLogic.FOCUS_CATEGORIES)')))assert.ok(html.includes(`<option value="${c.name}"`)&&html.includes(c.label),'category '+c.name);
+  assert.equal((html.match(/<option value="study" selected>/g)||[]).length,1);
+  a.run("focusChangeCategory('job')");assert.equal(a.run('focusSettings().category'),'job');
+  a.run("focusChangeCategory('hacker')");assert.equal(a.run('focusSettings().category'),'job');
+  a.run("focusRecordCompletion({minutes:25})");
+  assert.equal(a.run('state.focusHistory[0].category'),'job');
+  a.run("focusRecordCompletion({minutes:30,category:'personal',completedAt:'2026-05-10T04:00:00.000Z'})");
+  const history=a.run('focusHistoryHTML()');
+  assert.ok(history.includes('💼 취업 준비: 0시간 25분'));
+  assert.ok(history.includes('🌿 개인 목표: 0시간 30분'));
+  assert.ok(history.includes('📚 자격증·공부: 0시간 0분'));
+});
+
 test('a paused focus timer is restored with its remaining time',()=>{
   const a=createApp();
   a.run('focusStartPause()');
@@ -355,6 +373,24 @@ test('a page without a company says so instead of guessing, and a past deadline 
   assert.equal(a.el('postingDeadline').value,'');
   assert.match(status(a),/원티드 페이지라서 회사명은 직접 입력/);
   assert.match(status(a),/이미 지났어요/);
+  assert.doesNotMatch(status(a),/찾지 못했어요/,'a deadline that was found but is past must not also be reported as not found');
+});
+
+test('a past deadline does not open the paste box, a missing deadline still does',async()=>{
+  const run=async body=>{
+    let opened=false;
+    const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'정비 신입',company:'현대제철',...body})});
+    a.el('postingPaste').closest=()=>({set open(v){opened=v;}});
+    a.el('postingUrl').value='https://example.com/job/7';
+    await a.run('fillPostingFromUrl()');
+    return {opened,text:status(a),deadline:a.el('postingDeadline').value};
+  };
+  const past=await run({deadline:'2026-10-01',description:''});
+  assert.equal(past.opened,false);assert.match(past.text,/이미 지났어요/);assert.equal(past.deadline,'');
+  const pastInText=await run({description:'접수 마감 2026.10.20'});
+  assert.equal(pastInText.opened,false);assert.doesNotMatch(pastInText.text,/찾지 못했어요/);
+  const none=await run({description:''});
+  assert.equal(none.opened,true);assert.match(none.text,/마감일은 링크에서 찾지 못했어요/);
 });
 
 test('the deadline is found in the page description when the page has no structured deadline',async()=>{
@@ -443,6 +479,27 @@ test('pasting the real Hyundai Steel posting text fills the deadline 2026-11-22'
   a.run('fillPostingFromPaste()');
   assert.equal(a.el('postingDeadline').value,'2026-11-22');
   assert.match(status(a),/마감일/);
+});
+
+test('MY shows the goal type in Korean, never the internal code',()=>{
+  const names={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
+  for(const [code,name] of Object.entries(names)){
+    const a=createApp(JSON.stringify({mainGoal:'x',goalType:code}));a.run('renderMy()');
+    assert.ok(a.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">'+name+'</p>'),code);
+    assert.ok(!a.el('myContent').innerHTML.includes('<p class="meta">'+code+'</p>'),code);
+  }
+  const none=createApp();none.run('renderMy()');
+  assert.ok(none.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">미설정</p>'));
+  const odd=createApp(JSON.stringify({mainGoal:'x',goalType:'constructor'}));odd.run('renderMy()');
+  assert.ok(odd.el('myContent').innerHTML.includes('<strong>목표 유형</strong><p class="meta">미설정</p>'));
+});
+
+test('MY no longer shows the leftover demo test questions',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',goalType:'cert'}));a.run('renderMy()');
+  const html=a.el('myContent').innerHTML;
+  assert.ok(!html.includes('테스트하면서 생각해볼 것'));
+  assert.ok(!html.includes('무슨 앱인지 알겠나요'));
+  assert.ok(html.includes('처음부터 다시 시작'),'the rest of MY is still rendered');
 });
 
 test('MY shows when the last backup was made',()=>{

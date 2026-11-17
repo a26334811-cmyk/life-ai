@@ -729,8 +729,8 @@ async function editCurrentGoal(){
   toast('목표를 수정했어요.');
 }
 
-const LIFE_AI_BACKUP_FORMAT='life-ai-backup';
-const LIFE_AI_BACKUP_VERSION=1;
+const LIFE_AI_BACKUP_FORMAT=LifeLogic.BACKUP_FORMAT;
+const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
 function exportLifeAIBackup(){
   try{
     const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
@@ -745,7 +745,6 @@ function exportLifeAIBackup(){
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
   }catch(e){toast('백업 파일을 만들지 못했어요.');}
 }
-function validateLifeAIBackupState(data){return LifeLogic.validateBackupState(data);}
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
 function backupNudgeHTML(){
   const nudge=LifeLogic.backupNudge(state,Date.now());
@@ -769,17 +768,10 @@ async function importLifeAIBackup(input){
   if(!file)return;
   if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
   try{
-    const backup=JSON.parse(await file.text());
-    if(!backup||backup.format!==LIFE_AI_BACKUP_FORMAT||backup.version!==LIFE_AI_BACKUP_VERSION||
-       !backup.state||typeof backup.state!=='object'||Array.isArray(backup.state)||
-       typeof backup.state.mainGoal!=='string'||typeof backup.state.nickname!=='string'||
-       !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
-      throw new Error('올바른 life-ai 백업 파일이 아니에요.');
-    }
-    const migrated=LifeLogic.migrateState(backup.state);
-    if(!validateLifeAIBackupState(migrated))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
+    const result=LifeLogic.readBackup(await file.text());
+    if(!result.ok)throw new Error(result.message);
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
-    const safe=LifeLogic.sanitizeState(migrated).state;
+    const safe=result.state;
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
@@ -1217,6 +1209,11 @@ function renderGoals(){
       <button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>
     </div>`;
 }
+const TASK_PLANS={
+  cert:{stage:'응시 준비',tasks:['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시']},
+  policy:{stage:'조건 확인',tasks:['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록']},
+  custom:{stage:'실행 준비',tasks:['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록']}
+};
 function renderTasks(){
   document.getElementById('goalDetailTitle').textContent='🎯 '+(state.mainGoal||'내 목표');
   const box=document.getElementById('taskList');
@@ -1224,33 +1221,9 @@ function renderTasks(){
     document.getElementById('stageText').textContent='공고별 지원 관리';
     box.innerHTML='<button class="btn primary" onclick="go(\'jobHub\')">저장한 공고에서 준비하기</button>';return;
   }
-  if(state.goalType==='cert'){
-    document.getElementById('stageText').textContent='응시 준비';
-    box.innerHTML=['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
-    return;
-  }
-  if(state.goalType==='policy'){
-    document.getElementById('stageText').textContent='조건 확인';
-    box.innerHTML=['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
-    return;
-  }
-  if(state.goalType!=='job'){
-    document.getElementById('stageText').textContent='실행 준비';
-    box.innerHTML=['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
-    return;
-  }
-  if(state.jobSubmitted){
-    document.getElementById('stageText').textContent='지원 완료 ✓';
-    box.innerHTML=`<div class="card"><h3 class="success">🎉 지원이 기록됐어요.</h3><p>지원 완료를 기록했어요.</p><div class="divider"></div><strong>다음 단계</strong><p>결과 일정이 생기면 추가해보세요.</p></div>`;
-    return;
-  }
-  document.getElementById('stageText').textContent=state.jobPreparationStarted?'지원 준비':'기회 탐색';
-  const jobTasks=['지원자격 최종 확인','이력서 준비','자기소개서 작성','증빙자료 확인','최종 지원서 제출'];
-  box.innerHTML=jobTasks.map((t,i)=>`
-    <label class="check">
-      <input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"/>
-      <span><strong>${t}</strong></span>
-    </label>`).join('');
+  const plan=TASK_PLANS[state.goalType]||TASK_PLANS.custom;
+  document.getElementById('stageText').textContent=plan.stage;
+  box.innerHTML=plan.tasks.map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
 }
 async function toggleTask(i){
   if(state.goalType==='job' && i===4 && !state.completedTasks[i]){
@@ -1266,7 +1239,7 @@ async function toggleTask(i){
   persistState();
   renderTasks();
 }
-function koreaToday(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());}
+function koreaToday(){return LifeLogic.koreaDate(Date.now());}
 function certCalendarHTML(schedule){
   if(!schedule?.items?.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
   const today=koreaToday();
@@ -1308,8 +1281,8 @@ function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||planner
 async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
-  if(!title||title.length>120||!validDeadline(date)||!date){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
-  if(until&&(!validDeadline(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  if(!title||title.length>120||!LifeLogic.validDate(date)){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
+  if(until&&(!LifeLogic.validDate(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
   const editingId=plannerEditing,occurrence=plannerEditingDate;
   const before=plannerEntries().find(e=>e.id===editingId);
   let scope='all';
@@ -1372,6 +1345,7 @@ function focusSettings(){
   if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
   if(!LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
   if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
+  state.focusSettings.category=LifeLogic.focusCategoryName(state.focusSettings.category);
   return state.focusSettings;
 }
 function focusFormat(seconds){
@@ -1390,9 +1364,9 @@ function focusUpdateUI(){
 function focusSaveRun(){
   const cfg=focusSettings(),total=Number(cfg.minutes)*60;
   if(focusRunning){
-    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category};
   }else if(focusRemaining>0&&focusRemaining<total){
-    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category||'study'};
+    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category};
   }else delete state.focusRun;
   persistState();
 }
@@ -1427,7 +1401,7 @@ function focusTick(){
   focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
   focusUpdateUI();
   if(focusRemaining===0){
-    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category||'study',completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
+    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category,completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
     focusStopTimer();
     focusRemaining=Number(focusSettings().minutes)*60;
     delete state.focusRun;
@@ -1511,7 +1485,7 @@ function focusHistory(){
 }
 function focusRecordCompletion(done){
   const minutes=Number(done?.minutes||focusSettings().minutes);
-  const category=done?.category||focusSettings().category||'study';
+  const category=done?.category||focusSettings().category;
   const completedAt=done?.completedAt||new Date().toISOString();
   // The same finished session can be seen by two open tabs; record it only once.
   if(focusHistory().some(x=>x.completedAt===completedAt))return;
@@ -1525,7 +1499,7 @@ function focusRecordCompletion(done){
   if(document.getElementById('calendarContent'))renderCalendar();
 }
 function focusChangeCategory(value){
-  if(!['study','job','personal'].includes(value))return;
+  if(LifeLogic.focusCategoryName(value)!==value)return;
   focusSettings().category=value;
   if(state.focusRun&&typeof state.focusRun==='object')state.focusRun.category=value;
   persistState();
@@ -1644,8 +1618,8 @@ function focusHistoryHTML(){
   const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
   const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
-  const categories={study:'📚 자격증·공부',job:'💼 취업 준비',personal:'🌿 개인 목표'};
-  const breakdown=Object.entries(categories).map(([key,label])=>({label,minutes:history.filter(x=>x.category===key).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  const categories=Object.fromEntries(LifeLogic.FOCUS_CATEGORIES.map(c=>[c.name,c.label]));
+  const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:history.filter(x=>x.category===c.name).reduce((n,x)=>n+Number(x.minutes||0),0)}));
   return `<div class="card"><h3>📊 집중 기록</h3>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
@@ -1665,8 +1639,8 @@ function focusPanelHTML(){
     <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
       <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
-    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      <option value="study" ${(!cfg.category||cfg.category==='study')?'selected':''}>📚 자격증·공부</option><option value="job" ${cfg.category==='job'?'selected':''}>💼 취업 준비</option><option value="personal" ${cfg.category==='personal'?'selected':''}>🌿 개인 목표</option>\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
-      ${[5,10,15,25,30,45,50,60].map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+      ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
     </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
       ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
@@ -1789,7 +1763,7 @@ function plannerSwitchTab(tab){
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
-  if(!validDeadline(plannerSelected)||!plannerSelected)plannerSelected=today;
+  if(!LifeLogic.validDate(plannerSelected))plannerSelected=today;
   const startOfWeek=date=>plannerDateOffset(date,-new Date(date+'T12:00:00Z').getUTCDay());
   let dates=[];
   if(plannerView==='day')dates=[plannerSelected];
@@ -1866,12 +1840,14 @@ function renderCalendar(){
     <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
     </section>
   `;
-  document.getElementById('focusCategory').value=focusSettings().category||'study';
+  document.getElementById('focusCategory').value=focusSettings().category;
   document.getElementById('plannerCategory').value=existing?.category||'personal';
   document.getElementById('plannerPriority').value=existing?.priority||'normal';
   document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
 
+const GOAL_TYPE_NAMES={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
+function goalTypeName(type){return Object.hasOwn(GOAL_TYPE_NAMES,type)?GOAL_TYPE_NAMES[type]:'미설정';}
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
@@ -1880,7 +1856,7 @@ function renderMy(){
     <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표 없음')}</strong></div>
     <div class="section-title">AI가 알고 있는 정보</div>
     <div class="stack">
-      <div class="card"><strong>목표 유형</strong><p class="meta">${state.goalType || '미설정'}</p></div>
+      <div class="card"><strong>목표 유형</strong><p class="meta">${goalTypeName(state.goalType)}</p></div>
       ${state.goalType==='job'?`
       <div class="card"><strong>관심 회사·직무</strong><p class="meta">${state.selectedCompany||'미입력'} · ${state.selectedJob||'미입력'}</p></div>
       <div class="card"><strong>취업 정보</strong><p class="meta">${state.employmentStatus||'미입력'} · ${state.career||'경력 미입력'} · ${state.education||'학력 미입력'}</p></div>
@@ -1899,9 +1875,7 @@ function renderMy(){
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
       <button class="btn ghost" onclick="editCurrentGoal()">✏️ 현재 목표 수정</button>
       <button class="btn ghost" onclick="resetPrototype()">↺ 처음부터 다시 시작</button>
-    </div>
-    <div class="section-title">테스트하면서 생각해볼 것</div>
-    <div class="card"><p>① 처음 봤을 때 무슨 앱인지 알겠나요?</p><p>② 내 목표를 이해한다고 느꼈나요?</p><p>③ 홈에서 지금 뭘 해야 할지 알겠나요?</p><p>④ 실제 정보가 연결되면 다시 쓰고 싶나요?</p></div>`;
+    </div>`;
 }
 
 // Make the DEMO job detail reflect the user's chosen company/job.
@@ -1947,16 +1921,17 @@ function applyPostingInfo(info){
   if(postingFillField('postingCompany',info.company))filled.push('회사명');
   if(postingFillField('postingRegion',info.region))filled.push('근무지역');
   const today=koreaToday();
-  let deadline=info.deadline&&validDeadline(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
+  let deadline=info.deadline&&LifeLogic.validDate(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
   if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
   let note='';
   if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';
   else if(deadline&&postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
-  if(!filled.length&&!note)return '읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.';
+  const deadlinePast=Boolean(deadline&&deadline.past);
+  if(!filled.length&&!note)return {message:'읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.',deadlinePast};
   let message=filled.length?'채운 항목: '+filled.join(', ')+'.':'';
   if(filled.includes('회사명')&&info.companyInferred)message+=' 회사명은 페이지 정보로 추정한 값이에요.';
   if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
-  return (message+note+' 내용을 확인해 주세요.').trim();
+  return {message:(message+note+' 내용을 확인해 주세요.').trim(),deadlinePast};
 }
 async function fillPostingFromUrl(){
   const url=safeUrl((document.getElementById('postingUrl')?.value||'').trim());
@@ -1970,8 +1945,10 @@ async function fillPostingFromUrl(){
     const data=await response.json().catch(()=>({}));
     if(version!==postingFetchVersion)return;
     if(!response.ok||!data.ok)throw new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');
-    let message=applyPostingInfo(data);
-    if(!document.getElementById('postingDeadline')?.value){
+    const applied=applyPostingInfo(data);
+    let message=applied.message;
+    // A deadline that was found but is already past is explained in the message; do not also say "not found".
+    if(!applied.deadlinePast&&!document.getElementById('postingDeadline')?.value){
       // Many sites draw the deadline with JavaScript, so a link alone cannot show it. Point to the paste box and open it.
       message+=' 마감일은 링크에서 찾지 못했어요. 공고 화면의 글을 복사해 아래 "붙여넣기" 칸에 넣으면 찾아 드려요.';
       const box=document.getElementById('postingPaste')?.closest?.('details');
@@ -1988,7 +1965,7 @@ async function fillPostingFromUrl(){
 function fillPostingFromPaste(){
   const text=document.getElementById('postingPaste')?.value||'';
   if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
-  const message=applyPostingInfo({description:text});
+  const message=applyPostingInfo({description:text}).message;
   const found=!message.startsWith('읽었지만');
   const linkFilled=postingFillField('postingUrl',LifeLogic.firstUrl(text));
   if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
@@ -2012,16 +1989,11 @@ function handleSharedLink(){
   fillPostingFromUrl();
   return true;
 }
-function validDeadline(value){
-  if(!value)return true;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
-  const date=new Date(value+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
-}
 function savePosting(){
   jobCollections();const value=id=>document.getElementById(id).value.trim();
   const company=value('postingCompany'),title=value('postingTitle'),url=safeUrl(value('postingUrl')),deadline=value('postingDeadline');
   if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
-  if(!validDeadline(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
+  if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
@@ -2054,7 +2026,7 @@ function setPostingTask(id,index,checked){
   p.tasks[index]=checked;persistState();
 }
 function setInterviewDate(id,value){
-  if(!validDeadline(value)){toast('면접 날짜를 확인해 주세요.');return;}
+  if(value&&!LifeLogic.validDate(value)){toast('면접 날짜를 확인해 주세요.');return;}
   const posting=state.jobPostings.find(x=>x.id===id);if(!posting)return;
   posting.interviewDate=value;persistState();
 }
@@ -2097,7 +2069,7 @@ function daysUntil(s){
   const t=String(s||'').replace(/\D/g,'');
   if(t.length!==8)return '';
   const iso=`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`;
-  if(!validDeadline(iso))return '';
+  if(!LifeLogic.validDate(iso))return '';
   const n=Math.round((Date.parse(iso+'T00:00:00Z')-Date.parse(koreaToday()+'T00:00:00Z'))/86400000);
   return n<0?'마감':n===0?'오늘 마감':`D-${n}`;
 }
