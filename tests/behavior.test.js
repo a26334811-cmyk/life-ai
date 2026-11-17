@@ -413,6 +413,17 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+test('setup text boxes run their "next" action on Enter and show a matching keyboard key',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  const expected={nickname:["go('goalChoice')",'next'],companyInput:['selectCompany()','go'],jobInput:["selectJob(this.value||'관심 직무')",'go'],
+    certInput:["quickGoal((this.value||'자격증')+' 준비')",'go'],customGoalInput:['createCustomGoal()','go']};
+  for(const [id,[action,hint]] of Object.entries(expected)){
+    const tag=html.match(new RegExp('<input id="'+id+'"[^>]*>'))[0];
+    assert.ok(tag.includes('enterkeyhint="'+hint+'"'),id+' keyboard hint');
+    assert.ok(tag.includes("event.key==='Enter'")&&tag.includes(action),id+' Enter action');
+  }
+});
+
 test('editing or adding a planner item scrolls to the form and focuses the title',()=>{
   const a=createApp(JSON.stringify({mainGoal:'x',plannerEntries:[{id:'p',title:'a',date:'2026-05-10'}]}));
   const calls=[];
