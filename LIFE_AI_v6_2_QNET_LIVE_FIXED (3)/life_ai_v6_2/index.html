@@ -1947,7 +1947,13 @@ async function deletePosting(id){
 }
 function setPostingStage(id,stage){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||!postingStages.includes(stage))return;
+  if(p.stage!==stage)p.stageChangedAt=koreaToday();
   p.stage=stage;persistState();renderJobHub();
+}
+function postingStageLine(p){
+  if(!p.stageChangedAt||!validDeadline(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
+  const n=Math.round((Date.parse(koreaToday()+'T00:00:00Z')-Date.parse(p.stageChangedAt+'T00:00:00Z'))/86400000);
+  return `<p class="meta">${esc(p.stage)} · ${n<=0?'오늘 바꿨어요':n+'일째'}</p>`;
 }
 function setPostingTask(id,index,checked){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
@@ -1970,7 +1976,7 @@ function jobCalendarHTML(){
 function renderJobHub(){
   jobCollections();
   document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
-  document.getElementById('savedPostings').innerHTML=state.jobPostings.map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p><a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+  document.getElementById('savedPostings').innerHTML=state.jobPostings.map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p>${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
 }
 
 function esc(s){

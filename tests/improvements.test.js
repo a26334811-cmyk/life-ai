@@ -18,6 +18,34 @@ test('a forgotten habit can be checked for yesterday, which keeps the streak; fu
   assert.equal(a.saved().habits[0].checks.includes('2026-05-11'),false,'tomorrow is refused');
 });
 
+/* ---------- #85 posting stage date ---------- */
+const postingsSeed=()=>JSON.stringify({jobPostings:[
+  {id:'a',company:'가회사',title:'공고A',url:'https://a.example/1',deadline:'2026-05-20',stage:'관심',tasks:[false,false,false,false],createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'b',company:'나회사',title:'공고B',url:'https://b.example/1',deadline:'',stage:'지원 완료',tasks:[false,false,false,false],stageChangedAt:'2026-05-03'},
+  {id:'c',company:'다회사',title:'공고C',url:'https://c.example/1',deadline:'',stage:'지원 완료',tasks:[false,false,false,false]}]});
+
+test('changing the stage records today and the card shows how many days since',()=>{
+  const a=createApp(postingsSeed());
+  a.run("setPostingStage('a','지원 완료')");
+  assert.equal(a.saved().jobPostings.find(p=>p.id==='a').stageChangedAt,'2026-05-10');
+  a.clock.now+=3*86400000;
+  assert.match(a.run("postingStageLine(state.jobPostings.find(p=>p.id==='a'))"),/지원 완료 · 3일째/);
+  a.run('renderJobHub()');
+  assert.match(a.el('savedPostings').innerHTML,/지원 완료 · 3일째/);
+  // picking the same stage again does not reset the date
+  a.run("setPostingStage('a','지원 완료')");
+  assert.equal(a.saved().jobPostings.find(p=>p.id==='a').stageChangedAt,'2026-05-10');
+});
+
+test('old postings without a stage date show nothing and early stages show no day count',()=>{
+  const a=createApp(postingsSeed());
+  assert.equal(a.run("postingStageLine(state.jobPostings.find(p=>p.id==='c'))"),'');
+  assert.equal(a.run("postingStageLine(state.jobPostings.find(p=>p.id==='a'))"),'');
+  assert.match(a.run("postingStageLine(state.jobPostings.find(p=>p.id==='b'))"),/7일째/);
+  a.run("setPostingStage('a','준비 중')");
+  assert.equal(a.run("postingStageLine(state.jobPostings.find(p=>p.id==='a'))"),'');
+});
+
 /* ---------- #92 habit rename ---------- */
 const habitsSeed=()=>JSON.stringify({habits:[
   {id:'h1',name:'운동',createdAt:'2026-05-01',checks:['2026-05-09','2026-05-10']},
