@@ -774,18 +774,26 @@ async function editCurrentGoal(){
 const LIFE_AI_BACKUP_FORMAT=LifeLogic.BACKUP_FORMAT;
 const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
 function exportLifeAIBackup(){
+  const hadBackupAt=Object.prototype.hasOwnProperty.call(state,'lastBackupAt'),previousBackupAt=state.lastBackupAt;
   try{
-    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
+    const exportedAt=new Date().toISOString();
+    state.lastBackupAt=exportedAt; // set before copying so the file holds the date of this backup
+    const backupState=JSON.parse(JSON.stringify(state));
+    delete backupState.focusRun; // a running timer in a file would be counted as a finished session when restored later
+    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
     link.href=url;link.download='life-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
-    state.lastBackupAt=new Date().toISOString();delete state.backupSnoozeUntil;persistState();
+    delete state.backupSnoozeUntil;persistState();
     refreshBackupNudges();
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
-  }catch(e){toast('백업 파일을 만들지 못했어요.');}
+  }catch(e){
+    if(hadBackupAt)state.lastBackupAt=previousBackupAt;else delete state.lastBackupAt;
+    toast('백업 파일을 만들지 못했어요.');
+  }
 }
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
 function backupNudgeHTML(){
@@ -814,6 +822,7 @@ async function importLifeAIBackup(input){
     if(!result.ok)throw new Error(result.message);
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
     const safe=result.state;
+    delete safe.focusRun; // also for older backup files made while a timer was running
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
@@ -827,8 +836,9 @@ async function importLifeAIBackup(input){
 }
 
 async function resetPrototype(){
-  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
+  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n보관해 둔 손상 원본도 함께 지워져요.\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
   try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
+  try { for(const x of damagedArchives()) localStorage.removeItem(x.key); } catch(e) {}
   location.reload();
 }
 

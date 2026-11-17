@@ -80,6 +80,19 @@ test('sanitizeState drops wrong-typed fields and broken list items but keeps goo
   for(const k of ['completedTasks','habits','plannerEntries','focusHistory','activity','focusSettings'])assert.ok(dropped.includes(k),k);
 });
 
+test('sanitizeState keeps a habit and its good dates when only some check dates are broken',()=>{
+  const raw={habits:[{name:'운동',checks:['2026-05-01','bad','2026-02-30',7,'2026-05-02']},{name:'독서',checks:['2026-05-03']}]};
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.equal(state.habits.length,2);
+  assert.deepEqual(state.habits[0].checks,['2026-05-01','2026-05-02']);
+  assert.equal(state.habits[0].name,'운동');
+  assert.deepEqual(state.habits[1].checks,['2026-05-03']);
+  assert.ok(dropped.includes('habits'),'the user is told something was skipped');
+  assert.deepEqual(raw.habits[0].checks,['2026-05-01','bad','2026-02-30',7,'2026-05-02'],'input is not changed');
+  assert.deepEqual(L.sanitizeState({habits:[{name:'a',checks:['2026-05-01']}]}).dropped,[],'clean data reports nothing');
+  assert.equal(L.validateBackupState({mainGoal:'',nickname:'',activity:[],completedTasks:[],habits:raw.habits}),false,'restoring a backup stays strict');
+});
+
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
   assert.equal(L.sanitizeState(null),null);
   assert.equal(L.sanitizeState([]),null);
@@ -176,6 +189,15 @@ test('extractDeadline finds the deadline in typical Korean posting text',()=>{
     ['마감 1월 5일','2027-01-05']
   ];
   for(const [text,expected] of cases)assert.equal(L.extractDeadline(text,today)?.date,expected,text);
+});
+
+test('extractDeadline year-less dates pick the closest year around new year',()=>{
+  const jan=L.extractDeadline('12월 28일까지 접수','2027-01-03');
+  assert.equal(jan.date,'2026-12-28');assert.equal(jan.past,true,'December deadline read in January is already over');
+  const dec=L.extractDeadline('마감 1월 5일','2026-12-20');
+  assert.equal(dec.date,'2027-01-05');assert.equal(dec.past,false);
+  assert.equal(L.extractDeadline('마감 1월 5일','2027-01-03').date,'2027-01-05');
+  assert.equal(L.extractDeadline('마감 12월 28일','2026-11-17').date,'2026-12-28');
 });
 
 test('extractDeadline stays quiet when there is no clear deadline',()=>{

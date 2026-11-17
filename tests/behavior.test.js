@@ -839,3 +839,80 @@ test('company, job, career, education and certificate text is escaped on the goa
   assert.ok(!/<(img|script)\b/.test(plan),plan);
   assert.ok(plan.includes('&lt;img src=x onerror=alert(1)&gt;'));
 });
+
+/* ---------- backup file contents ---------- */
+// Fakes the browser pieces exportLifeAIBackup needs and returns the JSON text of the backup file it "downloads".
+function captureBackup(a,failBlob){
+  const out={text:null};
+  a.context.Blob=class{constructor(parts){if(failBlob)throw new Error('blob');out.text=parts.join('');}};
+  a.context.URL={createObjectURL:()=>'blob:x',revokeObjectURL(){}};
+  a.context.document.createElement=()=>({click(){},remove(){}});
+  a.context.document.body={appendChild(){}};
+  return out;
+}
+
+test('the backup file holds the date of this very backup, even the first one',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-04-01T00:00:00.000Z'}));
+  const out=captureBackup(a);
+  a.run('exportLifeAIBackup()');
+  const file=JSON.parse(out.text);
+  assert.equal(file.state.lastBackupAt,file.exportedAt);
+  assert.equal(a.saved().lastBackupAt,file.exportedAt);
+  const first=createApp();const firstOut=captureBackup(first);
+  first.run('exportLifeAIBackup()');
+  const firstFile=JSON.parse(firstOut.text);
+  assert.equal(firstFile.state.lastBackupAt,firstFile.exportedAt,'first backup has a date too');
+  // restoring that file must not trigger the "never backed up" reminder
+  const restored=createApp(JSON.stringify(firstFile.state));
+  assert.equal(restored.run('LifeLogic.backupNudge(state,Date.now())'),null);
+});
+
+test('a backup made while the timer runs has no timer, and restoring it later records no fake focus',async()=>{
+  const a=createApp();
+  a.run('focusStartPause()');
+  assert.equal(a.saved().focusRun.status,'running');
+  const out=captureBackup(a);
+  a.run('exportLifeAIBackup()');
+  const file=JSON.parse(out.text);
+  assert.equal('focusRun' in file.state,false);
+  assert.equal(a.saved().focusRun.status,'running','the live timer itself keeps running');
+  // an older file that still contains a finished-looking timer is cleaned on restore
+  const old=JSON.parse(out.text);
+  old.state.focusRun={status:'running',deadline:Date.parse('2026-05-10T03:25:00Z'),minutes:25,category:'study'};
+  const b=createApp(undefined,{search:'',now:Date.parse('2026-06-20T03:00:00Z')});
+  b.context.location.reload=()=>{};
+  const text=JSON.stringify(old);
+  await b.run('importLifeAIBackup')({files:[{size:text.length,text:async()=>text}]});
+  assert.equal('focusRun' in b.saved(),false);
+  const c=createApp(JSON.stringify(b.saved()),{now:Date.parse('2026-06-20T03:00:00Z')});
+  assert.equal(c.run('focusHistory().length'),0,'no focus record was invented');
+});
+
+test('a failed backup puts the previous last-backup date back',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-04-01T00:00:00.000Z'}));
+  captureBackup(a,true);
+  a.run('exportLifeAIBackup()');
+  assert.equal(a.run('state.lastBackupAt'),'2026-04-01T00:00:00.000Z');
+  assert.match(a.toasts[a.toasts.length-1],/만들지 못했어요/);
+  const b=createApp();captureBackup(b,true);
+  b.run('exportLifeAIBackup()');
+  assert.equal(b.run("'lastBackupAt' in state"),false);
+});
+
+/* ---------- reset also removes the kept damaged original ---------- */
+test('reset removes the main save and the kept damaged original, and the prompt says so',async()=>{
+  const a=createApp('{not json',{search:''});
+  a.context.location.reload=()=>{};
+  // damaged originals are kept under dated names (lifeAIPrototypeV5.damaged.YYYY-MM-DD)
+  const damagedKeys=s=>[...s.keys()].filter(k=>k.startsWith('lifeAIPrototypeV5.damaged'));
+  assert.equal(damagedKeys(a.storage).length,1);
+  assert.equal(a.storage.get(damagedKeys(a.storage)[0]),'{not json');
+  await a.run('resetPrototype()');
+  assert.equal(a.storage.has('lifeAIPrototypeV5'),false);
+  assert.deepEqual(damagedKeys(a.storage),[]);
+  assert.match(a.dialogs[a.dialogs.length-1].message,/손상 원본도 함께 지워져요/);
+  const b=createApp('{not json',{search:'',confirm:false});
+  b.context.location.reload=()=>{};
+  await b.run('resetPrototype()');
+  assert.equal(b.storage.get(damagedKeys(b.storage)[0]),'{not json','cancelled reset keeps everything');
+});

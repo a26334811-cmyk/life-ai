@@ -100,7 +100,8 @@
 
   const itemChecks = {
     activity: item => isText(item, 300),
-    habits: item => isPlain(item) && isText(item.name, 200) && Array.isArray(item.checks) && item.checks.every(validDate),
+    // only the name is checked here; broken check dates are removed one by one in sanitizeState
+    habits: item => isPlain(item) && isText(item.name, 200) && Array.isArray(item.checks),
     plannerEntries: item => isPlain(item) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
     jobPostings: item => isPlain(item),
@@ -149,8 +150,19 @@
       } else if (ARRAY_KEYS.includes(key)) {
         if (!Array.isArray(value)) { dropped.push(key); continue; }
         const check = itemChecks[key];
-        const kept = check ? value.filter(check) : value;
-        if (kept.length !== value.length) dropped.push(key);
+        let items = value, droppedDate = false;
+        if (key === 'habits') {
+          // keep a habit's good check dates even when some other date in it is broken
+          items = value.map(habit => {
+            if (!(check(habit))) return habit;
+            const checks = habit.checks.filter(validDate);
+            if (checks.length === habit.checks.length) return habit;
+            droppedDate = true;
+            return Object.assign({}, habit, { checks });
+          });
+        }
+        const kept = check ? items.filter(check) : items;
+        if (kept.length !== value.length || droppedDate) dropped.push(key);
         out[key] = kept;
       } else {
         out[key] = value; // unknown keys from newer versions are preserved
@@ -295,6 +307,8 @@
         iso = make(year);
         // "1월 5일까지" read in December means next year
         if (iso && iso < dateOffset(today, -31)) iso = make(year + 1);
+        // "12월 28일까지" read in early January means last month, not 11 months from now
+        else if (iso && iso > dateOffset(today, 183)) iso = make(year - 1) || iso;
       }
       if (iso && iso >= dateOffset(today, -366 * 2) && iso <= dateOffset(today, 366 * 2)) found.push({ index, length, iso, hasYear });
     };
