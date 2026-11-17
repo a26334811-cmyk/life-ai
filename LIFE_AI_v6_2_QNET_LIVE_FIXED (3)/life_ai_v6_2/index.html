@@ -1620,6 +1620,18 @@ function habitToggle(id,date){
   else habit.checks.push(date);
   persistState();renderCalendar();
 }
+async function habitRename(id){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  const answer=await uiPrompt('새 습관 이름을 입력해 주세요. 체크 기록은 그대로 남아요.',habit.name||'',{title:'습관 이름 수정',maxLength:60});
+  if(answer===null||answer===undefined)return;
+  const name=String(answer).trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(name===habit.name)return;
+  if(habitEntries().some(x=>x.id!==id&&x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habit.name=name;
+  persistState();renderCalendar();toast('습관 이름을 바꿨어요.');
+}
 async function habitRemove(id){
   if(!await uiConfirm('습관과 완료 기록을 삭제할까요?',{title:'습관 삭제',ok:'삭제',danger:true}))return;
   state.habits=habitEntries().filter(x=>x.id!==id);
@@ -1631,7 +1643,7 @@ function habitPanelHTML(){
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
-    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} onchange="habitToggle('${esc(h.id)}','${today}')"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" onclick="habitToggle('${esc(h.id)}','${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" onclick="habitRename('${esc(h.id)}')">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" onclick="habitRemove('${esc(h.id)}')">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
     <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
