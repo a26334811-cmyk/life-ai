@@ -22,8 +22,8 @@ Netlify 배포
 2. Netlify > Site configuration > Environment variables
 3. WORK24_AUTH_KEY, DATA_GO_KR_SERVICE_KEY 등록
 4. 새 Deploy 실행
-5. 앱에서 취업 목표 → 채용 상세 → '실제 공고 불러오기'
-6. 자격증 목표 → 자격증 화면 → '실제 일정 불러오기'
+5. 앱에서 취업 관리 → '고용24 공고 조회' → '공고 조회'
+6. 자격증 화면 → '시험일정 확인'
 
 주의: Netlify Drop의 단순 정적 폴더 업로드 방식에서는 Functions 배포가 제한될 수 있습니다.
 가장 안정적인 방식은 GitHub 저장소와 Netlify를 연결하여 배포하는 것입니다.
