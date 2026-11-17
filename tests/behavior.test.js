@@ -413,6 +413,19 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+test('restoring a backup keeps the previous data under beforeRestore',async()=>{
+  const old=JSON.stringify({mainGoal:'예전 목표',goalType:'cert',nickname:'a'});
+  const a=createApp(old,{search:''});
+  a.run('location.reload=()=>{}');
+  const backup={format:'life-ai-backup',version:1,state:{mainGoal:'백업 목표',nickname:'b',activity:[],completedTasks:[]}};
+  const input={files:[{size:100,text:async()=>JSON.stringify(backup)}]};
+  a.context.__input=input;
+  await a.run('importLifeAIBackup(__input)');
+  assert.equal(a.storage.get('lifeAIPrototypeV5.beforeRestore'),old);
+  assert.equal(a.saved().mainGoal,'백업 목표');
+  assert.match(a.dialogs.find(d=>d.kind==='alert').message,/beforeRestore/);
+});
+
 test('habit checkbox uses the date at click time, and a new day redraws the planner',()=>{
   const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',habits:[{id:'h',name:'공부',checks:[]}]}));
   a.run('renderCalendar()');
