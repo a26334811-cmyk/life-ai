@@ -714,7 +714,9 @@ function exportLifeAIBackup(){
   try{
     const exportedAt=new Date().toISOString();
     state.lastBackupAt=exportedAt; // set before copying so the file holds the date of this backup
-    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:JSON.parse(JSON.stringify(state))};
+    const backupState=JSON.parse(JSON.stringify(state));
+    delete backupState.focusRun; // a running timer in a file would be counted as a finished session when restored later
+    const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
@@ -764,6 +766,7 @@ async function importLifeAIBackup(input){
     if(!validateLifeAIBackupState(migrated))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
     const safe=LifeLogic.sanitizeState(migrated).state;
+    delete safe.focusRun; // also for older backup files made while a timer was running
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));

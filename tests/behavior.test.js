@@ -438,6 +438,27 @@ test('the backup file holds the date of this very backup, even the first one',()
   assert.equal(restored.run('LifeLogic.backupNudge(state,Date.now())'),null);
 });
 
+test('a backup made while the timer runs has no timer, and restoring it later records no fake focus',async()=>{
+  const a=createApp();
+  a.run('focusStartPause()');
+  assert.equal(a.saved().focusRun.status,'running');
+  const out=captureBackup(a);
+  a.run('exportLifeAIBackup()');
+  const file=JSON.parse(out.text);
+  assert.equal('focusRun' in file.state,false);
+  assert.equal(a.saved().focusRun.status,'running','the live timer itself keeps running');
+  // an older file that still contains a finished-looking timer is cleaned on restore
+  const old=JSON.parse(out.text);
+  old.state.focusRun={status:'running',deadline:Date.parse('2026-05-10T03:25:00Z'),minutes:25,category:'study'};
+  const b=createApp(undefined,{search:'',now:Date.parse('2026-06-20T03:00:00Z')});
+  b.context.location.reload=()=>{};
+  const text=JSON.stringify(old);
+  await b.run('importLifeAIBackup')({files:[{size:text.length,text:async()=>text}]});
+  assert.equal('focusRun' in b.saved(),false);
+  const c=createApp(JSON.stringify(b.saved()),{now:Date.parse('2026-06-20T03:00:00Z')});
+  assert.equal(c.run('focusHistory().length'),0,'no focus record was invented');
+});
+
 test('a failed backup puts the previous last-backup date back',()=>{
   const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-04-01T00:00:00.000Z'}));
   captureBackup(a,true);
