@@ -219,3 +219,13 @@ test('README and the PR draft say the company name can be a marked guess from th
   }
   assert.match(html,/info\.companyInferred/,'the app still marks guessed company names');
 });
+
+test('netlify.toml sends basic security headers for every page',()=>{
+  const block=read('netlify.toml').split('[[headers]]').find(b=>b.includes('for = "/*"'));
+  assert.ok(block,'a headers block for /*');
+  assert.match(block,/X-Content-Type-Options = "nosniff"/);
+  assert.match(block,/Referrer-Policy = "strict-origin-when-cross-origin"/);
+  const csp=block.match(/Content-Security-Policy = "([^"]+)"/)[1];
+  for(const rule of ["frame-ancestors 'none'","object-src 'none'","base-uri 'self'","connect-src 'self'"]) assert.ok(csp.includes(rule),rule);
+  assert.ok(!/script-src|default-src/.test(csp),'inline scripts must keep working');
+});

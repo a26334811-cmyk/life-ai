@@ -16,3 +16,11 @@
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Basic safety headers for every page. script-src is intentionally left open because the app uses inline code.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; connect-src 'self'"
