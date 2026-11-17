@@ -1645,7 +1645,7 @@ function focusRecordCompletion(done){
     toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');
   }
   persistState();
-  if(document.getElementById('calendarContent'))renderCalendar();
+  if(document.getElementById('calendarContent'))focusHistoryRefresh();
 }
 function focusChangeCategory(value){
   if(LifeLogic.focusCategoryName(value)!==value)return;
@@ -1762,6 +1762,30 @@ function progressInsightsHTML(){
     <details class="insights-details"><summary>집계 기준 보기</summary><p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p><p class="meta">등록일 이후 오늘까지의 습관과 완료된 집중 세션만 집계합니다. 기록이 없는 날은 실패로 간주하지 않아요.</p></details>
   </div>`;
 }
+let focusHistoryOpen=false;
+function focusHistoryRefresh(){renderCalendar();}
+/* Add a session done without the timer. completedAt starts with "manual-" so it never matches a timer session. */
+function focusHistoryAdd(){
+  const date=document.getElementById('focusManualDate')?.value||'';
+  const minutes=Number(document.getElementById('focusManualMinutes')?.value);
+  const category=document.getElementById('focusManualCategory')?.value||'study';
+  if(!LifeLogic.validDate(date)||date>koreaToday()){toast('날짜를 확인해 주세요. 오늘까지만 기록할 수 있어요.');return;}
+  if(!Number.isInteger(minutes)||minutes<1||minutes>600){toast('집중한 시간을 1~600분 사이 숫자로 입력해 주세요.');return;}
+  if(!['study','job','personal'].includes(category)){toast('종류를 선택해 주세요.');return;}
+  const history=focusHistory();
+  const at=history.findIndex(x=>x.date<=date);
+  history.splice(at<0?history.length:at,0,{date,minutes,category,completedAt:'manual-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
+  const limit=LifeLogic.FOCUS_HISTORY_LIMIT;
+  if(history.length>limit){history.length=limit;toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');}
+  else toast('집중 기록을 추가했어요.');
+  persistState();focusHistoryOpen=true;focusHistoryRefresh();
+}
+async function focusHistoryRemove(id){
+  if(!focusHistory().some(x=>x.completedAt===id))return;
+  if(!await uiConfirm('이 집중 기록을 지울까요? 통계에서도 빠져요.',{title:'집중 기록 삭제',ok:'삭제',danger:true}))return;
+  state.focusHistory=focusHistory().filter(x=>x.completedAt!==id);
+  persistState();focusHistoryOpen=true;focusHistoryRefresh();
+}
 function focusHistoryHTML(){
   const history=focusHistory();
   const today=koreaToday(),weekStart=plannerDateOffset(today,-new Date(today+'T12:00:00Z').getUTCDay());
@@ -1776,10 +1800,17 @@ function focusHistoryHTML(){
       <div><strong>${weekMin}분</strong><p class="meta">이번 주</p></div>
       <div><strong>${Math.floor(allMin/60)}시간 ${allMin%60}분</strong><p class="meta">전체</p></div>
     </div>
-    <details class="focus-history-more"><summary>목표별 기록·최근 활동 보기</summary><h4>목표별 누적 집중</h4>
+    <details class="focus-history-more" ${focusHistoryOpen?'open':''} ontoggle="focusHistoryOpen=this.open"><summary>목표별 기록·최근 활동 보기</summary><h4>목표별 누적 집중</h4>
     ${breakdown.map(x=>`<p class="meta">${x.label}: ${Math.floor(x.minutes/60)}시간 ${x.minutes%60}분</p>`).join('')}
-    <p class="meta">타이머가 0초까지 완료된 세션만 기록합니다. 중간에 종료한 시간은 포함하지 않습니다.</p>
-    ${history.slice(0,5).map(x=>`<p class="meta">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>`).join('')}</details>
+    <p class="meta">타이머가 0초까지 완료된 세션이 자동으로 기록됩니다. 중간에 종료한 시간은 포함하지 않으며, 타이머 없이 한 공부는 아래에서 직접 추가할 수 있어요.</p>
+    ${history.slice(0,5).map(x=>`<div class="planner-item"><p class="meta" style="margin:0">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>${x.completedAt?`<button class="btn ghost habit-remove" aria-label="${esc(x.date)} ${Number(x.minutes)||0}분 기록 삭제" onclick="focusHistoryRemove('${esc(x.completedAt)}')">삭제</button>`:''}</div>`).join('')}
+    <h4>기록 직접 추가</h4>
+    <div class="planner-form">
+      <label>날짜<input id="focusManualDate" type="date" value="${today}" max="${today}"></label>
+      <label>집중한 시간(분)<input id="focusManualMinutes" type="number" min="1" max="600" step="1" value="30"></label>
+      <label class="wide">종류<select id="focusManualCategory">${Object.entries(categories).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')}</select></label>
+      <button class="btn secondary wide" onclick="focusHistoryAdd()">기록 추가</button>
+    </div></details>
   </div>`;
 }
 function focusPanelHTML(){
