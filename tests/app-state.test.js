@@ -68,6 +68,22 @@ test('interview date survives reload and appears in calendar',()=>{
  const b=app(a.storage.get('lifeAIPrototypeV5'));assert.match(b.run('jobCalendarHTML()'),/다가오는 면접/);assert.match(b.run('jobCalendarHTML()'),/2099.03.04/);
 });
 
+test('date fields: blank deadline and interview date are allowed, wrong dates are rejected, planner date is required',async()=>{
+ const a=app();
+ a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/9';a.el('postingDeadline').value='';
+ a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),1);
+ const id=a.run('state.jobPostings[0].id');
+ a.run(`setInterviewDate(${JSON.stringify(id)},"2099-03-04")`);assert.equal(a.run('state.jobPostings[0].interviewDate'),'2099-03-04');
+ a.run(`setInterviewDate(${JSON.stringify(id)},"2099-02-30")`);assert.equal(a.run('state.jobPostings[0].interviewDate'),'2099-03-04');
+ a.run(`setInterviewDate(${JSON.stringify(id)},"")`);assert.equal(a.run('state.jobPostings[0].interviewDate'),'');
+ const p=app();
+ const form=(title,date,until)=>{p.el('plannerTitle').value=title;p.el('plannerDate').value=date;p.el('plannerTime').value='';p.el('plannerCategory').value='personal';p.el('plannerRepeat').value='none';p.el('plannerUntil').value=until||'';p.el('plannerPriority').value='normal';};
+ const count=()=>p.run('(state.plannerEntries||[]).length');
+ form('병원','');await p.run('plannerSave()');assert.equal(count(),0);
+ form('병원','2026-02-30');await p.run('plannerSave()');assert.equal(count(),0);
+ form('병원','2026-05-12');await p.run('plannerSave()');assert.equal(count(),1);
+ assert.equal(p.run('typeof validDeadline'),'undefined');
+});
 test('renaming preserves checklist and saved qualification schedule',async()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');

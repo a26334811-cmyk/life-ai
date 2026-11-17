@@ -1203,7 +1203,7 @@ async function toggleTask(i){
   persistState();
   renderTasks();
 }
-function koreaToday(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());}
+function koreaToday(){return LifeLogic.koreaDate(Date.now());}
 function certCalendarHTML(schedule){
   if(!schedule?.items?.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
   const today=koreaToday();
@@ -1245,8 +1245,8 @@ function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||planner
 async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
-  if(!title||title.length>120||!validDeadline(date)||!date){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
-  if(until&&(!validDeadline(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  if(!title||title.length>120||!LifeLogic.validDate(date)){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
+  if(until&&(!LifeLogic.validDate(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
   const editingId=plannerEditing,occurrence=plannerEditingDate;
   const before=plannerEntries().find(e=>e.id===editingId);
   let scope='all';
@@ -1663,7 +1663,7 @@ function plannerSwitchTab(tab){
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
-  if(!validDeadline(plannerSelected)||!plannerSelected)plannerSelected=today;
+  if(!LifeLogic.validDate(plannerSelected))plannerSelected=today;
   const startOfWeek=date=>plannerDateOffset(date,-new Date(date+'T12:00:00Z').getUTCDay());
   let dates=[];
   if(plannerView==='day')dates=[plannerSelected];
@@ -1820,7 +1820,7 @@ function applyPostingInfo(info){
   if(postingFillField('postingCompany',info.company))filled.push('회사명');
   if(postingFillField('postingRegion',info.region))filled.push('근무지역');
   const today=koreaToday();
-  let deadline=info.deadline&&validDeadline(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
+  let deadline=info.deadline&&LifeLogic.validDate(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
   if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
   let note='';
   if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';
@@ -1885,16 +1885,11 @@ function handleSharedLink(){
   fillPostingFromUrl();
   return true;
 }
-function validDeadline(value){
-  if(!value)return true;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
-  const date=new Date(value+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
-}
 function savePosting(){
   jobCollections();const value=id=>document.getElementById(id).value.trim();
   const company=value('postingCompany'),title=value('postingTitle'),url=safeUrl(value('postingUrl')),deadline=value('postingDeadline');
   if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
-  if(!validDeadline(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
+  if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
@@ -1921,7 +1916,7 @@ function setPostingTask(id,index,checked){
   p.tasks[index]=checked;persistState();
 }
 function setInterviewDate(id,value){
-  if(!validDeadline(value)){toast('면접 날짜를 확인해 주세요.');return;}
+  if(value&&!LifeLogic.validDate(value)){toast('면접 날짜를 확인해 주세요.');return;}
   const posting=state.jobPostings.find(x=>x.id===id);if(!posting)return;
   posting.interviewDate=value;persistState();
 }
@@ -1956,7 +1951,7 @@ function daysUntil(s){
   const t=String(s||'').replace(/\D/g,'');
   if(t.length!==8)return '';
   const iso=`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`;
-  if(!validDeadline(iso))return '';
+  if(!LifeLogic.validDate(iso))return '';
   const n=Math.round((Date.parse(iso+'T00:00:00Z')-Date.parse(koreaToday()+'T00:00:00Z'))/86400000);
   return n<0?'마감':n===0?'오늘 마감':`D-${n}`;
 }
