@@ -18,6 +18,32 @@ test('a forgotten habit can be checked for yesterday, which keeps the streak; fu
   assert.equal(a.saved().habits[0].checks.includes('2026-05-11'),false,'tomorrow is refused');
 });
 
+/* ---------- #89 postpone to tomorrow ---------- */
+const plannerSeed=()=>JSON.stringify({plannerEntries:[
+  {id:'one',title:'단발',date:'2026-05-10',time:'',category:'personal',repeat:'none',until:'',priority:'normal',done:false},
+  {id:'rep',title:'반복',date:'2026-05-01',time:'',category:'personal',repeat:'daily',until:'',priority:'normal',done:false,doneDates:[]}]});
+
+test('postpone moves a one-time entry one day later; repeating entries get no button',()=>{
+  const a=createApp(plannerSeed());
+  a.run("plannerSelected='2026-05-10';renderCalendar()");
+  const html=a.el('calendarContent').innerHTML;
+  assert.match(html,/plannerPostpone\('one'\)/);
+  assert.doesNotMatch(html,/plannerPostpone\('rep'\)/);
+  a.run("plannerPostpone('one')");
+  const one=a.saved().plannerEntries.find(e=>e.id==='one');
+  assert.equal(one.date,'2026-05-11');assert.equal(one.title,'단발');
+  assert.equal(a.run("plannerForDate('2026-05-10').some(e=>e.id==='one')"),false);
+  assert.equal(a.run("plannerForDate('2026-05-11').some(e=>e.id==='one')"),true);
+  a.run("plannerPostpone('rep')");
+  assert.equal(a.saved().plannerEntries.find(e=>e.id==='rep').date,'2026-05-01','repeating entry is untouched');
+});
+
+test('postpone crosses a month end',()=>{
+  const a=createApp(JSON.stringify({plannerEntries:[{id:'x',title:'t',date:'2026-05-31',repeat:'none'}]}));
+  a.run("plannerPostpone('x')");
+  assert.equal(a.saved().plannerEntries[0].date,'2026-06-01');
+});
+
 /* ---------- #84 posting display order ---------- */
 test('saved postings are shown by deadline urgency without changing the stored order',()=>{
   const mk=(id,deadline,stage)=>({id,company:id,title:id,url:'https://x.example/'+id,deadline,stage,tasks:[false,false,false,false]});

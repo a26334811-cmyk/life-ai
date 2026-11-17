@@ -1311,6 +1311,12 @@ async function plannerRemove(id,date){
   plannerEditing='';plannerEditingDate='';plannerFormOpen=false;persistState();renderCalendar();
 }
 function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
+function plannerPostpone(id){
+  const e=plannerEntries().find(x=>x.id===id);
+  if(!e||LifeLogic.isRepeating(e)||!validDeadline(e.date)||!e.date)return;
+  e.date=plannerDateOffset(e.date,1);
+  persistState();renderCalendar();toast('일정을 '+e.date+'로 미뤘어요.');
+}
 function plannerEscapeAttr(s){return esc(String(s||''));}
 let focusInterval=null;
 let focusDeadline=0;
@@ -1749,7 +1755,7 @@ function renderCalendar(){
     </div>
     <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
-      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button><button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+      ${e.origin==='personal'?`<div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${plannerSelected}')">${e.done?'↩':'✓'}</button>${LifeLogic.isRepeating(e)?'':`<button class="btn ghost" aria-label="내일로 미루기" onclick="plannerPostpone('${plannerEscapeAttr(e.id)}')">내일</button>`}<button class="btn ghost" onclick="plannerEdit('${plannerEscapeAttr(e.id)}','${plannerSelected}')">수정</button><button class="btn ghost" onclick="plannerRemove('${plannerEscapeAttr(e.id)}','${plannerSelected}')">삭제</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
     <div class="card">
       <div class="planner-form-heading">
