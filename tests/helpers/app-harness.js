@@ -18,7 +18,8 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.notification  {permission, requestResult} to fake the Notification API
    opts.fetch    fake fetch(url, options) used by the app
    opts.failSave setItem throws (a full storage); it is read on every save, so a test can switch it off again
-   opts.trackHistory  fake history.pushState/replaceState recorded in app.historyLog
+   opts.downloads  fake Blob, URL.createObjectURL and document.createElement for the backup download (see app.downloads)
+   opts.trackHistory fake history.pushState/replaceState recorded in app.historyLog
    opts.search   makes `location` exist with this query string (e.g. '?url=...' from the phone's Share sheet) */
 function createApp(saved, opts = {}) {
   const elements = new Map();
@@ -47,7 +48,11 @@ function createApp(saved, opts = {}) {
     document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '' },
     localStorage: {
       getItem: k => (storage.has(k) ? storage.get(k) : null),
-      setItem: (k, v) => { if (opts.failSave) throw new Error('quota'); storage.set(k, v); },
+      // failSave may also be a function (key, value, storage) => true to fail; it can write to storage first to mimic a half-written save.
+      setItem: (k, v) => {
+        if (typeof opts.failSave === 'function' ? opts.failSave(k, v, storage) : opts.failSave) throw new Error('quota');
+        storage.set(k, v);
+      },
       removeItem: k => storage.delete(k)
     },
     setTimeout: fn => { pendingTimeouts.push(fn); return 0; }, clearTimeout() {},
@@ -64,6 +69,24 @@ function createApp(saved, opts = {}) {
       replaceState: (a) => { historyLog.push({ type: 'replace', state: a }); },
       pushState: (a) => { historyLog.push({ type: 'push', state: a }); }
     };
+  }
+  /* opts.downloads  fake Blob / URL.createObjectURL / document.createElement so the backup download can run.
+     app.downloads lists each clicked download link as {filename, text, type}. */
+  const downloads = [];
+  const revokedUrls = [];
+  if (opts.downloads) {
+    const blobs = new Map();
+    context.Blob = class FakeBlob { constructor(parts, options) { this.text = parts.join(''); this.type = (options && options.type) || ''; } };
+    context.URL = class AppURL extends URL {
+      static createObjectURL(blob) { const url = 'blob:fake/' + (blobs.size + 1); blobs.set(url, blob); return url; }
+      static revokeObjectURL(url) { revokedUrls.push(url); }
+    };
+    context.document.body = { appendChild() {} };
+    context.document.createElement = () => ({
+      href: '', download: '',
+      click() { const blob = blobs.get(this.href); downloads.push({ filename: this.download, text: blob.text, type: blob.type }); },
+      remove() {}
+    });
   }
   if (opts.fetch) context.fetch = (...args) => opts.fetch(...args);
   if (opts.search !== undefined) {
@@ -102,7 +125,7 @@ function createApp(saved, opts = {}) {
   `, Object.assign(context, { __toast: m => toasts.push(m) }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, historyLog, context,
+    el, storage, clock, timers, toasts, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
     tick() { timers.filter(Boolean).forEach(fn => fn()); },
     flushTimeouts() { pendingTimeouts.splice(0).forEach(fn => fn()); },
     get reloads() { return reloads; },
