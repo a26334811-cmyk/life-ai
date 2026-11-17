@@ -62,6 +62,35 @@ test('editing a saved job cannot reuse another job\'s link, but may keep its own
  a.el('postingId').value=second;a.el('postingTitle').value='정비 수정';a.el('postingUrl').value='https://example.com/jobs/2';a.run('savePosting()');
  assert.equal(a.run('state.jobPostings[0].title'),'정비 수정');
 });
+test('fetched exam schedule is saved with rounds only, and the calendar is built from it',async()=>{
+ const events=[{type:'필기원서접수',label:'필기원서접수',startDate:'2026-09-01',endDate:'2026-09-05',raw:'2026-09-01 ~ 2026-09-05'},{type:'필기시험',label:'필기시험',startDate:'2026-10-01',endDate:'2026-10-01',raw:'2026-10-01'}];
+ const rounds=[{round:'정기 1회',events}];
+ const items=events.map(e=>({qualificationName:'전기기사',qualificationCode:'1150',round:'정기 1회',...e}));
+ const server={qualification:{code:'1150',name:'전기기사'},year:2026,totalCount:2,rounds,items,source:'Q-Net'};
+ const goal=JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',parsedGoal:{subject:'전기기사'}}); // the schedule of the goal certificate is the one that gets saved (#5)
+ const a=createApp(goal,{fetch:async()=>({ok:true,json:async()=>server})});
+ a.el('certSearchInput').value='전기기사';a.el('certSearchInput').dataset.code='1150';a.el('certYear').value='2026';
+ await a.run('loadLiveCertSchedule()');
+ const saved=a.saved().certSchedule;
+ assert.ok(saved,'schedule saved');
+ assert.equal('items' in saved,false,'flat list is not stored');
+ assert.deepEqual(saved.rounds,rounds);
+ const html=a.run('certCalendarHTML(state.certSchedule)');
+ assert.match(html,/다음 접수/);assert.match(html,/필기시험/);assert.match(html,/정기 1회/);
+});
+test('schedules saved by older versions (rounds and items, or items only) still show in the calendar',()=>{
+ const L=require('../logic.js');
+ const events=[{type:'필기시험',label:'필기시험',startDate:'2099-02-01',endDate:'2099-02-01',raw:'2099-02-01'}];
+ const item={qualificationName:'전기기사',qualificationCode:'1150',round:'정기 1회',...events[0]};
+ const rebuilt=L.scheduleItems({qualification:{name:'전기기사',code:'1150'},rounds:[{round:'정기 1회',events}]});
+ assert.deepEqual(rebuilt,[item],'items built from rounds match what the server used to send');
+ assert.deepEqual(L.scheduleItems({items:[item]}),[item]);
+ assert.deepEqual(L.scheduleItems(null),[]);
+ for(const old of [{qualification:{name:'전기기사',code:'1150'},year:2099,rounds:[{round:'정기 1회',events}],items:[item]},{qualification:{name:'전기기사'},year:2099,items:[item]}]){
+  const a=app(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',certSchedule:old}));
+  assert.match(a.run('certCalendarHTML(state.certSchedule)'),/필기시험/);
+ }
+});
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);

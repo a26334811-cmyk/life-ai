@@ -1363,9 +1363,10 @@ async function toggleTask(i){
 }
 function koreaToday(){return LifeLogic.koreaDate(Date.now());}
 function certCalendarHTML(schedule){
-  if(!schedule?.items?.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
+  const scheduleItems=LifeLogic.scheduleItems(schedule);
+  if(!scheduleItems.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
   const today=koreaToday();
-  const items=[...schedule.items].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const items=[...scheduleItems].sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const future=items.filter(e=>(e.endDate||e.startDate)>=today),past=items.filter(e=>(e.endDate||e.startDate)<today);
   const next=future.find(e=>e.type.includes('접수'));
   const rows=list=>list.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('');
@@ -1385,7 +1386,7 @@ function plannerForDate(date){
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external'}));
   const interviews=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.interviewDate===date&&!['합격','불합격','지원 취소'].includes(x.stage)).map(x=>({title:x.company+' · '+x.title+' 면접',date,category:'job',origin:'external'}));
   // Looked-up exam dates: registration and exam periods only. origin 'cert' (not 'external') keeps them out of the "check first" list.
-  const certs=(Array.isArray(state.certSchedule?.items)?state.certSchedule.items:[])
+  const certs=LifeLogic.scheduleItems(state.certSchedule)
     .filter(x=>x&&/접수|시험/.test(x.type||'')&&x.startDate<=date&&date<=(x.endDate||x.startDate))
     .map(x=>({title:(x.qualificationName||state.certSchedule.qualification?.name||'자격증')+' '+x.label,date,category:'cert',origin:'cert'}));
   return [...own,...jobs,...interviews,...certs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
@@ -2502,7 +2503,8 @@ async function loadLiveCertSchedule(){
     if(version!==certScheduleVersion) return;
     lastCertLookup={data,year,fetchedAt:new Date().toISOString()};
     if(isGoalCertSchedule(data,year)){
-      state.certSchedule={...data,fetchedAt:lastCertLookup.fetchedAt};
+      const {items:_items,...savedData}=data; // only `rounds` is saved; the flat list is rebuilt from it
+      state.certSchedule={...savedData,fetchedAt:lastCertLookup.fetchedAt};
       persistState();
     }
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;

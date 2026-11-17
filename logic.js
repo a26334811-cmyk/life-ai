@@ -64,6 +64,20 @@
     return { start, end, dates: Array.from({ length: count }, (_, i) => dateOffset(start, i)) };
   }
 
+  // One entry per exam event. A saved schedule keeps only `rounds`; `items` is built from it when needed.
+  // Schedules saved by older versions also stored `items`, which is used when `rounds` is missing.
+  function scheduleItems(schedule) {
+    if (!schedule || typeof schedule !== 'object') return [];
+    if (Array.isArray(schedule.rounds)) {
+      const q = schedule.qualification || {};
+      return schedule.rounds.flatMap(r => (Array.isArray(r && r.events) ? r.events : []).map(e => ({
+        qualificationName: q.name, qualificationCode: q.code, round: r.round,
+        type: e.type, label: e.label, startDate: e.startDate, endDate: e.endDate, raw: e.raw
+      })));
+    }
+    return Array.isArray(schedule.items) ? schedule.items : [];
+  }
+
   function isRepeating(item) {
     return Boolean(item) && ['daily', 'weekly', 'monthly'].includes(item.repeat);
   }
@@ -399,7 +413,7 @@
     goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
-    validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates,
+    validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, isRepeating, isDone, toggleDone, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,
