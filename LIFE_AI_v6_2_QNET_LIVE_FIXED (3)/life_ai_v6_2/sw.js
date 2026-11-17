@@ -5,12 +5,15 @@
    - Shows the "focus finished" notification and opens the app when it is tapped. */
 const CACHE = 'life-ai-shell-v2';
 const NETWORK_TIMEOUT_MS = 3000;
-const SHELL = ['./', 'index.html', 'logic.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+// Must all be saved: if one fails the install fails and the browser tries again later.
+const CORE = ['./', 'index.html', 'logic.js', 'manifest.json'];
+// Nice to have: a missing icon must not block the install.
+const OPTIONAL = ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => Promise.allSettled(SHELL.map(url => cache.add(url))))
+      .then(cache => cache.addAll(CORE).then(() => Promise.allSettled(OPTIONAL.map(url => cache.add(url)))))
       .then(() => self.skipWaiting())
   );
 });

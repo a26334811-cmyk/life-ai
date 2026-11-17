@@ -21,9 +21,12 @@ function neededFiles(){
   for(const m of html.matchAll(/<link\b[^>]*\bhref="([^"]+)"/g)) add(m[1],'index.html <link href>');
   for(const m of html.matchAll(/serviceWorker\.register\('([^']+)'/g)) add(m[1],'index.html serviceWorker.register');
   for(const m of html.matchAll(/\/\.netlify\/functions\/([\w-]+)/g)) add('netlify/functions/'+m[1]+'.js','index.html fetch of /.netlify/functions/'+m[1]);
-  const shell=read('sw.js').match(/const SHELL\s*=\s*\[([^\]]*)\]/);
-  assert.ok(shell,'sw.js SHELL list was not found; update this test if the list was renamed');
-  for(const m of shell[1].matchAll(/'([^']+)'/g)) add(m[1],'sw.js SHELL');
+  const sw=read('sw.js');
+  for(const name of ['CORE','OPTIONAL']){
+    const list=sw.match(new RegExp('const '+name+'\\s*=\\s*\\[([^\\]]*)\\]'));
+    assert.ok(list,'sw.js '+name+' list was not found; update this test if the list was renamed');
+    for(const m of list[1].matchAll(/'([^']+)'/g)) add(m[1],'sw.js '+name);
+  }
   const manifest=JSON.parse(read('manifest.json'));
   add(manifest.start_url,'manifest.json start_url');
   for(const icon of manifest.icons||[]) add(icon.src,'manifest.json icons');

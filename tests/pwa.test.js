@@ -38,14 +38,18 @@ test('page links the manifest, icons and registers the service worker only on ht
   assert.match(html,/location\.protocol==='https:'\|\|location\.hostname==='localhost'/);
 });
 
-function loadWorker(fetchImpl){
+// arg: a list of URLs whose saving fails, or a replacement fetch function
+function loadWorker(arg){
+  const failing=Array.isArray(arg)?arg:[];
+  const fetchImpl=typeof arg==='function'?arg:undefined;
   const handlers={};
   const timers=[];
   const cache=new Map();
   const added=[];
+  const save=async url=>{if(failing.includes(url))throw new Error('network '+url);added.push(url);cache.set(url,{url});};
   const self={location:{origin:'https://app.example'},addEventListener:(type,fn)=>{handlers[type]=fn;},clients:{claim:async()=>{},matchAll:async()=>self.__clients,openWindow:async url=>{self.__opened=url;}},skipWaiting:async()=>{}};
   const caches={
-    open:async()=>({add:async url=>{added.push(url);cache.set(url,{url});},put:async(req,res)=>{cache.set(req.url,res);}}),
+    open:async()=>({add:save,addAll:async urls=>{for(const url of urls)if(failing.includes(url))throw new Error('network '+url);for(const url of urls)await save(url);},put:async(req,res)=>{cache.set(req.url,res);}}),
     match:async(req)=>{const key=typeof req==='string'?req:req.url;return cache.get(key)||cache.get(key.replace('https://app.example/',''))||null;},
     keys:async()=>['old-cache','life-ai-shell-v1'],
     delete:async()=>true
@@ -70,6 +74,23 @@ test('service worker caches every file it lists and those files exist',async()=>
     assert.ok(fs.existsSync(path.join(root,url)),url+' exists');
   }
   assert.ok(sw.added.includes('logic.js'),'logic.js is needed offline');
+  assert.ok(sw.added.includes('manifest.json'));
+  for(const icon of manifest.icons)assert.ok(sw.added.includes(icon.src),icon.src+' (declared in the manifest) is kept for offline use');
+});
+
+test('install fails (so it is retried) when a core file cannot be saved, but not when only an icon fails',async()=>{
+  for(const core of ['index.html','logic.js','manifest.json']){
+    const sw=loadWorker([core]);
+    let finished;
+    sw.handlers.install({waitUntil:p=>{finished=p;}});
+    await assert.rejects(finished,new RegExp(core.replace('.','\\.')),core+' failing must fail the install');
+  }
+  const sw=loadWorker(['icons/icon-512.png','icons/icon-maskable-512.png']);
+  let finished;
+  sw.handlers.install({waitUntil:p=>{finished=p;}});
+  await finished;
+  assert.ok(sw.added.includes('index.html')&&sw.added.includes('logic.js'));
+  assert.ok(!sw.added.includes('icons/icon-512.png'));
 });
 
 test('service worker ignores live data requests and other origins',()=>{
