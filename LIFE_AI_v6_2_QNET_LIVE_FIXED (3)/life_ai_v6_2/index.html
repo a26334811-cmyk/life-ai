@@ -1659,6 +1659,21 @@ function plannerAgenda(){
   return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
     .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
 }
+/* Unfinished one-time personal entries from the last 14 days (repeating ones are skipped). */
+function plannerOverdue(){
+  const today=koreaToday(),from=plannerDateOffset(today,-14);
+  return plannerEntries().filter(e=>e&&!LifeLogic.isRepeating(e)&&!e.done&&validDeadline(e.date)&&e.date&&e.date>=from&&e.date<today)
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function plannerGoToDate(date){plannerActiveTab='calendar';plannerSelect(date);}
+function plannerOverdueHTML(){
+  const list=plannerOverdue();
+  if(!list.length)return '';
+  return `<div class="card" id="overduePanel"><h3>⏳ 밀린 일정</h3>
+    <p class="meta">최근 14일 안에 끝내지 못한 일정이에요. 괜찮아요, 하나씩 정리해 봐요.</p>
+    ${list.map(e=>`<div class="planner-item"><div><strong>${esc(e.title)}</strong><p class="meta">${esc(e.date)} · ${esc(e.time||'종일')}</p></div><div><button class="btn ghost" onclick="plannerToggle('${plannerEscapeAttr(e.id)}','${esc(e.date)}')">✓ 완료</button><button class="btn ghost" onclick="plannerGoToDate('${esc(e.date)}')">날짜로 이동</button></div></div>`).join('')}
+  </div>`;
+}
 /* life-ai principle: encourage progress while allowing rest without judgment. */
 function recoveryMode(){return state.recoveryMode==='rest'?'rest':state.recoveryMode==='gentle'?'gentle':'normal';}
 function recoverySetMode(mode){
@@ -1722,6 +1737,7 @@ function renderCalendar(){
     <section class="planner-tabpanel" data-tab="today" role="tabpanel" ${plannerActiveTab==='today'?'':'hidden'}>
       ${recoveryPanelHTML()}
       ${plannerFocusHTML()}
+      ${plannerOverdueHTML()}
       ${focusPanelHTML()}
     </section>
     <section class="planner-tabpanel" data-tab="habits" role="tabpanel" ${plannerActiveTab==='habits'?'':'hidden'}>

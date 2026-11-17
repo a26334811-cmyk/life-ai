@@ -18,6 +18,37 @@ test('a forgotten habit can be checked for yesterday, which keeps the streak; fu
   assert.equal(a.saved().habits[0].checks.includes('2026-05-11'),false,'tomorrow is refused');
 });
 
+/* ---------- #88 overdue entries card ---------- */
+test('overdue card lists unfinished one-time entries from the last 14 days only',()=>{
+  const e=(id,date,extra)=>({id,title:id,date,repeat:'none',done:false,...extra});
+  const a=createApp(JSON.stringify({plannerEntries:[
+    e('y','2026-05-09'),e('old','2026-04-26'),e('tooold','2026-04-25'),e('today','2026-05-10'),e('future','2026-05-11'),
+    e('done','2026-05-08',{done:true}),e('rep','2026-05-01',{repeat:'daily',doneDates:[]})]}));
+  const ids=JSON.parse(a.run('JSON.stringify(plannerOverdue().map(x=>x.id))'));
+  assert.deepEqual(ids,['old','y']);
+  a.run('renderCalendar()');
+  const html=a.el('calendarContent').innerHTML;
+  assert.match(html,/밀린 일정/);
+  assert.match(html,/plannerToggle\('y','2026-05-09'\)/);
+  assert.match(html,/plannerGoToDate\('2026-05-09'\)/);
+  assert.doesNotMatch(html,/plannerToggle\('tooold'/);
+});
+
+test('completing an overdue entry removes it from the card; no card when nothing is overdue',()=>{
+  const a=createApp(JSON.stringify({plannerEntries:[{id:'y',title:'y',date:'2026-05-09',repeat:'none',done:false}]}));
+  a.run("plannerToggle('y','2026-05-09')");
+  assert.equal(a.saved().plannerEntries[0].done,true);
+  assert.equal(a.run('plannerOverdue().length'),0);
+  assert.doesNotMatch(a.el('calendarContent').innerHTML,/밀린 일정/);
+});
+
+test('go-to-date opens the calendar tab on that day',()=>{
+  const a=createApp();
+  a.run("plannerGoToDate('2026-05-09')");
+  assert.equal(a.run('plannerActiveTab'),'calendar');
+  assert.equal(a.run('plannerSelected'),'2026-05-09');
+});
+
 /* ---------- #89 postpone to tomorrow ---------- */
 const plannerSeed=()=>JSON.stringify({plannerEntries:[
   {id:'one',title:'단발',date:'2026-05-10',time:'',category:'personal',repeat:'none',until:'',priority:'normal',done:false},
