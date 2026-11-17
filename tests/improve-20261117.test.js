@@ -16,6 +16,31 @@ test('home first-card reason is a sentence for every goal type (never an object)
   assert.match(a.run('priorityReason()'),/관심 회사와 공고/);
 });
 
+/* #72 */
+const feedWithCards=a=>{
+  const feed=a.el('opportunityFeed');
+  let cards=[];
+  feed.querySelectorAll=()=>{
+    cards=[...feed.innerHTML.matchAll(/<div class="card opportunity">(.*?)<\/div>/g)].map(m=>({
+      style:{},querySelector:()=>({textContent:(m[1].match(/<span class="tag">([^<]*)<\/span>/)||[])[1]||''})}));
+    return cards;
+  };
+  return feed;
+};
+test('job goal: the opportunity screen shows the job card under All and Job, and explains an empty kind precisely',()=>{
+  const a=createApp();
+  a.run("quickGoal('취업 기회 탐색')");
+  const feed=feedWithCards(a);
+  a.run("filterOpportunities('all')");
+  assert.match(feed.innerHTML,/취업 관리 열기/);
+  assert.doesNotMatch(feed.innerHTML,/기회가 없어요|기회는 아직 없어요/);
+  a.run("filterOpportunities('job')");
+  assert.match(feed.innerHTML,/고용24 공고 조회/);
+  a.run("filterOpportunities('cert')");
+  assert.match(feed.innerHTML,/이 종류의 기회는 아직 없어요/);
+  assert.doesNotMatch(feed.innerHTML,/취업 관리 열기/);
+});
+
 /* #71 */
 test('the certificate screen back button returns to the screen the user came from',()=>{
   const a=createApp();

@@ -1106,7 +1106,7 @@ function filterOpportunities(filter){
     button.classList.toggle('active',button.dataset.filter===filter);
     button.setAttribute('aria-pressed',String(button.dataset.filter===filter));
   });
-  if(!count) feed.innerHTML='<div class="card"><p class="meta">현재 목표에 연결된 해당 종류의 기회가 없어요.</p></div>';
+  if(!count) feed.innerHTML='<div class="card"><p class="meta">'+(filter==='all'?'지금 목표에 연결된 기회가 아직 없어요.':'이 종류의 기회는 아직 없어요. "전체"를 눌러 다른 기회를 확인해 보세요.')+'</p></div>';
 }
 function opportunityCards(){
   if(state.goalType==='cert'){
@@ -1124,7 +1124,7 @@ function opportunityCards(){
       </div>`;
   }
   if(state.goalType==='job'){
-    return '<div class="card"><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
+    return '<div class="card opportunity"><span class="tag">💼 취업</span><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
     const company=state.selectedCompany || '관심 회사';
     const job=state.selectedJob || '관심 직무';
     return `
