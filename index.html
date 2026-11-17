@@ -231,6 +231,7 @@
 .planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .planner-item .btn{width:auto}
 .planner-item-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.goal-card.active{border:2px solid #1763db}
 @media(max-width:520px){.planner-item{flex-direction:column}.planner-item-actions{justify-content:flex-start}.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
@@ -371,7 +372,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
   <section id="goalChoice" class="screen">
-    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('name')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="goalChoiceBack()">←</button></div>
     <h2>지금 가장 하고 싶은 것은 무엇인가요?</h2>
     <div class="stack">
       <button class="choice" onclick="go('companyChoice')"><strong>💼 취업하고 싶어요</strong><span>›</span></button>
@@ -668,6 +669,8 @@ if(savedState){
   }
 }
 state.schemaVersion=LifeLogic.STATE_SCHEMA_VERSION;
+// A new goal was started (the old one put aside) and never finished: bring the put-aside goal back.
+LifeLogic.restoreParkedGoal(state);
 let lifeAISaveWarningShown=false;
 function persistState(){
   try {
@@ -715,15 +718,52 @@ function createAIFirstGoal(){
   addActivity('AI에게 새 목표를 말했어요');
   finishGoalCreation();
 }
+/* Clears what the certificate screen shows (running searches, typed name) so it does not carry over to another goal. */
+function resetGoalScreenState(){
+  ++certSearchVersion;++certScheduleVersion;
+  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
+  lastCertLookup=null;
+  const input=document.getElementById('certSearchInput');
+  if(input){input.value='';input.dataset.code='';}
+  for(const id of ['liveCertStatus','liveCertResults','certSearchMatches']){const box=document.getElementById(id);if(box)box.innerHTML='';}
+}
+/* Called when a goal is being created: the goal slot starts empty and gets a new id. */
 function resetGoalProgress(){
   state.jobPreparationStarted=false;state.jobSubmitted=false;
   state.completedTasks=[false,false,false,false,false];
   state.policyIncomeAdded=false;state.policyIncome='';
-  ++certSearchVersion;++certScheduleVersion;
-  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
   state.certSchedule=null;
-  const input=document.getElementById('certSearchInput');
-  if(input){input.value='';input.dataset.code='';}
+  state.goalId=newJobId();
+  resetGoalScreenState();
+}
+
+/* ---------- several goals (the logic lives in logic.js; these functions connect it to the screens) ---------- */
+function addGoal(){
+  if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 추가해 주세요.');return;}
+  // The current goal is put aside right away, so choosing a company or type in the next screens never changes it.
+  if(state.mainGoal&&!LifeLogic.parkActiveGoal(state,newJobId)){toast('목표를 추가하지 못했어요. 다시 시도해 주세요.');return;}
+  persistState();resetGoalScreenState();
+  go('goalChoice');
+}
+function goalChoiceBack(){
+  go(LifeLogic.goalCount(state)>0?'goals':'name'); // go() brings the put-aside goal back when the new one is dropped
+}
+function switchToGoal(id){
+  if(!LifeLogic.switchGoal(state,newJobId,id)){toast('그 목표를 찾지 못했어요.');return;}
+  persistState();resetGoalScreenState();
+  toast('목표를 바꿨어요: '+state.mainGoal);
+  renderGoals();
+}
+async function removeGoalById(id){
+  const goal=LifeLogic.goalList(state,newJobId).find(g=>g.id===id);
+  if(!goal)return;
+  if(LifeLogic.goalCount(state)<=1){toast('마지막 목표는 지울 수 없어요. 새 목표를 추가한 뒤 지워 주세요.');return;}
+  if(!await uiConfirm('"'+goal.title+'" 목표를 지울까요?\n이 목표의 진행 기록과 저장한 시험 일정이 함께 지워져요. (저장한 공고·습관·일정은 그대로예요)',{title:'목표 삭제',ok:'삭제',danger:true}))return;
+  const res=LifeLogic.removeGoal(state,newJobId,id);
+  if(!res.ok){toast('목표를 지우지 못했어요.');return;}
+  persistState();resetGoalScreenState();
+  toast('목표를 지웠어요.');
+  renderGoals();
 }
 async function editCurrentGoal(){
   const next=await uiPrompt('목표 이름을 수정해보세요. 진행상태는 유지돼요.', state.mainGoal || '',{title:'목표 수정',maxLength:120});
@@ -945,7 +985,10 @@ function onScreenPopState(event){
 }
 /* The certificate screen can be opened from several places; remember where from so ← goes back there. */
 let certReturnTo='home';
+/* Screens of the "make a goal" flow. Leaving them while the goal slot is still empty means the new goal was dropped. */
+const GOAL_FLOW_SCREENS=['start','name','goalChoice','companyChoice','company','job','jobOnly','certStart','policyStart','customGoal','profile','goalCreated'];
 function go(id,mode){
+  if(!GOAL_FLOW_SCREENS.includes(id)&&LifeLogic.restoreParkedGoal(state)){persistState();resetGoalScreenState();}
   recordScreenHistory(id,mode);
   if(id==='cert'&&currentScreen&&currentScreen!=='cert')certReturnTo=currentScreen;
   currentScreen=id;
@@ -1152,7 +1195,7 @@ function renderHome(){
     <div class="soft-overview" aria-label="내 생활 요약">
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(fmtDate(nextEvent.date)):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
-      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">💼</span><div class="soft-overview-copy"><strong>저장한 공고 ${jobs.length}건</strong><span class="meta">관심 자격증 ${favorites.length}개</span></div><button class="soft-overview-action" onclick="go('jobHub')" aria-label="채용공고 관리 보기">관리</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">💼</span><div class="soft-overview-copy"><strong>저장한 공고 ${jobs.length}건</strong><span class="meta">관심 회사 ${(Array.isArray(state.watchCompanies)?state.watchCompanies:[]).length}곳 · 관심 자격증 ${favorites.length}개</span></div><button class="soft-overview-action" onclick="go('jobHub')" aria-label="채용공고 관리 보기">관리</button></div>
       <details><summary>자세한 현황 보기</summary>
     <div class="dashboard-stats">
       <div class="dashboard-stat"><span class="meta">💼 저장한 채용공고</span><div class="metric">${jobs.length}건</div><span class="meta">내가 등록한 공고 기준</span></div>
@@ -1173,6 +1216,7 @@ function renderHome(){
       <div class="dashboard-panel"><div class="card">
         <h3>🎯 내 목표</h3><p><strong>${esc(state.mainGoal||'아직 목표가 없어요')}</strong></p>
         <p class="meta">완료한 준비 단계 ${completed} / ${taskTotal}</p>
+        ${LifeLogic.goalCount(state)>1?`<p class="meta">다른 목표 ${LifeLogic.goalCount(state)-1}개도 있어요. 목표 화면에서 바꿀 수 있어요.</p>`:''}
         <div class="dashboard-progress" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="목표 진행률"><span style="width:${progress}%"></span></div>
         <button class="btn secondary" onclick="go('goals')">목표·할 일 보기</button>
       </div></div>
@@ -1258,19 +1302,41 @@ function saveIncome(){
   state.policyIncome=value;state.policyIncomeAdded=true;
   addActivity('소득 정보를 저장했어요');renderIncomeState();
 }
+function goalStatusText(type){
+  return type==='job'?'기회 탐색 중':type==='cert'?'시험 일정 확인 단계':type==='policy'?'조건 확인 단계':'첫 행동 정리 중';
+}
+function goalCardsHTML(){
+  const goals=LifeLogic.goalList(state,newJobId);
+  const icon={job:'💼',cert:'🏅',policy:'🏛'};
+  if(!goals.length)return '<div class="card"><h3>아직 목표가 없어요</h3><p class="meta">하고 싶은 일을 정하면 시험 일정과 할 일을 정리해 드려요.</p></div>';
+  return goals.map(g=>`<div class="card goal-card${g.active?' active':''}">
+      <h3>${icon[g.type]||'✨'} ${esc(g.title)}</h3>
+      <p class="meta">${goalStatusText(g.type)}${g.active?' · 지금 집중 중':''}</p>
+      <div class="planner-item-actions">
+        ${g.active?`<button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>`
+          :`<button class="btn secondary" data-id="${esc(g.id)}" onclick="switchToGoal(this.dataset.id)">이 목표로 바꾸기</button>`}
+        ${goals.length>1?`<button class="btn ghost" aria-label="${esc(g.title)} 목표 삭제" data-id="${esc(g.id)}" onclick="removeGoalById(this.dataset.id)">삭제</button>`:''}
+      </div>
+    </div>`).join('');
+}
+/* Interested companies are shown next to the goals too, with their official recruiting page. */
+function goalCompaniesHTML(){
+  const companies=Array.isArray(state.watchCompanies)?state.watchCompanies:[];
+  if(!companies.length)return '';
+  return `<div class="section-title">💼 관심 회사</div><div class="stack">${companies.map(c=>`<div class="card">
+      <h3>${esc(c.name)}</h3>
+      <p class="meta">${safeUrl(c.url)?'등록한 공식 채용 페이지가 있어요.':'공식 채용 페이지 주소는 아직 없어요.'}</p>
+      <div class="planner-item-actions">
+        ${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">공식 채용 페이지 열기</a>`:''}
+        <button class="btn ghost" onclick="go('jobHub')">공고 저장·관리</button>
+      </div></div>`).join('')}</div>`;
+}
 function renderGoals(){
   const el=document.getElementById('goalsContent');
-  const status = state.goalType==='job'
-    ? '기회 탐색 중'
-    : state.goalType==='cert'?'시험 일정 확인 단계'
-    : state.goalType==='policy'?'조건 확인 단계'
-    : '첫 행동 정리 중';
-  el.innerHTML=`
-    <div class="card">
-      <h3>${esc(state.mainGoal || '새 목표')}</h3>
-      <p class="meta">${status}</p>
-      <button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>
-    </div>`;
+  el.innerHTML=`<div class="stack">${goalCardsHTML()}
+    <button class="btn primary" onclick="addGoal()">＋ 목표 추가하기</button></div>
+    <p class="meta" style="margin-top:12px">목표는 최대 ${LifeLogic.MAX_GOALS}개까지 두고, 지금 집중할 목표를 골라 쓸 수 있어요. 홈의 시험 일정·진행률은 지금 집중 중인 목표 기준이에요.</p>
+    ${goalCompaniesHTML()}`;
 }
 const TASK_PLANS={
   cert:{stage:'응시 준비',tasks:['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시']},
@@ -2005,7 +2071,7 @@ function renderMy(){
     <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(Number.isFinite(Date.parse(state.lastBackupAt))?LifeLogic.koreaDate(Date.parse(state.lastBackupAt)):state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="exportDeadlineCalendar()">📅 마감일 캘린더로 내보내기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" />${damagedArchives().length?'<button class="btn ghost" onclick="downloadDamagedState()">⬇ 손상된 원본 내려받기</button>':''}</div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
-      <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
+      <button class="btn secondary" onclick="addGoal()">＋ 목표 추가하기</button>
       <button class="btn ghost" onclick="editCurrentGoal()">✏️ 현재 목표 수정</button>
       <button class="btn ghost" onclick="resetPrototype()">↺ 처음부터 다시 시작</button>
     </div>`;
@@ -2293,10 +2359,24 @@ function isGoalCertSchedule(data,year){
 function startCertGoal(){
   const name=document.getElementById('certSearchInput').value.trim();
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
-  if(state.mainGoal!==name+' 준비') resetGoalProgress();
-  state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
-  if(lastCertLookup&&isGoalCertSchedule(lastCertLookup.data,lastCertLookup.year)) state.certSchedule={...lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt};
-  persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
+  const title=name+' 준비';
+  const lookup=lastCertLookup; // the reset below clears it, so keep the result that was just looked up
+  const same=LifeLogic.findGoalByTitle(state,title,newJobId);
+  let message='취득 준비 목표를 만들었어요.';
+  if(same){ // already a goal: use it instead of making a copy
+    if(!same.active)LifeLogic.switchGoal(state,newJobId,same.id);
+    message='이미 있는 목표라서 그 목표로 바꿨어요.';
+  }else{
+    if(state.mainGoal){
+      if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 만들어 주세요.');return;}
+      LifeLogic.parkActiveGoal(state,newJobId); // the goal in use stays, as one of the goals
+    }
+    resetGoalProgress();
+    state.goalType='cert';state.mainGoal=title;state.parsedGoal=inferGoal(state.mainGoal);
+    message='취득 준비 목표를 추가했어요.';
+  }
+  if(lookup&&isGoalCertSchedule(lookup.data,lookup.year)) state.certSchedule={...lookup.data,fetchedAt:lookup.fetchedAt};
+  persistState();toast(message);go('goals');
 }
 function saveFavoriteCert(){
   const input=document.getElementById('certSearchInput');

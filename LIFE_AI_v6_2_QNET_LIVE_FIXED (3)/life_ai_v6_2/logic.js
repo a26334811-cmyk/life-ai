@@ -133,9 +133,9 @@
   const isPlain = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   const isText = (value, max) => typeof value === 'string' && value.length <= (max || 2000);
 
-  const STRING_KEYS = ['nickname', 'mainGoal', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'policyIncome', 'recoveryMode', 'lastBackupAt', 'backupSnoozeUntil'];
+  const STRING_KEYS = ['nickname', 'mainGoal', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'policyIncome', 'recoveryMode', 'lastBackupAt', 'backupSnoozeUntil', 'goalId'];
   const BOOLEAN_KEYS = ['jobPreparationStarted', 'policyIncomeAdded', 'jobSubmitted', 'favorite'];
-  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts'];
+  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals'];
   const OBJECT_KEYS = ['parsedGoal', 'focusSettings', 'focusRun'];
 
   // Ids of habits and planner entries are used inside page markup, so only plain id characters are allowed.
@@ -203,6 +203,13 @@
             droppedDate = true;
             return Object.assign({}, habit, { checks });
           });
+        }
+        if (key === 'otherGoals') {
+          // parked goals: keep the usable ones, with wrong-typed fields replaced by defaults (at most MAX_GOALS - 1)
+          const cleaned = value.map(cleanGoal).filter(Boolean).slice(0, MAX_GOALS - 1);
+          if (cleaned.length !== value.length) dropped.push(key);
+          out[key] = cleaned;
+          continue;
         }
         const kept = check ? items.filter(check) : items;
         if (kept.length !== value.length || droppedDate) dropped.push(key);
@@ -400,6 +407,130 @@
   }
 
   /* Goal progress shown on Home. A job goal has no 5-step list, so it counts the prepare checks of every saved posting. */
+  /* ---------- several goals ----------
+     The goal in use ("active") lives in the top-level fields (mainGoal, goalType, ...), so every screen keeps working
+     on it. The other goals are parked as copies in state.otherGoals; switching swaps the two. */
+  const GOAL_FIELDS = ['mainGoal', 'goalType', 'parsedGoal', 'completedTasks', 'policyIncome', 'policyIncomeAdded',
+    'certSchedule', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'favorite'];
+  const MAX_GOALS = 5;
+
+  const goalDefaults = () => ({
+    mainGoal: '', goalType: null, parsedGoal: {}, completedTasks: [false, false, false, false, false],
+    policyIncome: '', policyIncomeAdded: false, certSchedule: null,
+    selectedCompany: '', selectedJob: '', employmentStatus: '', career: '', education: '', ownedCert: '', favorite: false
+  });
+  const clone = value => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
+
+  /* A goal read from storage or a backup: wrong-typed fields are replaced by their defaults so switching to it cannot
+     break a screen. Returns null when it is not a usable goal (no plain object, bad id, no title). */
+  function cleanGoal(raw) {
+    if (!isPlain(raw) || !validId(raw.id) || !isText(raw.mainGoal, 5000) || !raw.mainGoal.trim()) return null;
+    const d = goalDefaults();
+    const out = { id: raw.id };
+    for (const key of GOAL_FIELDS) {
+      const v = raw[key];
+      if (typeof d[key] === 'string') out[key] = isText(v, 5000) ? v : d[key];
+      else if (typeof d[key] === 'boolean') out[key] = typeof v === 'boolean' ? v : d[key];
+      else if (key === 'completedTasks') out[key] = Array.isArray(v) && v.length <= 20 && v.every(x => typeof x === 'boolean') ? clone(v) : d[key];
+      else if (key === 'parsedGoal') out[key] = isPlain(v) ? clone(v) : d[key];
+      else if (key === 'certSchedule') out[key] = isPlain(v) ? clone(v) : null;
+      else if (key === 'goalType') out[key] = v === null || isText(v, 50) ? (v === undefined ? null : v) : null;
+    }
+    return out;
+  }
+
+  function goalCount(state) {
+    const s = state || {};
+    return (s.mainGoal ? 1 : 0) + (Array.isArray(s.otherGoals) ? s.otherGoals.length : 0);
+  }
+  function canAddGoal(state) { return goalCount(state) < MAX_GOALS; }
+
+  /* The active goal needs an id so it can be told apart from the parked ones. */
+  function ensureGoalId(state, makeId) {
+    if (state.mainGoal && !validId(state.goalId)) state.goalId = makeId();
+    return state.goalId;
+  }
+
+  /* Copy of the active goal's fields (what gets parked). */
+  function snapshotGoal(state, makeId) {
+    ensureGoalId(state, makeId);
+    const snap = { id: state.goalId };
+    for (const key of GOAL_FIELDS) if (state[key] !== undefined) snap[key] = clone(state[key]);
+    return snap;
+  }
+
+  /* Makes `goal` the active goal. */
+  function applyGoal(state, goal) {
+    const clean = cleanGoal(goal) || Object.assign(goalDefaults(), { id: null });
+    const defaults = goalDefaults();
+    for (const key of GOAL_FIELDS) state[key] = clean[key] !== undefined ? clean[key] : defaults[key];
+    if (clean.id) state.goalId = clean.id; else delete state.goalId;
+  }
+
+  /* Puts the active goal aside and leaves an empty slot for a new one. Returns false when there is nothing to put
+     aside or the limit is reached. */
+  function parkActiveGoal(state, makeId) {
+    if (!state.mainGoal || !canAddGoal(state)) return false;
+    if (!Array.isArray(state.otherGoals)) state.otherGoals = [];
+    state.otherGoals.push(snapshotGoal(state, makeId));
+    applyGoal(state, null);
+    return true;
+  }
+
+  /* An empty slot with parked goals means a new goal was started and never finished: bring the last parked one back. */
+  function restoreParkedGoal(state) {
+    if (state.mainGoal || !Array.isArray(state.otherGoals) || !state.otherGoals.length) return false;
+    applyGoal(state, state.otherGoals.pop());
+    return true;
+  }
+
+  /* Swaps the active goal with the parked goal `id` (the old active goal takes its place in the list). */
+  function switchGoal(state, makeId, id) {
+    const list = Array.isArray(state.otherGoals) ? state.otherGoals : [];
+    const at = list.findIndex(g => g && g.id === id);
+    if (at < 0) return false;
+    const target = list[at];
+    list[at] = state.mainGoal ? snapshotGoal(state, makeId) : null;
+    if (list[at] === null) list.splice(at, 1);
+    state.otherGoals = list;
+    applyGoal(state, target);
+    return true;
+  }
+
+  /* Deletes a goal. The last remaining goal cannot be deleted. Deleting the active goal activates the first parked one. */
+  function removeGoal(state, makeId, id) {
+    if (goalCount(state) <= 1) return { ok: false, reason: 'last' };
+    ensureGoalId(state, makeId);
+    if (id === state.goalId) {
+      applyGoal(state, state.otherGoals.shift());
+      return { ok: true };
+    }
+    const at = (state.otherGoals || []).findIndex(g => g && g.id === id);
+    if (at < 0) return { ok: false, reason: 'missing' };
+    state.otherGoals.splice(at, 1);
+    return { ok: true };
+  }
+
+  /* Cards for the goals screen: the active goal first, then the parked ones. */
+  function goalList(state, makeId) {
+    const s = state || {};
+    const out = [];
+    if (s.mainGoal) {
+      out.push({ id: ensureGoalId(s, makeId), active: true, title: s.mainGoal, type: s.goalType || null });
+    }
+    for (const g of Array.isArray(s.otherGoals) ? s.otherGoals : []) {
+      if (g && g.mainGoal) out.push({ id: g.id, active: false, title: g.mainGoal, type: g.goalType || null });
+    }
+    return out;
+  }
+
+  /* Looks for a goal with exactly this title (spaces ignored). Returns {id, active} or null. */
+  function findGoalByTitle(state, title, makeId) {
+    const norm = t => String(t || '').replace(/\s+/g, '');
+    const hit = goalList(state, makeId).find(g => norm(g.title) === norm(title));
+    return hit ? { id: hit.id, active: hit.active } : null;
+  }
+
   function goalProgress(state) {
     const s = state || {};
     const flags = s.goalType === 'job'
@@ -410,6 +541,8 @@
   }
 
   const api = {
+    GOAL_FIELDS, MAX_GOALS, goalCount, canAddGoal, snapshotGoal, applyGoal, parkActiveGoal, restoreParkedGoal,
+    switchGoal, removeGoal, goalList, findGoalByTitle,
     goalProgress,
     firstUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
