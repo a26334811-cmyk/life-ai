@@ -25,5 +25,7 @@ test('HTML upstream error is reported as failure',async()=>{
   const handler=setup('<html><body>Service unavailable</body></html>');
   const result=await handler({queryStringParameters:{keyword:'정비'}});
   assert.equal(result.statusCode,502);
-  assert.match(JSON.parse(result.body).message,/HTML/);
+  const body=JSON.parse(result.body);
+  assert.equal(body.message,'지금은 고용24에서 공고를 가져오지 못했어요. 잠시 뒤 다시 시도하거나 고용24 사이트에서 확인해 주세요.');
+  assert.match(body.detail,/HTML/,'the technical cause is kept separately');
 });

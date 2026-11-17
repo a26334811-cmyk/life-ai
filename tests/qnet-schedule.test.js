@@ -68,13 +68,34 @@ test('Q-Net qualification endpoint rejects HTML error pages',async()=>{
   const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
   const result=await handler({queryStringParameters:{mode:'search',q:'설비보전'}});
   assert.equal(result.statusCode,502);
-  assert.match(JSON.parse(result.body).message,/HTML/);
+  const body=JSON.parse(result.body);
+  assert.match(body.message,/Q-Net에서 자격증 목록을 가져오지 못했어요.*잠시 뒤 다시/);
+  assert.doesNotMatch(body.message,/HTML|인증키|API/,'the screen text has no developer words');
+  assert.match(body.detail,/HTML/,'the technical cause is kept separately');
 });
 test('Q-Net schedule endpoint rejects HTML error pages',async()=>{
   const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
   const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
   assert.equal(result.statusCode,502);
-  assert.match(JSON.parse(result.body).message,/HTML/);
+  const body=JSON.parse(result.body);
+  assert.equal(body.message,'지금은 Q-Net에서 일정을 가져오지 못했어요. 잠시 뒤 다시 시도하거나 Q-Net 사이트에서 확인해 주세요.');
+  assert.match(body.detail,/HTML/);
+});
+test('Q-Net HTTP errors and network failures also get the short screen message',async()=>{
+  delete require.cache[path];
+  process.env.DATA_GO_KR_SERVICE_KEY='test';
+  global.fetch=async()=>({ok:false,status:500,text:async()=>'boom'});
+  let handler=require(path).handler;
+  let body=JSON.parse((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
+  assert.match(body.message,/잠시 뒤 다시 시도/);
+  assert.doesNotMatch(body.message,/500/);
+  assert.match(body.detail,/500/);
+  delete require.cache[path];
+  global.fetch=async()=>{throw new TypeError('fetch failed');};
+  handler=require(path).handler;
+  body=JSON.parse((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
+  assert.match(body.message,/잠시 뒤 다시 시도/);
+  assert.doesNotMatch(body.message,/fetch failed/);
 });
 
 /* ---------- merging extra registrations and other years (#57) ---------- */
@@ -163,11 +184,14 @@ test('success codes 00 and 0 are not treated as errors',async()=>{
     assert.equal(result.statusCode,200,code);
   }
 });
-test('HTTP 500 from the exam servers returns 502 with the status number',async()=>{
-  const schedule=await failure(setup(()=>({status:500,body:'Internal Server Error'})),scheduleQuery);
-  assert.match(schedule,/오류 500/);
-  const search=await failure(setup(()=>({status:500,body:''})),searchQuery);
-  assert.match(search,/오류 500/);
+test('HTTP 500 from the exam servers returns 502 with a short message and the status number in detail',async()=>{
+  const detailOf=async(handler,query)=>{const r=await handler(query);assert.equal(r.statusCode,502);return JSON.parse(r.body);};
+  const schedule=await detailOf(setup(()=>({status:500,body:'Internal Server Error'})),scheduleQuery);
+  assert.match(schedule.message,/지금은 Q-Net에서 일정을 가져오지 못했어요/);
+  assert.match(schedule.detail,/오류 500/);
+  const search=await detailOf(setup(()=>({status:500,body:''})),searchQuery);
+  assert.match(search.message,/자격증 목록을 가져오지 못했어요/);
+  assert.match(search.detail,/오류 500/);
 });
 test('a failed HTTP answer that carries a key error still gives the key message',async()=>{
   const message=await failure(setup(()=>({status:401,body:errorXml('30','SERVICE_KEY_IS_NOT_REGISTERED_ERROR')})),scheduleQuery);

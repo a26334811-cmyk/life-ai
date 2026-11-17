@@ -39,6 +39,21 @@ function scheduleEvents(block){
     return [{type:label,label,startDate,endDate,raw:startDate===endDate?startDate:`${startDate} ~ ${endDate}`}];
   });
 }
+/* Technical failures carry a short message for the screen (userMessage); the technical cause stays in detail and the server log. */
+const SCHEDULE_FAIL='지금은 Q-Net에서 일정을 가져오지 못했어요. 잠시 뒤 다시 시도하거나 Q-Net 사이트에서 확인해 주세요.';
+const LIST_FAIL='지금은 Q-Net에서 자격증 목록을 가져오지 못했어요. 잠시 뒤 다시 시도하거나 Q-Net 사이트에서 확인해 주세요.';
+function upstreamError(detail,userMessage){
+  const e=new Error(detail);
+  e.userMessage=userMessage;
+  return e;
+}
+function errorBody(e,fallback){
+  if(e.userMessage||['TimeoutError','AbortError','TypeError'].includes(e.name)){
+    console.error('[qnet-schedule]',e.message);
+    return {message:e.userMessage||fallback,detail:e.message};
+  }
+  return {message:e.message||fallback};
+}
 function cleanName(s){ return String(s||'').replace(/\s+/g,'').replace(/[()（）]/g,'').toLowerCase(); }
 async function fetchWithTimeout(url){
   return fetch(url,{signal:AbortSignal.timeout(8000)});
@@ -66,8 +81,8 @@ async function loadQualifications(){
     const params=new URLSearchParams({pageNo:String(pageNo),numOfRows:'1000'});
     const r=await fetchWithTimeout(`${base}?${params}`);
     const xml=await r.text();
-    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 종목 목록')||new Error(`Q-Net 종목 조회 오류 ${r.status}`);
-    if(/<html[\s>]/i.test(xml)) throw new Error('Q-Net 종목 목록 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
+    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 종목 목록')||upstreamError(`Q-Net 종목 조회 오류 ${r.status}`,LIST_FAIL);
+    if(/<html[\s>]/i.test(xml)) throw upstreamError('Q-Net 종목 목록 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.',LIST_FAIL);
     const apiError=apiErrorFromXml(xml,'Q-Net 종목 목록');
     if(apiError) throw apiError;
     const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
@@ -108,16 +123,16 @@ async function fetchOfficialSchedule(key, qual, year){
     });
     const r=await fetchWithTimeout(`${base}?${params.toString()}`);
     const xml=await r.text();
-    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 시험일정')||new Error(`Q-Net 시험일정 API 오류 ${r.status}`);
-    if(/<html[\s>]/i.test(xml)) throw new Error('Q-Net 시험일정 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.');
+    if(!r.ok) throw apiErrorFromXml(xml,'Q-Net 시험일정')||upstreamError(`Q-Net 시험일정 API 오류 ${r.status}`,SCHEDULE_FAIL);
+    if(/<html[\s>]/i.test(xml)) throw upstreamError('Q-Net 시험일정 API가 HTML을 반환했어요. 인증키 또는 서비스 상태를 확인해 주세요.',SCHEDULE_FAIL);
     const apiError=apiErrorFromXml(xml,'Q-Net 시험일정');
     if(apiError) throw apiError;
     const countText=xmlText(xml,'totalCount');
     const count=Number(countText);
-    if(!countText||!Number.isFinite(count)||count<0) throw new Error('Q-Net 시험일정 XML의 전체 건수를 읽지 못했어요.');
+    if(!countText||!Number.isFinite(count)||count<0) throw upstreamError('Q-Net 시험일정 XML의 전체 건수를 읽지 못했어요.',SCHEDULE_FAIL);
     totalCount=count;
     const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item\s*>/gi)||[];
-    if(!blocks.length&&totalCount>0) throw new Error('Q-Net 시험일정 XML에서 항목을 읽지 못했어요.');
+    if(!blocks.length&&totalCount>0) throw upstreamError('Q-Net 시험일정 XML에서 항목을 읽지 못했어요.',SCHEDULE_FAIL);
     for(const block of blocks){
       if(xmlText(block,'implYy')!==String(year)) continue;
       const round=xmlText(block,'description')||`${year}년 ${xmlText(block,'implSeq')}회`;
@@ -126,7 +141,7 @@ async function fetchOfficialSchedule(key, qual, year){
     if(!blocks.length||pageNo*numOfRows>=totalCount) break;
     pageNo++;
   }
-  if(pageNo>20) throw new Error('Q-Net 시험일정 페이지 제한을 초과했어요.');
+  if(pageNo>20) throw upstreamError('Q-Net 시험일정 페이지 제한을 초과했어요.',SCHEDULE_FAIL);
   const grouped=new Map();
   for(const entry of rounds.sort((a,b)=>(a.events[0]?.startDate||'').localeCompare(b.events[0]?.startDate||''))){
     const key=entry.round+JSON.stringify(entry.events.filter(e=>e.type!=='필기원서접수'));
@@ -151,7 +166,7 @@ exports.handler=async(event)=>{
       const {items,totalCount}=await listQualifications(key);
       const matches=items.filter(x=>cleanName(x.name).includes(cleanName(query))).slice(0,30);
       return {statusCode:200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=3600'},body:JSON.stringify({items:matches,loadedCount:items.length,totalCount})};
-    }catch(e){ return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:e.message})}; }
+    }catch(e){ return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify(errorBody(e,LIST_FAIL))}; }
   }
 
   if(!name&&event.queryStringParameters?.mode!=='search') return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름이 필요해요.'})};
@@ -171,6 +186,6 @@ exports.handler=async(event)=>{
       message:items.length?'Q-Net 공식 시험일정을 불러왔어요.':'해당 연도의 종목별 시험일정을 찾지 못했어요. 상시검정 종목은 별도 일정 연동이 필요할 수 있어요.'
     })};
   }catch(e){
-    return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:e.message||'Q-Net 호출에 실패했어요.'})};
+    return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify(errorBody(e,SCHEDULE_FAIL))};
   }
 };
