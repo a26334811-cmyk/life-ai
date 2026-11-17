@@ -742,20 +742,25 @@ function openLifeAIBackup(){
   input.value='';
   input.click();
 }
+/* Errors made on purpose carry a Korean message that is safe to show; any other error gets a general message. */
+function backupError(message){return Object.assign(new Error(message),{friendly:true});}
 async function importLifeAIBackup(input){
   const file=input.files?.[0];
   if(!file)return;
   if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
   try{
-    const backup=JSON.parse(await file.text());
+    const text=await file.text();
+    let backup;
+    try{backup=JSON.parse(text);}
+    catch(parseError){throw backupError('백업 파일을 읽지 못했어요. 앱에서 만든 life-ai-backup-날짜.json 파일을 골라 주세요.');}
     if(!backup||backup.format!==LIFE_AI_BACKUP_FORMAT||backup.version!==LIFE_AI_BACKUP_VERSION||
        !backup.state||typeof backup.state!=='object'||Array.isArray(backup.state)||
        typeof backup.state.mainGoal!=='string'||typeof backup.state.nickname!=='string'||
        !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
-      throw new Error('올바른 life-ai 백업 파일이 아니에요.');
+      throw backupError('올바른 life-ai 백업 파일이 아니에요.');
     }
     const migrated=LifeLogic.migrateState(backup.state);
-    if(!validateLifeAIBackupState(migrated))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
+    if(!validateLifeAIBackupState(migrated))throw backupError('백업 데이터의 구조가 올바르지 않아요.');
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
     const safe=LifeLogic.sanitizeState(migrated).state;
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
@@ -763,11 +768,11 @@ async function importLifeAIBackup(input){
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
     }catch(error){
       try{if(snapshot!==null)localStorage.setItem('lifeAIPrototypeV5',snapshot);}catch(rollbackError){}
-      throw new Error('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
+      throw backupError('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
     }
     await uiAlert('복원이 완료됐어요. 앱을 새로고침합니다.',{title:'복원 완료'});
     location.reload();
-  }catch(e){toast(e.message||'백업 파일을 읽지 못했어요.');}
+  }catch(e){toast(e&&e.friendly?e.message:'백업 파일을 읽지 못했어요. 다시 시도해 주세요.');}
 }
 
 async function resetPrototype(){

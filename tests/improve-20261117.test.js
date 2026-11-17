@@ -16,6 +16,19 @@ test('home first-card reason is a sentence for every goal type (never an object)
   assert.match(a.run('priorityReason()'),/관심 회사와 공고/);
 });
 
+/* #75 */
+test('restoring a file that is not a backup shows Korean messages, never the raw JSON error',async()=>{
+  const a=createApp();
+  const pick=text=>({files:[{size:10,text:typeof text==='function'?text:async()=>text}]});
+  await a.run('importLifeAIBackup')(pick('이건 메모장 글이에요'));
+  assert.match(a.toasts.at(-1),/백업 파일을 읽지 못했어요\. 앱에서 만든 life-ai-backup-날짜\.json/);
+  await a.run('importLifeAIBackup')(pick('{"hello":1}'));
+  assert.equal(a.toasts.at(-1),'올바른 life-ai 백업 파일이 아니에요.');
+  await a.run('importLifeAIBackup')(pick(()=>{throw new TypeError('Unexpected token x');}));
+  assert.equal(a.toasts.at(-1),'백업 파일을 읽지 못했어요. 다시 시도해 주세요.');
+  for(const t of a.toasts)assert.doesNotMatch(t,/Unexpected|JSON|token/);
+});
+
 /* #74 */
 test('Work24 search: the keyword box starts with the current keyword, can be edited, and an empty result shows it',async()=>{
   const urls=[];
