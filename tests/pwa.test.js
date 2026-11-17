@@ -38,8 +38,9 @@ test('page links the manifest, icons and registers the service worker only on ht
   assert.match(html,/location\.protocol==='https:'\|\|location\.hostname==='localhost'/);
 });
 
-function loadWorker(){
+function loadWorker(fetchImpl){
   const handlers={};
+  const timers=[];
   const cache=new Map();
   const added=[];
   const self={location:{origin:'https://app.example'},addEventListener:(type,fn)=>{handlers[type]=fn;},clients:{claim:async()=>{},matchAll:async()=>self.__clients,openWindow:async url=>{self.__opened=url;}},skipWaiting:async()=>{}};
@@ -49,10 +50,13 @@ function loadWorker(){
     keys:async()=>['old-cache','life-ai-shell-v1'],
     delete:async()=>true
   };
-  const context={self,caches,URL,Response:{error:()=>'ERR'},fetch:async()=>{throw new Error('offline');}};
+  const context={self,caches,URL,Response:{error:()=>'ERR'},fetch:fetchImpl||(async()=>{throw new Error('offline');}),
+    setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},
+    clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}};
   vm.createContext(context);
   vm.runInContext(read('sw.js'),context);
-  return {handlers,cache,added,self,context};
+  const fire=()=>timers.filter(t=>t.live).forEach(t=>{t.live=false;t.fn();});
+  return {handlers,cache,added,self,context,timers,fire};
 }
 
 test('service worker caches every file it lists and those files exist',async()=>{
@@ -70,7 +74,7 @@ test('service worker caches every file it lists and those files exist',async()=>
 
 test('service worker ignores live data requests and other origins',()=>{
   const sw=loadWorker();
-  const call=url=>{let handled=false;sw.handlers.fetch({request:{method:'GET',url,mode:'cors'},respondWith:()=>{handled=true;}});return handled;};
+  const call=url=>{let handled=false;sw.handlers.fetch({request:{method:'GET',url,mode:'cors'},respondWith:()=>{handled=true;},waitUntil(){}});return handled;};
   assert.equal(call('https://app.example/.netlify/functions/qnet-schedule?name=x'),false);
   assert.equal(call('https://other.example/index.html'),false);
   assert.equal(call('https://app.example/index.html'),true);
@@ -83,8 +87,58 @@ test('service worker opens the cached app when offline',async()=>{
   const sw=loadWorker();
   sw.cache.set('index.html',{marker:'cached-index'});
   let response;
-  sw.handlers.fetch({request:{method:'GET',url:'https://app.example/some/page',mode:'navigate'},respondWith:p=>{response=p;}});
+  sw.handlers.fetch({request:{method:'GET',url:'https://app.example/some/page',mode:'navigate'},respondWith:p=>{response=p;},waitUntil(){}});
   assert.deepEqual(await response,{marker:'cached-index'});
+});
+
+const swEvent=(url,mode='cors')=>{const e={request:{method:'GET',url,mode},waitUntil(){}};e.respondWith=p=>{e.response=p;};return e;};
+const okPage=(text)=>({ok:true,type:'basic',text,clone(){return {text};}});
+
+test('service worker shows the saved copy after 3 seconds on a weak signal, and still refreshes the cache in the background',async()=>{
+  let finish;
+  const sw=loadWorker(()=>new Promise(resolve=>{finish=resolve;}));
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.equal(sw.timers[0].ms,3000);
+  let shown;e.response.then(r=>{shown=r;});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(shown,undefined,'still waiting for the network before the time limit');
+  sw.fire();
+  assert.deepEqual(await e.response,{marker:'old-copy'});
+  finish(okPage('new-copy'));
+  await new Promise(r=>setImmediate(r));
+  assert.equal(sw.cache.get('https://app.example/index.html').text,'new-copy','the late download is saved for next time');
+});
+
+test('service worker uses the network answer when it arrives in time',async()=>{
+  const sw=loadWorker(async()=>okPage('fresh'));
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.equal((await e.response).text,'fresh');
+  assert.equal(sw.timers.filter(t=>t.live).length,0,'timer is cleared');
+});
+
+test('service worker keeps waiting for the network when it is slow but nothing is saved',async()=>{
+  let finish;
+  const sw=loadWorker(()=>new Promise(resolve=>{finish=resolve;}));
+  const e=swEvent('https://app.example/other.png');
+  sw.handlers.fetch(e);
+  sw.fire();
+  finish(okPage('late'));
+  assert.equal((await e.response).text,'late');
+});
+
+test('service worker falls back to the saved copy immediately when the network fails',async()=>{
+  const sw=loadWorker(async()=>{throw new Error('offline');});
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.deepEqual(await e.response,{marker:'old-copy'});
+  const none=swEvent('https://app.example/missing.png');
+  sw.handlers.fetch(none);
+  assert.equal(await none.response,'ERR');
 });
 
 test('tapping the notification focuses an open window or opens the calendar',async()=>{

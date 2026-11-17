@@ -255,10 +255,24 @@ function json(status, body) {
   return { statusCode: status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, body: JSON.stringify(body) };
 }
 
+/* Only this app's own pages may call the function. Browsers add sec-fetch-site (and origin/referer) themselves,
+   so a page on another site, or a plain address typed in the browser, is refused. Command-line tools can fake
+   these headers, so this limits casual misuse; it is not a login. */
+function isSameOriginRequest(event) {
+  const h = {};
+  for (const [k, v] of Object.entries((event && event.headers) || {})) h[k.toLowerCase()] = String(v);
+  if (h['sec-fetch-site'] !== undefined) return h['sec-fetch-site'] === 'same-origin';
+  const host = (h['x-forwarded-host'] || h.host || '').toLowerCase();
+  const from = h.origin || h.referer;
+  if (!host || !from) return false;
+  try { return new URL(from).host.toLowerCase() === host; } catch (e) { return false; }
+}
+
 function createHandler(deps) {
   const fetchImpl = (deps && deps.fetchImpl) || fetch;
   const lookupImpl = (deps && deps.lookupImpl) || dns.lookup;
   return async function handler(event) {
+    if (!isSameOriginRequest(event)) return json(403, { ok: false, message: '이 앱 안에서만 쓸 수 있는 기능이에요.' });
     const raw = String((event.queryStringParameters && event.queryStringParameters.url) || '').trim();
     if (!raw || raw.length > 2000) return json(400, { ok: false, message: '공고 링크를 입력해 주세요.' });
     try {
@@ -278,6 +292,7 @@ function createHandler(deps) {
 exports.handler = createHandler();
 exports.createHandler = createHandler;
 exports.parsePage = parsePage;
+exports.isSameOriginRequest = isSameOriginRequest;
 exports.isPrivateIp = isPrivateIp;
 exports.assertPublicUrl = assertPublicUrl;
 exports.decodeBytes = decodeBytes;

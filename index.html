@@ -641,6 +641,45 @@ const state = {
 };
 let savedState;
 let startupNotice='';
+/* Damaged originals are kept under a dated name and never overwrite an earlier one. Returns true only if the original is really stored. */
+const DAMAGED_PREFIX='lifeAIPrototypeV5.damaged';
+function archiveDamagedState(raw){
+  try{
+    if(localStorage.getItem(DAMAGED_PREFIX)===raw) return true;
+    const base=DAMAGED_PREFIX+'.'+new Date().toISOString().slice(0,10);
+    for(let n=1;n<=20;n++){
+      const key=n===1?base:base+'-'+n;
+      const old=localStorage.getItem(key);
+      if(old===raw) return true;
+      if(old===null){localStorage.setItem(key,raw);return localStorage.getItem(key)===raw;}
+    }
+  }catch(e){}
+  return false;
+}
+function damagedArchives(){
+  const out=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key&&key.startsWith(DAMAGED_PREFIX)){const raw=localStorage.getItem(key);if(raw!==null)out.push({key,raw});}
+    }
+  }catch(e){}
+  return out.sort((a,b)=>a.key<b.key?-1:1);
+}
+function downloadDamagedState(){
+  const archives=damagedArchives();
+  if(!archives.length){toast('보관된 손상 원본이 없어요.');return;}
+  try{
+    const payload={format:'life-ai-damaged-original',exportedAt:new Date().toISOString(),archives:archives.map(x=>({name:x.key,raw:x.raw}))};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-damaged-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('손상된 원본을 파일로 저장했어요.');
+  }catch(e){toast('원본 파일을 만들지 못했어요.');}
+}
 try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
 if(savedState){
   let parsedSaved=null;
@@ -649,13 +688,15 @@ if(savedState){
   if(cleaned){
     Object.assign(state,cleaned.state);
     if(cleaned.dropped.length){
-      // Keep the untouched original so nothing is lost, and tell the user once.
-      try { localStorage.setItem('lifeAIPrototypeV5.damaged',savedState); } catch(e) {}
-      startupNotice='저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본은 이 기기에 따로 남겨 두었어요.';
+      // Keep the untouched original so nothing is lost, and tell the user once (only if it was really kept).
+      startupNotice=archiveDamagedState(savedState)
+        ?'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
+        :'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
     }
   } else {
-    try { localStorage.setItem('lifeAIPrototypeV5.damaged',savedState); } catch(e) {}
-    startupNotice='저장된 기록을 읽지 못해 새로 시작해요. 원본은 이 기기에 따로 남겨 두었어요.';
+    startupNotice=archiveDamagedState(savedState)
+      ?'저장된 기록을 읽지 못해 새로 시작해요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
+      :'저장된 기록을 읽지 못해 새로 시작해요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
   }
 }
 state.schemaVersion=LifeLogic.STATE_SCHEMA_VERSION;
@@ -960,7 +1001,7 @@ function uiAsk(config){
   return next;
 }
 function uiConfirm(message,opts={}){
-  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:1,
+  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:opts.danger?0:1,
     buttons:[{label:opts.cancel||'취소',kind:'ghost',value:false},{label:opts.ok||'확인',kind:opts.danger?'danger':'primary',value:true}]});
 }
 function uiChoice(message,choices,opts={}){
@@ -1466,6 +1507,7 @@ function focusNotify(){
   if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
   if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
   if(mode==='sound'){
+    let played=false;
     try{
       const ctx=focusAudioContext;
       if(ctx&&ctx.state==='running'){
@@ -1476,8 +1518,14 @@ function focusNotify(){
         gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.7);
         oscillator.connect(gain).connect(ctx.destination);
         oscillator.start();oscillator.stop(ctx.currentTime+.72);
+        played=true;
       }
     }catch(e){}
+    // Sound can only start after a tap. If it was not ready (app reopened while the timer ran), vibrate and flash instead.
+    if(!played){
+      if(navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+      if(panel)panel.classList.add('focus-flash');
+    }
   }
 }
 function focusHistory(){
@@ -1870,7 +1918,7 @@ function renderMy(){
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
     <div class="section-title">내 데이터 백업·복원</div>
     <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
-    <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" /></div></div>
+    <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" />${damagedArchives().length?'<button class="btn ghost" onclick="downloadDamagedState()">⬇ 손상된 원본 내려받기</button>':''}</div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
       <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
@@ -2125,13 +2173,28 @@ function certQueryName(){
   const raw=state.mainGoal||'';
   return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
 }
+// A lookup is only stored as the saved official schedule when it is for the goal's own certificate
+// (and not an older year, nor a later year that would hide the upcoming dates already saved).
+let lastCertLookup=null;
+function certNameKey(s){return String(s||'').replace(/\s+/g,'');}
+function isGoalCertSchedule(data,year){
+  if(state.goalType!=='cert') return false;
+  const goal=certNameKey(certQueryName()), got=certNameKey(data?.qualification?.name);
+  if(!goal||!got||!(goal===got||got.includes(goal)||goal.includes(got))) return false;
+  const today=koreaToday(), thisYear=Number(today.slice(0,4));
+  if(Number(year)<thisYear) return false;
+  if(Number(year)>thisYear){
+    const kept=(Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[]).some(r=>(r.events||[]).some(e=>e.startDate&&e.startDate>=today));
+    if(kept) return false;
+  }
+  return true;
+}
 function startCertGoal(){
   const name=document.getElementById('certSearchInput').value.trim();
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
-  const schedule=state.certSchedule;
   if(state.mainGoal!==name+' 준비') resetGoalProgress();
-  if(schedule?.qualification?.name===name) state.certSchedule=schedule;
   state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
+  if(lastCertLookup&&isGoalCertSchedule(lastCertLookup.data,lastCertLookup.year)) state.certSchedule={...lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt};
   persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
 }
 function saveFavoriteCert(){
@@ -2151,6 +2214,15 @@ function removeFavoriteCert(code){
 function favoriteCertHTML(){
   return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" onclick="removeFavoriteCert(this.dataset.code)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
 }
+function certRoundsHTML(data){
+  return `<div class="section-title">실제 시험일정</div><div class="stack">${(
+    data.rounds||[]).map(round=>`
+    <div class="card">
+      <h3>${esc(round.round)}</h3>
+      ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
+    </div>`).join('')
+  }</div>`;
+}
 function initCertSearch(){
   const year=document.getElementById('certYear');
   if(!year.options.length){
@@ -2159,6 +2231,19 @@ function initCertSearch(){
   }
   const input=document.getElementById('certSearchInput');
   if(!input.value) input.value=certQueryName();
+  // A schedule already looked up (or saved on this phone) is shown first, without asking the server again.
+  const want=certNameKey(input.value);
+  const known=[lastCertLookup&&{data:lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt},state.certSchedule&&{data:state.certSchedule,fetchedAt:state.certSchedule.fetchedAt}]
+    .find(x=>{const got=x&&certNameKey(x.data?.qualification?.name);return want&&got&&(want===got||got.includes(want)||want.includes(got));});
+  if(known){
+    const status=document.getElementById('liveCertStatus'),box=document.getElementById('liveCertResults');
+    const when=known.fetchedAt?String(known.fetchedAt).slice(0,10):'';
+    if(known.data.year&&[...year.options].some(o=>o.value===String(known.data.year))) year.value=String(known.data.year);
+    status.innerHTML=`<strong>📦 저장된 일정${when?` · 조회일 ${esc(when)}`:''}</strong><p class="meta">${esc(known.data.qualification.name)} · 종목코드 ${esc(known.data.qualification.code||'')}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">최신 일정 다시 조회</button>`;
+    box.innerHTML=known.data.items?.length?certRoundsHTML(known.data):'';
+    document.getElementById('certSearchMatches').innerHTML='';
+    return;
+  }
   if(input.value) searchCertNames();
 }
 const SLOW_CONNECTION_MESSAGE='연결이 느려요. 다시 시도해 주세요.';
@@ -2237,20 +2322,17 @@ async function loadLiveCertSchedule(){
   try{
     const data=await fetchJson(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${year}${code?`&code=${encodeURIComponent(code)}`:''}`,certScheduleController.signal);
     if(version!==certScheduleVersion) return;
-    state.certSchedule={...data,fetchedAt:new Date().toISOString()};
-    persistState();
+    lastCertLookup={data,year,fetchedAt:new Date().toISOString()};
+    if(isGoalCertSchedule(data,year)){
+      state.certSchedule={...data,fetchedAt:lastCertLookup.fetchedAt};
+      persistState();
+    }
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
       box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
       return;
     }
-    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${(
-      data.rounds||[]).map(round=>`
-      <div class="card">
-        <h3>${esc(round.round)}</h3>
-        ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
-      </div>`).join('')
-    }</div>`;
+    box.innerHTML=certRoundsHTML(data);
   }catch(e){
     if(version!==certScheduleVersion||e.name==='AbortError') return;
     status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;

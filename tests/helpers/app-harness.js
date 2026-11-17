@@ -47,6 +47,8 @@ function createApp(saved, opts = {}) {
   const context = {
     document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '' },
     localStorage: {
+      get length() { return storage.size; },
+      key: i => [...storage.keys()][i] ?? null,
       getItem: k => (storage.has(k) ? storage.get(k) : null),
       // failSave may also be a function (key, value, storage) => true to fail; it can write to storage first to mimic a half-written save.
       setItem: (k, v) => {
@@ -116,11 +118,13 @@ function createApp(saved, opts = {}) {
     if (kind === 'prompt') return opts.answer === undefined ? null : opts.answer;
     return undefined;
   };
+  // opts.realDialogs keeps the app's own uiAsk/uiConfirm/uiChoice/uiPrompt (tests then give `document` a fake DOM).
   vm.runInContext(`
+    ${opts.realDialogs ? '' : `
     uiConfirm=async(message)=>__dialog('confirm',message);
     uiChoice=async(message,choices)=>__dialog('choice',message,choices);
     uiPrompt=async(message)=>__dialog('prompt',message);
-    uiAlert=async(message)=>__dialog('alert',message);
+    uiAlert=async(message)=>__dialog('alert',message);`}
     toast=(message)=>__toast(message);
   `, Object.assign(context, { __toast: m => toasts.push(m) }));
   return {
