@@ -411,6 +411,18 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   assert.doesNotMatch(status(b),/찾지 못했어요/);assert.equal(bOpened,false);
 });
 
+test('habit checkbox uses the date at click time, and a new day redraws the planner',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',habits:[{id:'h',name:'공부',checks:[]}]}));
+  a.run('renderCalendar()');
+  assert.match(a.el('calendarContent').innerHTML,/habitToggle\('h',koreaToday\(\)\)/);
+  assert.equal(a.run('plannerSelected'),'2026-05-10');
+  a.clock.now+=24*3600*1000;
+  a.run('plannerDayRollover()');
+  assert.equal(a.run('plannerSelected'),'2026-05-11');
+  a.run("habitToggle('h',koreaToday())");
+  assert.deepEqual(a.saved().habits[0].checks,['2026-05-11']);
+});
+
 test('a saved interview date shows in the planner for that day, except for finished postings',()=>{
   const a=createApp();
   const row=(id,company,stage)=>({id,company,title:'공고',stage,interviewDate:'2026-06-01',tasks:[false,false,false,false]});
