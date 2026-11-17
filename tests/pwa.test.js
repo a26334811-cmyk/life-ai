@@ -79,6 +79,25 @@ test('service worker ignores live data requests and other origins',()=>{
   assert.equal(postHandled,false);
 });
 
+test('service worker never stores addresses with a query (shared job links) and drops the old cache',async()=>{
+  const sw=loadWorker();
+  const stored=[];
+  sw.context.caches.open=async()=>({put:async(req)=>{stored.push(req.url);}});
+  sw.context.fetch=async()=>({ok:true,type:'basic',clone(){return this;}});
+  const call=async url=>{let p;sw.handlers.fetch({request:{method:'GET',url,mode:'navigate'},respondWith:x=>{p=x;}});await p;await new Promise(r=>setImmediate(r));};
+  await call('https://app.example/index.html?title=a&url=https%3A%2F%2Fjob.example%2F1');
+  assert.deepEqual(stored,[]);
+  await call('https://app.example/index.html');
+  assert.deepEqual(stored,['https://app.example/index.html']);
+  const deleted=[];
+  sw.context.caches.keys=async()=>['life-ai-shell-v1','life-ai-shell-v2'];
+  sw.context.caches.delete=async k=>{deleted.push(k);return true;};
+  let wait;
+  sw.handlers.activate({waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.deepEqual(deleted,['life-ai-shell-v1']);
+});
+
 test('service worker opens the cached app when offline',async()=>{
   const sw=loadWorker();
   sw.cache.set('index.html',{marker:'cached-index'});

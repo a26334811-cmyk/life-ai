@@ -3,7 +3,7 @@
    - Network first: when online you always get the newest files; the cache is only the fallback.
    - Never touches Netlify functions or other origins (live job / exam data must stay live).
    - Shows the "focus finished" notification and opens the app when it is tapped. */
-const CACHE = 'life-ai-shell-v1';
+const CACHE = 'life-ai-shell-v2';
 const SHELL = ['./', 'index.html', 'logic.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
@@ -30,7 +30,8 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(request)
       .then(response => {
-        if (response && response.ok && response.type === 'basic') {
+        /* Addresses with a query (e.g. a shared job link: index.html?title=..&url=..) are never stored. */
+        if (response && response.ok && response.type === 'basic' && !url.search) {
           const copy = response.clone();
           caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
         }
