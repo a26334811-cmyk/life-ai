@@ -108,6 +108,23 @@ test('habit and planner ids must be plain characters (no quotes or markup)',()=>
   assert.equal(L.validateBackupState({...base,plannerEntries:[{id:evil,title:'b',date:'2026-05-01'}]}),false);
 });
 
+test('occurs does not rebuild Date objects for dates it has already checked, and still rejects bad dates',()=>{
+  const RealDate=global.Date;
+  let made=0;
+  global.Date=class extends RealDate{constructor(...args){made++;super(...args);}};
+  try{
+    const items=[{date:'2026-05-01',repeat:'daily'},{date:'2026-05-01',repeat:'weekly'},{date:'2026-05-01',repeat:'none'},{date:'2026-02-30',repeat:'daily'}];
+    const days=['2026-05-10','2026-05-11','2026-05-12','2026-02-31'];
+    for(const item of items)for(const day of days)L.occurs(item,day); // warm up
+    made=0;
+    for(let n=0;n<200;n++)for(const item of items)for(const day of days)L.occurs(item,day);
+    assert.equal(made,0,'no new Date objects after the first answers are known');
+  }finally{global.Date=RealDate;}
+  assert.equal(L.occurs({date:'2026-02-30',repeat:'daily'},'2026-03-01'),false,'invalid start date stays rejected');
+  assert.equal(L.occurs({date:'2026-05-01',repeat:'daily'},'2026-02-31'),false,'invalid day stays rejected');
+  assert.equal(L.occurs({date:'2026-05-01',repeat:'daily'},'2026-05-02'),true);
+});
+
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
   assert.equal(L.sanitizeState(null),null);
   assert.equal(L.sanitizeState([]),null);

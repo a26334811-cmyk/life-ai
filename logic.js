@@ -17,10 +17,17 @@
   const FOCUS_HISTORY_LIMIT = 500;
   const DANGEROUS_KEYS = ['__proto__', 'prototype', 'constructor'];
 
+  // The calendar asks about the same few date strings thousands of times per draw, so the answer is remembered.
+  const validDateCache = new Map();
   function validDate(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const known = validDateCache.get(value);
+    if (known !== undefined) return known;
     const d = new Date(value + 'T00:00:00Z');
-    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
+    const ok = Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
+    if (validDateCache.size >= 5000) validDateCache.clear();
+    validDateCache.set(value, ok);
+    return ok;
   }
 
   function koreaDate(ms) {
