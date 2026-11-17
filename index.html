@@ -91,7 +91,7 @@
     }
     .bottomnav.show{display:grid}
     .bottomnav button{
-      border:0;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;
+      border:0;background:none;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;
     }
     .bottomnav button.active{color:var(--primary)}
     .navicon{display:block;font-size:21px;margin-bottom:4px}
@@ -220,6 +220,7 @@
 .planner-day.today{border:2px solid var(--primary)}
 .planner-day.selected{background:#e8f1ff}
 .planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-day .dot-count{display:none;margin-top:3px;font-size:13px;font-weight:700;color:var(--primary)}
 .planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
 .planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .planner-form label{display:flex;flex-direction:column;gap:5px;font-size:13px}
@@ -227,7 +228,7 @@
 .planner-form .wide{grid-column:1/-1}
 .planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .planner-item .btn{width:auto}
-@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{font-size:9px}.planner-form{grid-template-columns:1fr}}
+@media(max-width:520px){.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
 .focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
@@ -810,7 +811,7 @@ function understandingHTML(){
   if(!p.raw && state.goalType==='job'){
     return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${state.selectedCompany||'회사 미정'}</span> <span class="tag">${state.selectedJob||'직무 미정'}</span></div></div>`;
   }
-  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${state.mainGoal}</p></div>`;
+  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${esc(state.mainGoal)}</p></div>`;
   const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
   const note=p.confidence==='low'
     ? '아직 목표 유형을 확실히 판단하기 어려워요. 우선 일반 목표로 시작하고 이후 필요한 정보를 더 확인할게요.'
@@ -1152,7 +1153,7 @@ function opportunityCards(){
   if(state.goalType==='policy'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${esc(state.mainGoal)}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
         <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
       </div>`;
   }
@@ -1169,7 +1170,7 @@ function opportunityCards(){
   }
   return `
     <div class="stack">
-      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
+      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${esc(state.mainGoal || '내 목표')}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
     </div>`;
 }
 
@@ -1811,7 +1812,7 @@ function renderCalendar(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]}의 일정</p>`
         :`<div class="planner-grid">${['일','월','화','수','목','금','토'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}</button>`).join('')}
+        ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${plannerForDate(date).length?`<span class="dot-count" aria-label="일정 ${plannerForDate(date).length}개">●${plannerForDate(date).length}</span>`:''}</button>`).join('')}
         </div>`}
 
     </div>
