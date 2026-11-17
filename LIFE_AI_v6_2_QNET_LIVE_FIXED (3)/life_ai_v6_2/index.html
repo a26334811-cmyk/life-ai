@@ -840,7 +840,10 @@ function startOrContinue(){
 function getNick(){
   return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
 }
+let currentScreenId='',previousScreenId='';
 function go(id){
+  if(currentScreenId&&currentScreenId!==id)previousScreenId=currentScreenId;
+  currentScreenId=id;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
@@ -936,7 +939,8 @@ function uiPrompt(message,defaultValue,opts={}){
 function uiAlert(message,opts={}){
   return uiAsk({message,title:opts.title,alert:true,cancelValue:undefined,fallback:undefined,buttons:[{label:'확인',kind:'primary',value:undefined}]});
 }
-function historyBack(){ go('home'); }
+/* Goes back to the screen the user came from (home when unknown). */
+function historyBack(){ go(previousScreenId&&document.getElementById(previousScreenId)?previousScreenId:'home'); }
 
 function selectCompany(name){
   const typed=(document.getElementById('companyInput')?.value||'').trim();

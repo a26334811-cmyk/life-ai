@@ -16,6 +16,21 @@ test('home first-card reason is a sentence for every goal type (never an object)
   assert.match(a.run('priorityReason()'),/관심 회사와 공고/);
 });
 
+/* #71 */
+test('the certificate screen back button returns to the screen the user came from',()=>{
+  const a=createApp();
+  a.el('certYear').options=[{}];a.el('certSearchInput').value='x';a.run('searchCertNames=function(){}');
+  a.run("go('my');go('cert');go('cert');historyBack()");
+  assert.equal(a.run('currentScreenId'),'my');
+  a.run("go('calendar');go('cert');historyBack()");
+  assert.equal(a.run('currentScreenId'),'calendar');
+  a.run("go('home');go('cert');historyBack()");
+  assert.equal(a.run('currentScreenId'),'home');
+  const b=createApp();
+  b.run("historyBack()");
+  assert.equal(b.run('currentScreenId'),'home','falls back to home when nothing came before');
+});
+
 /* #60 */
 const status=a=>a.el('postingFetchStatus').textContent;
 test('pasting text with a deadline when the deadline box is already filled says what the text says',()=>{
