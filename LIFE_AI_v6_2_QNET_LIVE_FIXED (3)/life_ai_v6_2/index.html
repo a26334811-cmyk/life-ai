@@ -2026,13 +2026,28 @@ function certQueryName(){
   const raw=state.mainGoal||'';
   return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
 }
+// A lookup is only stored as the saved official schedule when it is for the goal's own certificate
+// (and not an older year, nor a later year that would hide the upcoming dates already saved).
+let lastCertLookup=null;
+function certNameKey(s){return String(s||'').replace(/\s+/g,'');}
+function isGoalCertSchedule(data,year){
+  if(state.goalType!=='cert') return false;
+  const goal=certNameKey(certQueryName()), got=certNameKey(data?.qualification?.name);
+  if(!goal||!got||!(goal===got||got.includes(goal)||goal.includes(got))) return false;
+  const today=koreaToday(), thisYear=Number(today.slice(0,4));
+  if(Number(year)<thisYear) return false;
+  if(Number(year)>thisYear){
+    const kept=(Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[]).some(r=>(r.events||[]).some(e=>e.startDate&&e.startDate>=today));
+    if(kept) return false;
+  }
+  return true;
+}
 function startCertGoal(){
   const name=document.getElementById('certSearchInput').value.trim();
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
-  const schedule=state.certSchedule;
   if(state.mainGoal!==name+' 준비') resetGoalProgress();
-  if(schedule?.qualification?.name===name) state.certSchedule=schedule;
   state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
+  if(lastCertLookup&&isGoalCertSchedule(lastCertLookup.data,lastCertLookup.year)) state.certSchedule={...lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt};
   persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
 }
 function saveFavoriteCert(){
@@ -2127,8 +2142,11 @@ async function loadLiveCertSchedule(){
   try{
     const data=await fetchJson(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${year}${code?`&code=${encodeURIComponent(code)}`:''}`,certScheduleController.signal);
     if(version!==certScheduleVersion) return;
-    state.certSchedule={...data,fetchedAt:new Date().toISOString()};
-    persistState();
+    lastCertLookup={data,year,fetchedAt:new Date().toISOString()};
+    if(isGoalCertSchedule(data,year)){
+      state.certSchedule={...data,fetchedAt:lastCertLookup.fetchedAt};
+      persistState();
+    }
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
       box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;

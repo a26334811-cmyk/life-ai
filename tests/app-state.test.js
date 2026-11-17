@@ -64,3 +64,36 @@ test('renaming preserves checklist and saved qualification schedule',async()=>{
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');
  assert.equal(a.run('state.completedTasks[0]'),true);assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');assert.equal(a.run('state.mainGoal'),'전기기사 올해 취득');
 });
+
+// #5: looking up another certificate (or an old year) must not replace the goal's saved schedule.
+const certData=(name,date)=>({qualification:{name,code:'1'},items:[{label:'필기시험'}],rounds:[{round:'1회',events:[{label:'필기시험',startDate:date,endDate:date}]}]});
+const certApp=(saved,data)=>createApp(saved,{fetch:async url=>({ok:true,json:async()=>data(url)})});
+test('looking up another certificate does not overwrite the goal schedule',async()=>{
+ const saved=JSON.stringify({mainGoal:'위험물산업기사 준비',goalType:'cert',parsedGoal:{subject:'위험물산업기사'},certSchedule:certData('위험물산업기사','2026-06-20')});
+ const a=certApp(saved,()=>certData('전기기사','2026-07-01'));
+ a.el('certYear').value='2026';a.el('certSearchInput').value='전기기사';
+ await a.run('loadLiveCertSchedule()');
+ assert.equal(a.run('state.certSchedule.qualification.name'),'위험물산업기사');
+ assert.match(a.el('liveCertResults').innerHTML,/1회/);
+});
+test('goal certificate: older/later year keeps saved schedule, current year replaces it',async()=>{
+ const saved=JSON.stringify({mainGoal:'위험물산업기사 준비',goalType:'cert',parsedGoal:{subject:'위험물산업기사'},certSchedule:certData('위험물산업기사','2026-06-20')});
+ const a=certApp(saved,url=>certData('위험물산업기사',/year=2025/.test(url)?'2025-06-20':/year=2027/.test(url)?'2027-06-20':'2026-08-01'));
+ a.el('certSearchInput').value='위험물산업기사';
+ a.el('certYear').value='2025';await a.run('loadLiveCertSchedule()');
+ assert.equal(a.run('state.certSchedule.rounds[0].events[0].startDate'),'2026-06-20');
+ a.el('certYear').value='2027';await a.run('loadLiveCertSchedule()');
+ assert.equal(a.run('state.certSchedule.rounds[0].events[0].startDate'),'2026-06-20');
+ a.el('certYear').value='2026';await a.run('loadLiveCertSchedule()');
+ assert.equal(a.run('state.certSchedule.rounds[0].events[0].startDate'),'2026-08-01');
+ assert.equal(a.saved().certSchedule.rounds[0].events[0].startDate,'2026-08-01');
+});
+test('starting a certificate goal saves the schedule that was looked up for it',async()=>{
+ const a=certApp(JSON.stringify({mainGoal:'위험물산업기사 준비',goalType:'cert',parsedGoal:{subject:'위험물산업기사'}}),()=>certData('전기기사','2026-07-01'));
+ a.el('certYear').value='2026';a.el('certSearchInput').value='전기기사';
+ await a.run('loadLiveCertSchedule()');
+ assert.equal(a.run('Boolean(state.certSchedule)'),false);
+ a.run('startCertGoal()');
+ assert.equal(a.run('state.mainGoal'),'전기기사 준비');
+ assert.equal(a.run('state.certSchedule.qualification.name'),'전기기사');
+});
