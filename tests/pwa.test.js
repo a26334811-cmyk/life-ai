@@ -112,3 +112,10 @@ test('manifest lets the phone Share sheet send a link to the app (GET with title
 test('share target declares its encoding so Chrome reports no manifest warnings',()=>{
   assert.equal(manifest.share_target.enctype,'application/x-www-form-urlencoded');
 });
+
+test('README and the PR draft say the company name can be a marked guess from the page author',()=>{
+  for(const f of ['README.txt','docs/통합-PR-정리안.md']){
+    assert.match(read(f),/작성자[^\n]*추정/,f+' mentions the author-based company guess');
+  }
+  assert.match(html,/info\.companyInferred/,'the app still marks guessed company names');
+});
