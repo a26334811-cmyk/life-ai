@@ -436,6 +436,34 @@ test('offline errors are shown in plain Korean; the env-variable hint only appea
   assert.equal(c.run("friendlyErrorMessage(new Error('Load failed'),'대체 문구')"),'대체 문구');
 });
 
+test('changing a posting stage keeps open cards open and says it was saved',()=>{
+  const a=createApp();
+  const row=id=>({id,company:'회사'+id,title:'공고',stage:'관심',url:'https://example.com/'+id,tasks:[false,false,false,false]});
+  a.run('state.jobPostings='+JSON.stringify([row('a'),row('b')]));
+  const cards=[{dataset:{posting:'a'},open:true},{dataset:{posting:'b'},open:false}];
+  let drawn=0;
+  a.context.document.querySelectorAll=sel=>{
+    if(sel.includes('[open]'))return cards.filter(c=>c.open);
+    return cards;
+  };
+  // A redraw replaces the cards: all closed again until the app reopens them.
+  a.context.renderJobHub=()=>{drawn++;cards.forEach(c=>{c.open=false;});};
+  a.run("setPostingStage('b','지원 완료')");
+  assert.equal(drawn,1);
+  assert.equal(a.run("state.jobPostings[1].stage"),'지원 완료');
+  assert.deepEqual(cards.map(c=>c.open),[true,true]);
+  assert.ok(a.toasts.includes('저장했어요.'));
+  a.run("setInterviewDate('a','2099-03-04')");
+  assert.equal(a.toasts.filter(t=>t==='저장했어요.').length,2);
+});
+
+test('saved posting cards carry their id so they can be reopened after a redraw',()=>{
+  const a=createApp();
+  a.run("state.jobPostings=[{id:'x1',company:'회사',title:'공고',stage:'관심',url:'https://example.com/1',tasks:[false,false,false,false]}]");
+  a.run('renderJobHub()');
+  assert.match(a.el('savedPostings').innerHTML,/<details data-posting="x1">/);
+});
+
 test('setup text boxes run their "next" action on Enter and show a matching keyboard key',()=>{
   const {html}=require('./helpers/app-harness.js');
   const expected={nickname:["go('goalChoice')",'next'],companyInput:['selectCompany()','go'],jobInput:["selectJob(this.value||'관심 직무')",'go'],
