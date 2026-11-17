@@ -707,8 +707,8 @@ async function editCurrentGoal(){
   toast('목표를 수정했어요.');
 }
 
-const LIFE_AI_BACKUP_FORMAT='life-ai-backup';
-const LIFE_AI_BACKUP_VERSION=1;
+const LIFE_AI_BACKUP_FORMAT=LifeLogic.BACKUP_FORMAT;
+const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
 function exportLifeAIBackup(){
   try{
     const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))};
@@ -723,7 +723,6 @@ function exportLifeAIBackup(){
     toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
   }catch(e){toast('백업 파일을 만들지 못했어요.');}
 }
-function validateLifeAIBackupState(data){return LifeLogic.validateBackupState(data);}
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
 function backupNudgeHTML(){
   const nudge=LifeLogic.backupNudge(state,Date.now());
@@ -747,17 +746,10 @@ async function importLifeAIBackup(input){
   if(!file)return;
   if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
   try{
-    const backup=JSON.parse(await file.text());
-    if(!backup||backup.format!==LIFE_AI_BACKUP_FORMAT||backup.version!==LIFE_AI_BACKUP_VERSION||
-       !backup.state||typeof backup.state!=='object'||Array.isArray(backup.state)||
-       typeof backup.state.mainGoal!=='string'||typeof backup.state.nickname!=='string'||
-       !Array.isArray(backup.state.activity)||!Array.isArray(backup.state.completedTasks)){
-      throw new Error('올바른 life-ai 백업 파일이 아니에요.');
-    }
-    const migrated=LifeLogic.migrateState(backup.state);
-    if(!validateLifeAIBackupState(migrated))throw new Error('백업 데이터의 구조가 올바르지 않아요.');
+    const result=LifeLogic.readBackup(await file.text());
+    if(!result.ok)throw new Error(result.message);
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
-    const safe=LifeLogic.sanitizeState(migrated).state;
+    const safe=result.state;
     const snapshot=localStorage.getItem('lifeAIPrototypeV5');
     try{
       localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));

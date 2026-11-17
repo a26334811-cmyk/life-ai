@@ -99,6 +99,27 @@ test('validateBackupState is strict and never throws on missing fields',()=>{
   assert.equal(L.validateBackupState(null),false);
 });
 
+test('readBackup checks file text, format, version and state in one place',()=>{
+  const state={nickname:'a',mainGoal:'b',activity:[],completedTasks:[false,false,false,false,false]};
+  const file=(over)=>JSON.stringify({format:'life-ai-backup',version:1,exportedAt:'2026-05-10T00:00:00Z',state,...over});
+  const ok=L.readBackup(file());
+  assert.equal(ok.ok,true);assert.equal(ok.state.mainGoal,'b');assert.equal(ok.state.schemaVersion,L.STATE_SCHEMA_VERSION);
+  const notBackup='올바른 life-ai 백업 파일이 아니에요.',badShape='백업 데이터의 구조가 올바르지 않아요.';
+  const fail=(text,message)=>{const r=L.readBackup(text);assert.equal(r.ok,false);assert.equal(r.message,message);assert.equal(r.state,undefined);};
+  fail('not json at all','백업 파일을 읽지 못했어요.');
+  fail('','백업 파일을 읽지 못했어요.');
+  fail('null',notBackup);fail('[]',notBackup);fail('"text"',notBackup);
+  fail(file({format:'other'}),notBackup);
+  fail(file({version:2}),notBackup);
+  fail(file({state:null}),notBackup);
+  fail(file({state:[1,2]}),notBackup);
+  fail(file({state:{...state,completedTasks:undefined}}),badShape);
+  fail(file({state:{nickname:'a',activity:[],completedTasks:[]}}),badShape);
+  fail(file({state:{...state,habits:[{name:1}]}}),badShape);
+  fail(file({state:{...state,completedTasks:[1]}}),badShape);
+  assert.equal(L.BACKUP_FORMAT,'life-ai-backup');assert.equal(L.BACKUP_VERSION,1);
+});
+
 test('resumeFocus restores running, paused and finished timers',()=>{
   const now=Date.parse('2026-05-10T03:00:00Z');
   const running=L.resumeFocus({status:'running',deadline:now+90500,minutes:25,category:'job'},now);

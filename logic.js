@@ -158,6 +158,22 @@
     return typeof s.mainGoal === 'string' && typeof s.nickname === 'string' && Array.isArray(s.activity) && Array.isArray(s.completedTasks);
   }
 
+  const BACKUP_FORMAT = 'life-ai-backup';
+  const BACKUP_VERSION = 1;
+
+  /* Reads the text of a backup file and runs every check (JSON, format, version, state shape).
+     Returns {ok:true, state} with the upgraded, cleaned state, or {ok:false, message} for the user. */
+  function readBackup(text) {
+    let backup;
+    try { backup = JSON.parse(text); } catch (e) { return { ok: false, message: '백업 파일을 읽지 못했어요.' }; }
+    if (!isPlain(backup) || backup.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || !isPlain(backup.state)) {
+      return { ok: false, message: '올바른 life-ai 백업 파일이 아니에요.' };
+    }
+    const migrated = migrateState(backup.state);
+    if (!validateBackupState(migrated)) return { ok: false, message: '백업 데이터의 구조가 올바르지 않아요.' };
+    return { ok: true, state: sanitizeState(migrated).state };
+  }
+
   /* ---------- focus timer ---------- */
 
   /* Decides what to do with a focus timer that was saved before the page closed.
@@ -321,6 +337,7 @@
     validDate, koreaDate, dateOffset, daysInMonth,
     occurs, isRepeating, isDone, toggleDone, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
+    BACKUP_FORMAT, BACKUP_VERSION, readBackup,
     resumeFocus, backupNudge, hasUserData, recordCount
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
