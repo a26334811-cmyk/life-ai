@@ -2,6 +2,15 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createApp}=require('./helpers/app-harness.js');
 const app=(saved,answer)=>createApp(saved,{answer});
+test('goal checklist shows the right steps for each goal kind, job goals go to the posting hub',()=>{
+ const a=app();
+ const show=type=>{a.run(`state.goalType=${JSON.stringify(type)};state.completedTasks=[true,false,false,false,false];renderTasks()`);return {html:a.el('taskList').innerHTML,stage:a.el('stageText').textContent};};
+ const count=(html,re)=>(html.match(re)||[]).length;
+ const cert=show('cert');assert.equal(cert.stage,'응시 준비');assert.match(cert.html,/응시 일정 확인/);assert.match(cert.html,/시험 응시/);assert.equal(count(cert.html,/type="checkbox"/g),5);assert.equal(count(cert.html,/checked/g),1);
+ const policy=show('policy');assert.equal(policy.stage,'조건 확인');assert.match(policy.html,/신청 완료 기록/);
+ for(const t of ['custom',null,'something-else']){const r=show(t);assert.equal(r.stage,'실행 준비');assert.match(r.html,/목표 구체화/);assert.equal(count(r.html,/type="checkbox"/g),5);}
+ const job=show('job');assert.equal(job.stage,'공고별 지원 관리');assert.match(job.html,/jobHub/);
+});
 test('qualification names create certificate goals and reset previous progress',()=>{
  const a=app();a.run("state.completedTasks=[true,true,true,true,true];state.jobSubmitted=true;quickGoal('위험물산업기사 준비')");
  assert.equal(a.run('state.goalType'),'cert');assert.equal(a.run('state.jobSubmitted'),false);assert.equal(a.run('state.completedTasks.some(Boolean)'),false);
