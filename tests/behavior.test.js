@@ -144,6 +144,55 @@ test('reset and duration change clear the saved timer; cancelled dialog keeps it
   assert.equal('focusRun' in b.saved(),false);
 });
 
+test('resetting a timer that ran 20 minutes can record those 20 minutes, discard them, or cancel',async()=>{
+  const ran=async(choice)=>{
+    const a=createApp(undefined,{choice});
+    a.run('focusStartPause()');
+    a.clock.now+=20*60*1000+10*1000;
+    await a.run('focusReset()');
+    return a;
+  };
+  const rec=await ran('record');
+  assert.equal(rec.run('focusHistory().length'),1);
+  assert.equal(rec.run('focusHistory()[0].minutes'),20,'elapsed whole minutes are saved');
+  assert.equal(rec.run('focusHistory()[0].category'),'study');
+  assert.equal(rec.run('focusRunning'),false);
+  assert.equal(rec.run('focusRemaining'),25*60,'timer is back to the start');
+  assert.equal('focusRun' in rec.saved(),false);
+  assert.equal(rec.saved().focusHistory[0].minutes,20,'and it is saved to storage');
+  assert.match(rec.dialogs[0].message,/20분/,'the dialog says how many minutes will be recorded');
+
+  const drop=await ran('discard');
+  assert.equal(drop.run('focusHistory().length'),0);
+  assert.equal(drop.run('focusRunning'),false);
+  assert.equal(drop.run('focusRemaining'),25*60);
+
+  const cancel=await ran(null);
+  assert.equal(cancel.run('focusHistory().length'),0);
+  assert.equal(cancel.run('focusRunning'),true,'cancel keeps the timer going');
+  assert.equal(cancel.saved().focusRun.status,'running');
+});
+
+test('under one minute there is nothing to record, so reset keeps the old confirm',async()=>{
+  const a=createApp(undefined,{confirm:true,choice:'record'});
+  a.run('focusStartPause()');
+  a.clock.now+=40*1000;
+  await a.run('focusReset()');
+  assert.equal(a.dialogs[0].kind,'confirm');
+  assert.equal(a.run('focusHistory().length'),0);
+  assert.equal(a.run('focusRunning'),false);
+});
+
+test('a paused timer can also record its elapsed minutes on reset',async()=>{
+  const a=createApp(undefined,{choice:'record'});
+  a.run('focusStartPause()');
+  a.clock.now+=7*60*1000+5000;
+  a.run('focusStartPause()');
+  assert.equal(a.run('focusRunning'),false);
+  await a.run('focusReset()');
+  assert.equal(a.run('focusHistory()[0].minutes'),7);
+});
+
 test('finishing the timer records it using the deadline time and clears the saved run',()=>{
   const a=createApp();
   a.run('focusStartPause()');

@@ -1778,8 +1778,28 @@ function focusStartPause(){
   }
   focusUpdateUI();
 }
+/* 지금까지 집중한 시간(분, 내림). 아직 끝나지 않은 세션일 때만 센다. */
+function focusElapsedMinutes(){
+  const total=Number(focusSettings().minutes)*60;
+  const remaining=focusRunning?Math.max(0,Math.ceil((focusDeadline-Date.now())/1000)):focusRemaining;
+  return remaining>0?Math.max(0,Math.floor((total-remaining)/60)):0;
+}
 async function focusReset(){
-  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){if(!await uiConfirm('진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요.',{title:'타이머 초기화',ok:'초기화'}))return;}
+  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){
+    const elapsed=focusElapsedMinutes();
+    if(elapsed>=1){
+      const choice=await uiChoice(`지금까지 ${elapsed}분 집중했어요. 어떻게 할까요?`,[
+        {label:`${elapsed}분 기록하고 끝내기`,kind:'primary',value:'record'},
+        {label:'기록 없이 초기화',kind:'secondary',value:'discard'}
+      ],{title:'타이머 초기화'});
+      if(choice!=='record'&&choice!=='discard')return;
+      if(choice==='record'){
+        // 안내창이 떠 있는 동안 시간이 더 지났거나 타이머가 끝났을 수 있어서 다시 계산한다.
+        const minutes=focusElapsedMinutes();
+        if(minutes>=1)focusRecordCompletion({minutes,category:focusSettings().category||'study',completedAt:new Date().toISOString(),date:LifeLogic.koreaDate(Date.now())});
+      }
+    }else if(!await uiConfirm('진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요.',{title:'타이머 초기화',ok:'초기화'}))return;
+  }
   focusStopTimer();
   focusDoneMinutes=0;
   focusRemaining=Number(focusSettings().minutes)*60;
