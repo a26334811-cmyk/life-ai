@@ -293,3 +293,11 @@ test('first-run input fields carry an accessible name, not just a placeholder',(
     assert.match(html,new RegExp(`<input id="${id}" aria-label="${name}"`));
   }
 });
+
+/* ---------- #124 secrets stay out of git ---------- */
+test('.gitignore keeps .env files out but still tracks .env.example',()=>{
+  const fs=require('node:fs'),path=require('node:path');
+  const lines=fs.readFileSync(path.join(__dirname,'..','.gitignore'),'utf8').split(/\r?\n/).map(l=>l.trim());
+  for(const rule of ['.env','.env.*','!.env.example','node_modules/','.netlify/']) assert.ok(lines.includes(rule),rule);
+  assert.ok(lines.indexOf('!.env.example')>lines.indexOf('.env.*'),'the .env.example exception must come after .env.*');
+});
