@@ -47,12 +47,14 @@ function loadWorker(arg){
   const cache=new Map();
   const added=[];
   const save=async url=>{if(failing.includes(url))throw new Error('network '+url);added.push(url);cache.set(url,{url});};
-  const self={location:{origin:'https://app.example'},addEventListener:(type,fn)=>{handlers[type]=fn;},clients:{claim:async()=>{},matchAll:async()=>self.__clients,openWindow:async url=>{self.__opened=url;}},skipWaiting:async()=>{}};
+  const deleted=[];
+  const state={claimed:false};
+  const self={location:{origin:'https://app.example'},addEventListener:(type,fn)=>{handlers[type]=fn;},clients:{claim:async()=>{state.claimed=true;},matchAll:async()=>self.__clients,openWindow:async url=>{self.__opened=url;}},skipWaiting:async()=>{}};
   const caches={
     open:async()=>({add:save,addAll:async urls=>{for(const url of urls)if(failing.includes(url))throw new Error('network '+url);for(const url of urls)await save(url);},put:async(req,res)=>{cache.set(req.url,res);}}),
     match:async(req)=>{const key=typeof req==='string'?req:req.url;return cache.get(key)||cache.get(key.replace('https://app.example/',''))||null;},
-    keys:async()=>['old-cache','life-ai-shell-v1'],
-    delete:async()=>true
+    keys:async()=>['old-cache',(read('sw.js').match(/const CACHE\s*=\s*'([^']+)'/)||[])[1]],
+    delete:async name=>{deleted.push(name);return true;}
   };
   const context={self,caches,URL,Response:{error:()=>'ERR'},fetch:fetchImpl||(async()=>{throw new Error('offline');}),
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},
@@ -60,8 +62,17 @@ function loadWorker(arg){
   vm.createContext(context);
   vm.runInContext(read('sw.js'),context);
   const fire=()=>timers.filter(t=>t.live).forEach(t=>{t.live=false;t.fn();});
-  return {handlers,cache,added,self,context,timers,fire};
+  return {handlers,cache,added,deleted,state,self,context,timers,fire};
 }
+
+test('service worker activation deletes only old caches and takes over open pages',async()=>{
+  const sw=loadWorker();
+  let finished;
+  sw.handlers.activate({waitUntil:p=>{finished=p;}});
+  await finished;
+  assert.deepEqual(sw.deleted,['old-cache']);
+  assert.equal(sw.state.claimed,true);
+});
 
 test('service worker caches every file it lists and those files exist',async()=>{
   const sw=loadWorker();
