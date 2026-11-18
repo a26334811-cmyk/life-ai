@@ -165,8 +165,17 @@
       out.plannerEntries = out.plannerEntries.map(entry =>
         isPlain(entry) && isRepeating(entry) ? Object.assign({}, entry, { done: false, doneDates: [] }) : entry);
     }
+    // a watch-company entry saved as plain text becomes a normal {id, name, url} record
+    if (Array.isArray(out.watchCompanies)) {
+      out.watchCompanies = out.watchCompanies.map(item =>
+        typeof item === 'string' ? { id: newRecordId(), name: item.trim(), url: '' } : item);
+    }
     out.schemaVersion = STATE_SCHEMA_VERSION;
     return out;
+  }
+
+  function newRecordId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
   /* Cleans an object read from localStorage or a backup file.

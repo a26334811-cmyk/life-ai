@@ -195,6 +195,15 @@ test('resumeFocus restores running, paused and finished timers',()=>{
   assert.equal(finished.finishedAt,new Date(now-5000).toISOString());
 });
 
+test('migrateState turns text-only watch companies into records',()=>{
+  const out=L.migrateState({schemaVersion:2,watchCompanies:['삼천리 ',{id:'a1',name:'현대제철',url:''}]});
+  assert.equal(out.watchCompanies[0].name,'삼천리');
+  assert.equal(out.watchCompanies[0].url,'');
+  assert.ok(typeof out.watchCompanies[0].id==='string'&&out.watchCompanies[0].id);
+  assert.deepEqual(out.watchCompanies[1],{id:'a1',name:'현대제철',url:''});
+  assert.equal(L.sanitizeState(out).dropped.length,0);
+});
+
 test('resumeFocus never returns more remaining time than the timer length',()=>{
   const now=Date.parse('2026-05-10T03:00:00Z');
   const r=L.resumeFocus({status:'running',deadline:now+90*60*1000,minutes:25},now);

@@ -1338,6 +1338,16 @@ test('habit delete is kept when cancelled and removed when confirmed',async()=>{
   assert.equal(b.run('habitEntries().length'),0);assert.equal(b.saved().habits.length,0);
 });
 
+/* ---------- 글자만 있는 관심 회사가 있어도 회사 추가가 된다 (#106) ---------- */
+test('a text-only watch company in saved data does not block adding a company',()=>{
+  const a=createApp(JSON.stringify({watchCompanies:['삼천리']}));
+  a.el('watchCompany').value='현대제철';a.el('watchUrl').value='';
+  a.run('addWatchCompany()');
+  const names=a.saved().watchCompanies.map(c=>c.name);
+  assert.deepEqual(names,['삼천리','현대제철']);
+  assert.ok(a.saved().watchCompanies.every(c=>c.id));
+});
+
 /* ---------- 조회일은 한국 날짜로 보여준다 (#99) ---------- */
 test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   const a=createApp();
