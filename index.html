@@ -670,6 +670,7 @@ function downloadDamagedState(){
     toast('손상된 원본을 파일로 저장했어요.');
   }catch(e){toast('원본 파일을 만들지 못했어요.');}
 }
+let startupNoticeMs=0;
 try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
 if(savedState){
   let parsedSaved=null;
@@ -682,11 +683,13 @@ if(savedState){
       startupNotice=archiveDamagedState(savedState)
         ?'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
         :'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
+      startupNoticeMs=6000;
     }
   } else {
     startupNotice=archiveDamagedState(savedState)
       ?'저장된 기록을 읽지 못해 새로 시작해요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
       :'저장된 기록을 읽지 못해 새로 시작해요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
+    startupNoticeMs=6000;
   }
 }
 state.schemaVersion=LifeLogic.STATE_SCHEMA_VERSION;
@@ -709,7 +712,7 @@ function persistState(){
     if(banner)banner.hidden=false;
     if(!lifeAISaveWarningShown){
       lifeAISaveWarningShown=true;
-      if(typeof toast==='function')toast('기록을 저장하지 못했어요. 저장 공간을 확인하고 내 데이터 백업을 이용해 주세요.');
+      if(typeof toast==='function')toast('기록을 저장하지 못했어요. 저장 공간을 확인하고 내 데이터 백업을 이용해 주세요.',6000);
     }
     return false;
   }
@@ -1088,10 +1091,16 @@ function go(id,mode){
     document.body.scrollTop=0;
   });
 }
-function toast(msg){
+/* How long a toast stays: 1.8s plus 0.05s per character (max 8s). `minMs` keeps important warnings up longer. */
+function toastDuration(msg,minMs){
+  return Math.min(8000,Math.max(1800+String(msg||'').length*50,minMs||0));
+}
+let toastTimer=null;
+function toast(msg,minMs){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),1800);
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),toastDuration(msg,minMs));
 }
 /* In-app dialogs. They replace the browser's confirm/prompt/alert, which look out of place in an installed
    app and can be blocked. Each returns a Promise; closing with Esc, the backdrop or "취소" resolves to null/false. */
@@ -1845,7 +1854,7 @@ function focusRecordCompletion(done){
   const limit=LifeLogic.FOCUS_HISTORY_LIMIT;
   if(state.focusHistory.length>limit){
     state.focusHistory.length=limit;
-    toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');
+    toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.',6000);
   }
   persistState();
   // Do not redraw the whole planner: that would erase a title or habit name the user is typing.
@@ -2826,7 +2835,7 @@ else if(state.mainGoal)go('home');
 else renderHome();
 if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
 handleSharedLink();
-if(startupNotice)setTimeout(()=>toast(startupNotice),600);
+if(startupNotice)setTimeout(()=>toast(startupNotice,startupNoticeMs),600);
 </script>
 </body>
 </html>

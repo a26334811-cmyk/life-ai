@@ -30,6 +30,7 @@ function createApp(saved, opts = {}) {
   const delays = {};
   let reloads = 0;
   const toasts = [];
+  const toastMinMs = [];
   const dialogs = [];
 
   class FakeDate extends Date {
@@ -130,11 +131,11 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
     uiChoice=async(message,choices)=>__dialog('choice',message,choices);
     uiPrompt=async(message)=>__dialog('prompt',message);
     uiAlert=async(message)=>__dialog('alert',message);`}
-    toast=(message)=>__toast(message);
-  `, Object.assign(context, { __toast: m => toasts.push(m) }));
+    toast=(message,minMs)=>__toast(message,minMs);
+  `, Object.assign(context, { __toast: (m, ms) => { toasts.push(m); toastMinMs.push(ms); } }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, delays, toasts, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
+    el, storage, clock, timers, delays, toasts, toastMinMs, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
     fire(type) { (listeners[type] || []).forEach(fn => fn()); },
     // ids of timers that are still waiting (not cleared, not yet run)
     pending() { return timers.map((fn, i) => (fn ? i + 1 : 0)).filter(Boolean); },
