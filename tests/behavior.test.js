@@ -798,6 +798,26 @@ test('a slow, older Q-Net schedule answer does not replace the schedule of the c
   assert.ok(!a.el('liveCertResults').innerHTML.includes('전기기사 시험'),'the late older answer is not drawn');
 });
 
+const postingsApp=postings=>createApp(JSON.stringify({mainGoal:'x',jobPostings:postings}));
+const posting=(id,extra={})=>({id,company:'회사'+id,title:'공고'+id,url:'https://example.com/'+id,stage:'관심',tasks:[false,false,false,false],deadline:'2099-01-01',...extra});
+
+test('a saved posting card shows its apply status and how many prep items are done',()=>{
+  const a=postingsApp([posting('a',{stage:'면접',tasks:[true,true,false,true]}),posting('b')]);
+  a.run('renderJobHub()');
+  const html=a.el('savedPostings').innerHTML;
+  assert.ok(html.includes('>면접 · 준비 3/4<'),'interview, 3 of 4 checked');
+  assert.ok(html.includes('>관심 · 준비 0/4<'),'a fresh posting starts at 0/4');
+});
+
+test('ticking a prep checkbox updates the card text without redrawing the list',()=>{
+  const a=postingsApp([posting('a')]);
+  a.run('renderJobHub()');
+  const span={dataset:{id:'a'},innerHTML:''};
+  a.context.document.querySelectorAll=sel=>sel==='.posting-progress'?[span]:[];
+  a.run("setPostingTask('a',1,true);setPostingTask('a',2,true)");
+  assert.equal(span.innerHTML,'관심 · 준비 2/4');
+});
+
 test('pasting into the posting text box searches automatically',()=>{
   const {html}=require('./helpers/app-harness.js');
   assert.ok(html.includes('id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)"'));
