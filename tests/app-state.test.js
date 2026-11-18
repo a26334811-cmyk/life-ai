@@ -15,6 +15,24 @@ test('qualification names create certificate goals and reset previous progress',
  const a=app();a.run("state.completedTasks=[true,true,true,true,true];state.jobSubmitted=true;quickGoal('위험물산업기사 준비')");
  assert.equal(a.run('state.goalType'),'cert');assert.equal(a.run('state.jobSubmitted'),false);assert.equal(a.run('state.completedTasks.some(Boolean)'),false);
 });
+test('all four goal-creation paths reset progress, save the nickname and log the goal',()=>{
+ const dirty="state.completedTasks=[true,true,true,true,true];state.jobSubmitted=true;state.certSchedule={items:[]};";
+ const paths=[
+  {name:'ai',go:a=>{a.run("const orig=document.getElementById;document.getElementById=id=>id==='aiFirstGoal'?{value:'전기기사 올해 취득'}:orig(id);createAIFirstGoal();document.getElementById=orig");},goal:'전기기사 올해 취득',type:'cert',activity:'AI에게 새 목표를 말했어요'},
+  {name:'custom',go:a=>{a.el('customGoalInput').value='광양 시설관리 취업';a.run('createCustomGoal()');},goal:'광양 시설관리 취업',type:'job',activity:'목표를 만들었어요'},
+  {name:'company',go:a=>{a.run("state.selectedCompany='삼천리';state.selectedJob='시설관리';createGoal()");},goal:'삼천리 시설관리 취업',type:'job',activity:'취업 목표를 만들었어요'},
+  {name:'quick',go:a=>{a.run("quickGoal('위험물산업기사 준비')");},goal:'위험물산업기사 준비',type:'cert',activity:'목표를 만들었어요'}
+ ];
+ for(const p of paths){
+  const a=app();a.run(dirty);a.el('nickname').value='지훈';p.go(a);
+  assert.equal(a.run('state.mainGoal'),p.goal,p.name);assert.equal(a.run('state.goalType'),p.type,p.name);
+  assert.equal(a.run('state.nickname'),'지훈',p.name);assert.equal(a.run('state.jobSubmitted'),false,p.name);
+  assert.equal(a.run('state.completedTasks.some(Boolean)'),false,p.name);assert.equal(a.run('state.certSchedule'),null,p.name);
+  assert.equal(a.run('state.activity[0]'),p.activity,p.name);assert.equal(a.saved().mainGoal,p.goal,p.name);
+  assert.match(a.el('goalCreatedTitle').textContent,new RegExp(p.goal),p.name);
+ }
+ const c=app();c.run("state.selectedCompany='삼천리';createGoal()");assert.equal(c.run('JSON.stringify(state.parsedGoal)'),'{}');
+});
 test('certificate checklist persists after reload without job submission semantics',()=>{
  const a=app();a.run("quickGoal('설비보전산업기사 준비');toggleTask(0);toggleTask(4)");
  assert.equal(a.run('state.jobSubmitted'),false);

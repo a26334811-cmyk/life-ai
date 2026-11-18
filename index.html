@@ -734,12 +734,16 @@ const taskNames = ['기본 조건 확인','필요 자료 정리','핵심 준비 
 function createAIFirstGoal(){
   const raw=(document.getElementById('aiFirstGoal')?.value||'').trim();
   if(!raw){ toast('하고 싶은 일을 한 문장으로 적어주세요.'); return; }
-  state.nickname=getNick();
+  applyNewGoal(raw,{activity:'AI에게 새 목표를 말했어요'});
+}
+/* Every way of creating a goal ends here: reset progress, save the nickname, parse the sentence, log it, show the result. */
+function applyNewGoal(rawText,extra={}){
   resetGoalProgress();
-  state.parsedGoal=inferGoal(raw);
-  state.goalType=state.parsedGoal.type;
-  state.mainGoal=raw;
-  addActivity('AI에게 새 목표를 말했어요');
+  state.nickname=getNick();
+  state.mainGoal=rawText;
+  state.parsedGoal=extra.parsedGoal||inferGoal(rawText);
+  state.goalType=extra.goalType||state.parsedGoal.type;
+  addActivity(extra.activity);
   finishGoalCreation();
 }
 /* Clears what the certificate screen shows (running searches, typed name) so it does not carry over to another goal. */
@@ -1013,13 +1017,7 @@ function addActivity(text){
 function createCustomGoal(){
   const raw=(document.getElementById('customGoalInput').value||'').trim();
   if(!raw){ toast('목표를 한 문장으로 적어주세요.'); return; }
-  resetGoalProgress();
-  state.parsedGoal=inferGoal(raw);
-  state.goalType=state.parsedGoal.type;
-  state.mainGoal=raw;
-  state.nickname=getNick();
-  addActivity('목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal(raw,{activity:'목표를 만들었어요'});
 }
 
 function startOrContinue(){
@@ -1181,29 +1179,16 @@ function selectJob(name){
   go('profile');
 }
 function createGoal(){
-  resetGoalProgress();
-  state.nickname=getNick();
-  state.goalType='job';
   state.employmentStatus=document.getElementById('employmentStatus')?.value || '';
   state.career=(document.getElementById('careerInput')?.value||'').trim();
   state.education=document.getElementById('educationInput')?.value || '';
   state.ownedCert=(document.getElementById('certOwnedInput')?.value||'').trim();
   const company=state.selectedCompany || '관심 회사';
   const job=state.selectedJob || '관심 직무';
-  state.mainGoal=`${company} ${job} 취업`;
-  state.parsedGoal={};
-  addActivity('취업 목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal(`${company} ${job} 취업`,{parsedGoal:{},goalType:'job',activity:'취업 목표를 만들었어요'});
 }
 function quickGoal(title){
-  resetGoalProgress();
-  state.nickname=getNick();
-  state.mainGoal=(title||'새 목표').trim();
-  state.parsedGoal=inferGoal(state.mainGoal);
-  state.goalType=state.parsedGoal.type;
-  if(document.getElementById('certStart').classList.contains('active')) state.goalType='cert';
-  addActivity('목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal((title||'새 목표').trim(),{goalType:document.getElementById('certStart').classList.contains('active')?'cert':'',activity:'목표를 만들었어요'});
 }
 function finishGoalCreation(){
   const nick=getNick();
