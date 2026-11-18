@@ -818,6 +818,35 @@ test('ticking a prep checkbox updates the card text without redrawing the list',
   assert.equal(span.innerHTML,'관심 · 준비 2/4');
 });
 
+test('finished postings are folded away so the postings to act on stay on top, and no data changes',()=>{
+  const list=[
+    posting('live'),
+    posting('applied',{stage:'지원 완료',deadline:'2020-01-01'}),
+    posting('interview',{stage:'면접',deadline:'2020-01-01'}),
+    posting('nodate',{deadline:''}),
+    posting('rejected',{stage:'불합격'}),
+    posting('cancelled',{stage:'지원 취소'}),
+    posting('passed',{stage:'합격'}),
+    posting('expired',{stage:'준비 중',deadline:'2020-01-01'})
+  ];
+  const a=postingsApp(list);
+  a.run('renderJobHub()');
+  const html=a.el('savedPostings').innerHTML;
+  const split=html.search(/<details\s+ontoggle/);
+  assert.ok(split>0,'a folded area exists');
+  const top=html.slice(0,split),folded=html.slice(split);
+  for(const name of ['live','applied','interview','nodate'])assert.ok(top.includes('회사'+name+' '),name+' stays on top (still in progress)');
+  for(const name of ['rejected','cancelled','passed','expired'])assert.ok(folded.includes('회사'+name+' ')&&!top.includes('회사'+name+' '),name+' is folded');
+  assert.match(folded,/끝난 공고 4개/);
+  assert.equal(a.run('state.jobPostings.length'),8,'the saved data is untouched');
+  assert.equal(a.run("state.jobPostings.find(x=>x.id==='rejected').stage"),'불합격');
+
+  const none=postingsApp([posting('live')]);none.run('renderJobHub()');
+  assert.ok(!none.el('savedPostings').innerHTML.includes('끝난 공고'),'no folded area when nothing has ended');
+  const onlyEnded=postingsApp([posting('x',{stage:'불합격'})]);onlyEnded.run('renderJobHub()');
+  assert.ok(onlyEnded.el('savedPostings').innerHTML.includes('끝난 공고 1개'));
+});
+
 test('pasting into the posting text box searches automatically',()=>{
   const {html}=require('./helpers/app-harness.js');
   assert.ok(html.includes('id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)"'));
