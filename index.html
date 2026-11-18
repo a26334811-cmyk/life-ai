@@ -2638,7 +2638,7 @@ function postingsForDisplay(){
 }
 function renderJobHub(){
   jobCollections();
-  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
+  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('')||'<div class="card"><p class="meta">아직 관심 회사가 없어요. 위 \'＋ 관심 회사 등록\'에서 추가해 보세요.</p></div>';
   const today=koreaToday();
   const shown=postingsForDisplay(),active=shown.filter(p=>!postingIsEnded(p,today)),ended=shown.filter(p=>postingIsEnded(p,today));
   document.getElementById('savedPostings').innerHTML=active.map(postingCardHTML).join('')+(ended.length?`<details ${endedPostingsOpen?'open':''} ontoggle="endedPostingsOpen=this.open"><summary>끝난 공고 ${ended.length}개 (합격·불합격·지원 취소·마감 지남)</summary><div class="stack">${ended.map(postingCardHTML).join('')}</div></details>`:'')

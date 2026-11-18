@@ -133,6 +133,15 @@ test('interested companies deduplicate and save a manual official link',()=>{
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);
 });
 
+test('interested companies list shows a guide when empty and drops it once one is added',async()=>{
+ const a=app(undefined,true);a.run('renderJobHub()');
+ assert.match(a.el('watchCompanies').innerHTML,/아직 관심 회사가 없어요/);
+ a.el('watchCompany').value='삼천리';a.run('addWatchCompany()');
+ assert.doesNotMatch(a.el('watchCompanies').innerHTML,/아직 관심 회사가 없어요/);
+ await a.run('removeWatchCompany(state.watchCompanies[0].id)');
+ assert.match(a.el('watchCompanies').innerHTML,/아직 관심 회사가 없어요/);
+});
+
 test('returning-user initialization uses existing HTML ids',()=>{
  const a=app(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
  assert.equal(a.el('startBtn'),null);assert.match(a.el('homeContent').innerHTML,/전기기사/);
