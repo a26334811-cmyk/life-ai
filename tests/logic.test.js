@@ -125,6 +125,16 @@ test('occurs does not rebuild Date objects for dates it has already checked, and
   assert.equal(L.occurs({date:'2026-05-01',repeat:'daily'},'2026-05-02'),true);
 });
 
+test('sanitizeState empties malformed certSchedule rounds (refetchable) but keeps good ones',()=>{
+  const good={qualification:{name:'전기기사'},items:[],rounds:[{round:'2026년 1회',events:[{label:'접수',startDate:'2026-11-20'}]}]};
+  assert.deepEqual(L.sanitizeState({certSchedule:good}).state.certSchedule,good);
+  for(const rounds of [[null],[{round:'1회'}],[{round:'1회',events:'x'}],[{round:'1회',events:[null]}],[{events:[]}],'x',null]){
+    const r=L.sanitizeState({certSchedule:{qualification:{name:'전기기사'},items:[],rounds}});
+    assert.deepEqual(r.state.certSchedule.rounds,[]);assert.equal(r.state.certSchedule.qualification.name,'전기기사');assert.deepEqual(r.dropped,[]);
+  }
+  assert.equal(L.sanitizeState({certSchedule:{items:[]}}).state.certSchedule.rounds,undefined);
+});
+
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
   assert.equal(L.sanitizeState(null),null);
   assert.equal(L.sanitizeState([]),null);

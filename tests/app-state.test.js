@@ -241,6 +241,13 @@ test('after a backup restore, a late timer save cannot overwrite the restored da
  assert.equal(a.run('__reloaded'),1);assert.equal(a.saved().mainGoal,'복원한 목표');
 });
 
+test('Home still draws when saved certSchedule rounds are malformed',()=>{
+ const a=app(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',certSchedule:{qualification:{name:'전기기사'},rounds:[null,{round:'1회'},{round:'2회',events:[null]}]}}));
+ assert.doesNotThrow(()=>a.run('renderHome()'));assert.match(a.el('homeContent').innerHTML,/전기기사/);
+ assert.equal(a.run('state.certSchedule.rounds.length'),0);
+ assert.doesNotThrow(()=>a.run('state.certSchedule.rounds=[null,{round:"x"},{round:"y",events:[null]}];renderHome()'));
+});
+
 test('goal type is not guessed from a lone 기사 or 회사',()=>{
  const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
  for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);

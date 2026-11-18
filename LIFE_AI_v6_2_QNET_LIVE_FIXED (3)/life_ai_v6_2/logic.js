@@ -70,7 +70,7 @@
     if (!schedule || typeof schedule !== 'object') return [];
     if (Array.isArray(schedule.rounds)) {
       const q = schedule.qualification || {};
-      return schedule.rounds.flatMap(r => (Array.isArray(r && r.events) ? r.events : []).map(e => ({
+      return schedule.rounds.flatMap(r => (r && Array.isArray(r.events) ? r.events.filter(e => e && typeof e === 'object') : []).map(e => ({
         qualificationName: q.name, qualificationCode: q.code, round: r.round,
         type: e.type, label: e.label, startDate: e.startDate, endDate: e.endDate, raw: e.raw
       })));
@@ -188,7 +188,11 @@
       } else if (OBJECT_KEYS.includes(key)) {
         if (isPlain(value)) out[key] = value; else dropped.push(key);
       } else if (key === 'certSchedule') {
-        if (value === null || isPlain(value)) out[key] = value; else dropped.push(key);
+        if (value === null) { out[key] = value; continue; }
+        if (!isPlain(value)) { dropped.push(key); continue; }
+        // The exam schedule can be fetched again, so malformed rounds are just emptied instead of crashing Home.
+        const validRounds = Array.isArray(value.rounds) && value.rounds.every(r => isPlain(r) && typeof r.round === 'string' && Array.isArray(r.events) && r.events.every(isPlain));
+        out[key] = (value.rounds === undefined || validRounds) ? value : { ...value, rounds: [] };
       } else if (key === 'completedTasks') {
         if (Array.isArray(value) && value.length <= 20 && value.every(v => typeof v === 'boolean')) out[key] = value; else dropped.push(key);
       } else if (ARRAY_KEYS.includes(key)) {
