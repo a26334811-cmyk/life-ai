@@ -17,6 +17,37 @@ test('backup message does not claim the file was saved',()=>{
   assert.ok(a.saved().lastBackupAt,'backup date is still recorded');
 });
 
+/* #126 posting links are tidied before saving / comparing */
+test('cleanPostingUrl removes credentials, fragment and tracking values but keeps real parameters',()=>{
+  const L=require('../logic.js');
+  assert.equal(L.cleanPostingUrl('https://user:pw@example.com/job?id=7&utm_source=x&fbclid=abc&gclid=1&utm_medium=m#apply'),'https://example.com/job?id=7');
+  assert.equal(L.cleanPostingUrl('https://example.com/job?utm_source=x#top'),'https://example.com/job');
+  assert.equal(L.cleanPostingUrl('https://example.com/job?q=%EC%8B%9C%EC%84%A4&id=1'),'https://example.com/job?q=%EC%8B%9C%EC%84%A4&id=1','untouched query is not re-encoded');
+  assert.equal(L.cleanPostingUrl('javascript:alert(1)'),'');
+  assert.equal(L.cleanPostingUrl('ftp://example.com/a'),'');
+  assert.equal(L.cleanPostingUrl('not a url'),'');
+});
+
+test('saving a posting stores the cleaned link and treats tracking-only differences as duplicates',()=>{
+  const a=createApp();
+  const fill=u=>{a.el('postingId').value='';a.el('postingCompany').value='A';a.el('postingTitle').value='T';a.el('postingUrl').value=u;};
+  fill('https://me:secret@example.com/job/1?utm_source=kakao#x');
+  a.run('savePosting()');
+  assert.equal(a.saved().jobPostings.length,1);
+  assert.equal(a.saved().jobPostings[0].url,'https://example.com/job/1');
+  fill('https://example.com/job/1?fbclid=zzz');
+  a.run('savePosting()');
+  assert.equal(a.saved().jobPostings.length,1,'duplicate is caught');
+  assert.match(a.toasts[a.toasts.length-1],/이미 저장한 공고/);
+});
+
+test('a shared link is cleaned and matched against already saved (older, unclean) links',()=>{
+  const old=JSON.stringify({mainGoal:'x',jobPostings:[{id:'p1',company:'A',title:'T',url:'https://example.com/job/9?utm_source=a',deadline:'',stage:'관심',tasks:[false,false,false,false]}]});
+  const a=createApp(old,{search:'?url='+encodeURIComponent('https://u:p@example.com/job/9?fbclid=1#z')});
+  assert.match(a.el('toast').textContent,/이미 저장한 공고/,'startup toast goes through the real toast element');
+  const b=createApp(undefined,{search:'?url='+encodeURIComponent('https://u:p@example.com/job/10?fbclid=1#z'),fetch:async()=>({ok:true,json:async()=>({ok:false})})});
+  assert.equal(b.el('postingUrl').value,'https://example.com/job/10');
+});
 /* #121 the home header had a bell that looked clickable but did nothing */
 test('home header has no decorative bell',()=>{
   const {html}=require('./helpers/app-harness.js');

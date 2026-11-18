@@ -348,6 +348,19 @@
     try { const u = new URL(cleaned); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
   }
 
+  /* Tidy a posting link before it is saved or compared: http/https only, no id:password@, no #fragment,
+     no tracking values (utm_*, fbclid, gclid ...). Returns '' when it is not a usable web link. */
+  const TRACKING_PARAMS = /^(utm_.*|fbclid|gclid|dclid|gbraid|wbraid|msclkid|yclid|igshid|mc_cid|mc_eid)$/i;
+  function cleanPostingUrl(value) {
+    let u;
+    try { u = new URL(String(value || '').trim()); } catch (e) { return ''; }
+    if (!['http:', 'https:'].includes(u.protocol)) return '';
+    u.username = ''; u.password = ''; u.hash = '';
+    const drop = [...u.searchParams.keys()].filter(k => TRACKING_PARAMS.test(k));
+    if (drop.length) drop.forEach(k => u.searchParams.delete(k));
+    return u.href;
+  }
+
   /* What the phone's "Share" sheet sends to the app (?title=&text=&url=). Many apps put the link in `text`. */
   function parseShareParams(search) {
     let params;
@@ -751,7 +764,7 @@
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
-    firstUrl, parseShareParams, cleanTitle, extractDeadline,
+    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, isRepeating, isDone, toggleDone, habitStreak,

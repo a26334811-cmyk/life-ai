@@ -2491,7 +2491,7 @@ function applyPostingInfo(info){
   return {found:true,message:(message+note+' 내용을 확인해 주세요.').trim(),deadlinePast};
 }
 async function fillPostingFromUrl(){
-  const url=safeUrl((document.getElementById('postingUrl')?.value||'').trim());
+  const url=LifeLogic.cleanPostingUrl(document.getElementById('postingUrl')?.value||'');
   if(!url){postingSetStatus('먼저 올바른 공고 링크를 입력해 주세요.');return;}
   const version=++postingFetchVersion;
   const button=document.getElementById('postingFetch');
@@ -2523,7 +2523,7 @@ function fillPostingFromPaste(){
   const text=document.getElementById('postingPaste')?.value||'';
   if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
   const {found,message}=applyPostingInfo({description:text});
-  const linkFilled=postingFillField('postingUrl',LifeLogic.firstUrl(text));
+  const linkFilled=postingFillField('postingUrl',LifeLogic.cleanPostingUrl(LifeLogic.firstUrl(text)));
   if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
   else postingSetStatus(linkFilled?'글 안의 링크를 채웠어요. 마감일은 찾지 못했으니 직접 입력해 주세요.':'글에서 마감일로 볼 만한 날짜를 찾지 못했어요. 직접 입력해 주세요.');
 }
@@ -2532,10 +2532,12 @@ function handleSharedLink(){
   if(typeof location==='undefined')return false;
   const shared=LifeLogic.parseShareParams(location.search);
   if(!shared)return false;
+  shared.url=LifeLogic.cleanPostingUrl(shared.url);
+  if(!shared.url)return false;
   try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(history.state||null,'',location.pathname);}catch(e){}
   jobCollections();
   go('jobHub');
-  if(state.jobPostings.some(x=>x.url===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
+  if(state.jobPostings.some(x=>LifeLogic.cleanPostingUrl(x.url)===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
   const editor=document.getElementById('postingEditor');
   if(editor)editor.open=true;
   clearPostingForm();
@@ -2548,11 +2550,11 @@ function handleSharedLink(){
 }
 function savePosting(){
   jobCollections();const value=id=>document.getElementById(id).value.trim();
-  const company=value('postingCompany'),title=value('postingTitle'),url=safeUrl(value('postingUrl')),deadline=value('postingDeadline');
+  const company=value('postingCompany'),title=value('postingTitle'),url=LifeLogic.cleanPostingUrl(value('postingUrl')),deadline=value('postingDeadline');
   if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
   if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
-  if(state.jobPostings.some(x=>x.id!==id&&x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
+  if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
   if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
   const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
