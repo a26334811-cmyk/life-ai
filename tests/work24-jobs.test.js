@@ -51,3 +51,32 @@ test('HTML upstream error is reported as failure',async()=>{
   assert.equal(body.message,'지금은 고용24에서 공고를 가져오지 못했어요. 잠시 뒤 다시 시도하거나 고용24 사이트에서 확인해 주세요.');
   assert.match(body.detail,/HTML/,'the technical cause is kept separately');
 });
+test('missing auth key returns 503 without calling upstream',async()=>{
+  const handler=setup('<wantedRoot/>');
+  delete process.env.WORK24_AUTH_KEY;
+  let called=false;global.fetch=async()=>{called=true;return {ok:true,status:200,text:async()=>''};};
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  assert.equal(result.statusCode,503);assert.match(JSON.parse(result.body).message,/인증키/);assert.equal(called,false);
+});
+test('errorMsg in XML is reported as 502 with the message',async()=>{
+  const handler=setup('<result><errorMsg>인증키가 올바르지 않습니다 &amp; 확인</errorMsg></result>');
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  assert.equal(result.statusCode,502);assert.match(JSON.parse(result.body).detail,/고용24: 인증키가 올바르지 않습니다 & 확인/,'the server message is kept in detail, the screen gets the short message');
+});
+test('upstream 500 status is reported as 502',async()=>{
+  const handler=setup('<wantedRoot/>',500);
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  assert.equal(result.statusCode,502);assert.match(JSON.parse(result.body).detail,/500/);
+});
+test('zero results is an empty list, not an error',async()=>{
+  const handler=setup('<wantedRoot><total>0</total></wantedRoot>');
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  assert.equal(result.statusCode,200);assert.deepEqual(JSON.parse(result.body).items,[]);
+});
+test('more than 10 results are cut to 10',async()=>{
+  const xml='<wantedRoot>'+Array.from({length:15},(_,i)=>`<wanted><title>공고${i}</title><wantedInfoUrl>https://example.org/${i}</wantedInfoUrl></wanted>`).join('')+'</wantedRoot>';
+  const handler=setup(xml);
+  const result=await handler({queryStringParameters:{keyword:'정비'}});
+  const {items}=JSON.parse(result.body);
+  assert.equal(result.statusCode,200);assert.equal(items.length,10);assert.equal(items[0].title,'공고0');assert.equal(items[9].title,'공고9');
+});
