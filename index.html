@@ -847,7 +847,7 @@ function exportLifeAIBackup(){
     made=makeLifeAIBackup();
     downloadBackupFile(made);
     finishBackup();
-    toast('백업 파일을 저장했어요. 안전한 곳에 보관해 주세요.');
+    toast('백업 파일을 만들었어요. 내려받은 파일이 기기에 있는지 확인해 주세요.');
   }catch(e){
     if(made)made.rollback();
     toast('백업 파일을 만들지 못했어요.');
