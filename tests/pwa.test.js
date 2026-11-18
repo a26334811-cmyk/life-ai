@@ -223,6 +223,19 @@ test('manifest lets the phone Share sheet send a link to the app (GET with title
   assert.match(html,/function handleSharedLink\(\)/);
 });
 
+test('small buttons on home, the planner tabs, habit delete and the backup reminder are at least 44px tall',()=>{
+  const css=html.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m=>({selector:m[1].trim(),body:m[2]}));
+  const last=(selector,prop)=>rules.filter(r=>r.selector.split(',').map(s=>s.trim()).includes(selector))
+    .map(r=>r.body.match(new RegExp('(?:^|;)\\s*'+prop+':(\\d+)px'))).filter(Boolean).map(m=>Number(m[1])).pop();
+  for(const selector of ['.dashboard-panel .btn','.planner-tabbar button','.habit-row .habit-remove','.backup-nudge .btn']){
+    assert.ok(last(selector,'min-height')>=44,selector+' has min-height of at least 44px (last rule wins)');
+  }
+  assert.ok(last('.habit-row .habit-remove','min-width')>=44);
+  assert.ok(last('.backup-nudge .btn','min-width')>=44);
+  assert.ok(last('.habit-row','gap')>=16,'habit delete is spaced away from the habit name');
+});
+
 test('share target declares its encoding so Chrome reports no manifest warnings',()=>{
   assert.equal(manifest.share_target.enctype,'application/x-www-form-urlencoded');
 });

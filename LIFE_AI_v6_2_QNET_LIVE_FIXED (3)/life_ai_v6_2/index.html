@@ -118,7 +118,7 @@
     .posting-autofill .btn{width:100%;margin:0 0 6px}
     .backup-nudge{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff7e6;border:1px solid #f1d49b;border-radius:14px;padding:12px 14px;margin:0 0 12px}
     .backup-nudge p{margin:0;flex:1 1 220px;font-size:14px;line-height:1.5}
-    .backup-nudge .btn{margin:0;padding:8px 12px;width:auto}
+    .backup-nudge .btn{margin:0;padding:8px 16px;width:auto;min-height:44px;min-width:44px}
     .pillbar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
     .pill{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:999px;white-space:nowrap}
     .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -325,7 +325,7 @@ h3{font-size:16px;line-height:1.4}
 .bottomnav{background:#fff;border-color:var(--line);box-shadow:0 -2px 12px rgba(31,41,55,.04)}
 .bottomnav button.active{background:#f0f5ff}
 .planner-tabbar{gap:0;padding:6px;background:#f0f3f8;border-radius:13px;position:sticky;top:0}
-.planner-tabbar button{border:0;background:transparent;color:#637083;border-radius:9px;padding:10px 2px;font-size:12px}
+.planner-tabbar button{border:0;background:transparent;color:#637083;border-radius:9px;padding:10px 2px;font-size:12px;min-height:44px;min-width:44px}
 .planner-tabbar button[aria-selected="true"]{background:#fff;color:#1763db;border:0;box-shadow:0 1px 5px rgba(30,55,85,.08)}
 .planner-toolbar{margin:10px 0}
 .planner-toolbar button.btn{min-height:36px}
@@ -362,12 +362,12 @@ h3{font-size:16px;line-height:1.4}
 .dashboard-panel .card{display:flex;flex-direction:column;gap:7px}
 .dashboard-panel .card h3,.dashboard-panel .card h2{margin:0}
 .dashboard-panel .card p{margin:0 0 4px}
-.dashboard-panel .btn{margin-top:auto;min-height:42px;padding:10px 12px;font-size:13px}
-.habit-row{align-items:center;border-bottom:1px solid var(--line);padding:5px 0}
+.dashboard-panel .btn{margin-top:auto;min-height:44px;min-width:44px;padding:10px 16px;font-size:13px}
+.habit-row{align-items:center;gap:18px;border-bottom:1px solid var(--line);padding:5px 0}
 .habit-row .check{border:0;padding:10px 0}
 .habit-row p.meta{margin:0 0 8px 30px}
 .habit-row .habit-yesterday{width:auto;display:inline;padding:2px 8px;font-size:12px}
-.habit-row .habit-remove{width:auto;min-width:58px;padding:8px;font-size:12px;color:var(--muted)}
+.habit-row .habit-remove{width:auto;min-width:58px;min-height:44px;padding:8px 14px;font-size:12px;color:var(--muted)}
 .habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
 .habit-add .planner-form{margin-top:12px}
