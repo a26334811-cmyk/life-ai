@@ -1,8 +1,27 @@
 {
-  "name": "LIFE AI v6 Live Data Beta",
-  "short_name": "LIFE AI",
+  "name": "life-ai 일정관리",
+  "short_name": "life-ai",
+  "description": "목표·일정·집중 타이머·습관을 한 곳에서 관리해요",
+  "id": "./",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ko",
   "background_color": "#ffffff",
-  "theme_color": "#0f4c81"
+  "theme_color": "#1763db",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
+  "shortcuts": [
+    { "name": "오늘 일정", "short_name": "일정", "url": "./index.html?screen=calendar" }
+  ]
 }

@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f4c81" />
-  <title>LIFE AI Prototype</title>
+  <meta name="theme-color" content="#1763db" />
+  <title>life-ai | 나의 목표와 일정</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <style>
     :root{
       --primary:#0f4c81;
@@ -67,7 +71,7 @@
       width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;
     }
     .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .back{border:0;background:none;font-size:24px;cursor:pointer;color:var(--text);padding:0}
+    .back{border:0;background:none;font-size:24px;cursor:pointer;color:var(--text);padding:6px 14px;margin-left:-14px;min-width:44px;min-height:44px}
     .section-title{font-weight:900;margin:22px 0 12px}
     .opportunity{display:grid;gap:8px}
     .meta{font-size:13px;color:var(--muted)}
@@ -81,13 +85,13 @@
     .dot{width:10px;height:10px;background:var(--primary);border-radius:50%;margin-top:6px;flex:0 0 auto}
     .bottomnav{
       position:fixed;bottom:calc(52px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
-      width:min(430px,100%);height:72px;background:rgba(255,255,255,.96);
+      width:min(430px,100%);height:72px;background:#fff;
       border-top:1px solid var(--line);display:none;grid-template-columns:repeat(5,1fr);
-      backdrop-filter:blur(12px);z-index:20;
+      z-index:20;
     }
     .bottomnav.show{display:grid}
     .bottomnav button{
-      border:0;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;
+      border:0;background:none;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;
     }
     .bottomnav button.active{color:var(--primary)}
     .navicon{display:block;font-size:21px;margin-bottom:4px}
@@ -97,11 +101,278 @@
       opacity:0;pointer-events:none;transition:.25s;z-index:30;font-size:14px;
     }
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .save-fail-banner{position:fixed;top:0;left:0;right:0;z-index:55;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#b3261e;color:#fff;font-size:14px;font-weight:700}
+    .save-fail-banner[hidden]{display:none}
+    .save-fail-banner button{border:0;border-radius:10px;padding:8px 12px;background:#fff;color:#b3261e;font-weight:800;cursor:pointer}
+    .update-banner{position:fixed;left:50%;bottom:calc(196px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(390px,calc(100% - 36px));min-height:48px;border:0;border-radius:14px;background:#1763db;color:#fff;font:inherit;font-size:14px;font-weight:700;padding:12px 16px;cursor:pointer;z-index:31;box-shadow:0 6px 18px rgba(23,99,219,.3)}
+    .update-banner[hidden]{display:none}
+    .ui-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,32,48,.45)}
+    .ui-modal-box{width:min(420px,100%);background:#fff;border-radius:20px;padding:22px 20px 16px;box-shadow:0 18px 50px rgba(15,32,48,.28)}
+    .ui-modal-box h3{margin:0 0 8px;font-size:17px}
+    .ui-modal-box p{margin:0 0 14px;line-height:1.55;white-space:pre-line}
+    .ui-modal-box input{width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px;border:1px solid #cdd8e3;border-radius:12px;font:inherit}
+    .ui-modal-actions{display:flex;flex-direction:column;gap:8px}
+    .ui-modal-actions .btn{margin:0}
+    .btn.danger{background:#c0392b;color:#fff;border-color:#c0392b}
+    .posting-autofill{margin:-4px 0 12px}
+    .posting-autofill .btn{width:100%;margin:0 0 6px}
+    .backup-nudge{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff7e6;border:1px solid #f1d49b;border-radius:14px;padding:12px 14px;margin:0 0 12px}
+    .backup-nudge p{margin:0;flex:1 1 220px;font-size:14px;line-height:1.5}
+    .backup-nudge .btn{margin:0;padding:8px 16px;width:auto;min-height:44px;min-width:44px}
     .pillbar{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
     .pill{border:1px solid var(--line);background:#fff;padding:9px 12px;border-radius:999px;white-space:nowrap}
     .pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
     .big-status{padding:16px;border-radius:18px;background:#f2f7fb;margin:14px 0}
     .divider{height:1px;background:var(--line);margin:20px 0}
+
+
+    /* Modern Blue responsive design: visual-only overrides; app logic remains unchanged. */
+    :root{
+      --primary:#1763db;--primary2:#4d8df2;--bg:#f3f7ff;--card:#fff;
+      --text:#172b4d;--muted:#64748b;--line:#e2eaf7;
+      --success:#16825b;--radius:20px;
+    }
+    body{background:linear-gradient(140deg,#edf4ff 0%,#f7faff 45%,#eef4ff 100%);min-height:100vh}
+    .app{background:transparent;box-shadow:none}
+    .screen{animation:modernEnter .2s ease-out}
+    @keyframes modernEnter{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:none}}
+    h1,h2,h3{letter-spacing:-.035em;color:#162b4d}
+    h1{font-size:clamp(27px,3vw,36px)}
+    .logo{color:var(--primary);letter-spacing:.08em}
+    .card,.choice{border:1px solid #e1eaf8;box-shadow:0 9px 26px rgba(28,71,133,.055);background:#fff}
+    .card{border-radius:20px}
+    .choice{transition:border-color .18s,transform .18s,box-shadow .18s}
+    .choice:hover{border-color:#9ec0f7;box-shadow:0 10px 24px rgba(35,99,190,.10);transform:translateY(-1px)}
+    .btn{border-radius:13px;transition:filter .15s,transform .15s}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:scale(.99)}
+    .btn.primary{background:linear-gradient(120deg,#1763db,#397de8);box-shadow:0 5px 14px rgba(23,99,219,.16)}
+    .btn.secondary,.big-status{background:#eaf2ff;color:#1756ae}
+    .tag{background:#eaf2ff;color:#1557bd}
+    .field input,.field select,#jobHub textarea{border-color:#d8e5f6;background:#fff}
+    :is(button,input,select,textarea,a):focus-visible{outline:3px solid #83b4ff;outline-offset:3px}
+    .bottomnav{border:1px solid #dce7f8;border-bottom:0;box-shadow:0 -8px 24px rgba(28,71,133,.06)}
+    .bottomnav button.active{color:#1763db;background:#eaf2ff}
+    .pill.active{background:#1763db;border-color:#1763db}
+    @media(max-width:767px){
+      .app{width:100%;max-width:520px;background:#f8fbff}
+      .screen{padding:24px 18px 36px}
+      .bottomnav{width:min(520px,100%);border-radius:18px 18px 0 0;overflow:hidden}
+      .card{padding:17px}
+    }
+    @media(min-width:768px){
+      .app{width:min(1480px,100%);min-height:100vh;margin:0 auto;padding:0 28px 40px 272px;box-shadow:none}
+      .screen{padding:42px 28px 55px;max-width:1180px;margin:0 auto}
+      .screen.hero{max-width:900px}
+      .screen.hero.active{min-height:85vh}
+      .bottomnav.show{
+        display:flex;position:fixed;left:max(0px,calc((100vw - 1480px)/2));top:0;bottom:0;
+        transform:none;width:250px;height:100vh;padding:30px 14px;
+        flex-direction:column;gap:9px;background:#fff;border:0;border-right:1px solid #e0e9f8;
+        border-radius:0;box-shadow:8px 0 28px rgba(23,69,133,.035);
+        backdrop-filter:none;z-index:20
+      }
+      .bottomnav:before{content:"life-ai";display:block;font-size:30px;font-weight:900;letter-spacing:-.06em;color:#1763db;padding:8px 15px 24px}
+      .bottomnav button{
+        display:flex;align-items:center;gap:14px;text-align:left;min-height:52px;
+        border-radius:13px;padding:0 15px;font-size:15px;font-weight:750
+      }
+      .bottomnav .navicon{display:inline-block;font-size:24px;margin:0;width:26px;text-align:center}
+      .bottomnav button:hover{background:#f1f6ff;color:#1763db}
+      .stack{gap:14px}
+      .card{padding:24px}
+      .topbar{margin-bottom:24px}
+      h2{font-size:clamp(24px,2.4vw,32px)}
+      .actions{max-width:680px}
+      .toast{left:calc(50% + 120px)}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .screen,.choice,.btn{animation:none;transition:none}
+    }
+
+    .dashboard-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+    .soft-overview{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:8px 16px;box-shadow:0 3px 14px rgba(20,60,90,.035);margin:12px 0 16px}
+    .card.urgent-postings{border-color:#f1d49b;background:#fff7e6;margin:0 0 16px}
+    .urgent-postings p{margin:0 0 10px}
+    .soft-overview-row{display:flex;align-items:center;gap:12px;padding:12px 0;min-width:0}
+    .soft-overview-row+.soft-overview-row{border-top:1px solid var(--line)}
+    .soft-overview-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:14px;background:#edf4f9;font-size:19px}
+    .soft-overview-copy{flex:1;min-width:0}
+    .soft-overview-copy strong{display:block;font-size:15px;line-height:1.4}
+    .soft-overview-copy .meta{display:block;line-height:1.4;overflow-wrap:anywhere}
+    .soft-overview-action{flex:0 0 auto;border:0;border-radius:12px;background:#edf4f9;color:var(--primary);font-size:12px;font-weight:750;padding:9px 11px;cursor:pointer}
+    .soft-overview details{border-top:1px solid var(--line);padding:10px 0 3px}
+    .soft-overview summary{cursor:pointer;font-size:12px;color:var(--muted);font-weight:700;padding:3px 0}
+    .soft-overview .dashboard-stats{margin:12px 0 4px}
+    .soft-overview :focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+    .dashboard-stat{padding:18px;border:1px solid #dce7fa;background:#fff;border-radius:18px;box-shadow:0 6px 20px rgba(30,80,140,.05);min-width:0}
+    .dashboard-stat .metric{font-size:25px;font-weight:850;letter-spacing:-.04em;color:#175ac5;margin:7px 0}
+    .dashboard-stat .meta{font-size:12px}
+    .dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:18px 0}
+    .dashboard-panel{min-width:0}
+    .dashboard-panel .card{height:100%}
+    .dashboard-panel .btn{margin-top:12px}
+    .dashboard-panel h3{font-size:18px}
+    .dashboard-progress{height:9px;background:#e7effc;border-radius:999px;overflow:hidden;margin-top:12px}
+    .dashboard-progress>span{display:block;height:100%;background:linear-gradient(90deg,#1763db,#67a2ff);border-radius:inherit}
+    @media(min-width:1100px){.dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.planner-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.planner-controls button{width:auto}
+.planner-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.planner-day{min-height:75px;padding:7px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);text-align:left;cursor:pointer;min-width:0}
+.planner-day.today{border:2px solid var(--primary)}
+.planner-day.selected{background:#e8f1ff}
+.planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-day .dot-count{display:none;margin-top:3px;font-size:13px;font-weight:700;color:var(--primary)}
+.planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
+.planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.planner-form label{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.planner-form input,.planner-form select{width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#17253c}
+.planner-form .wide{grid-column:1/-1}
+.planner-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.planner-item .btn{width:auto}
+.planner-item-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.goal-card.active{border:2px solid #1763db}
+.alert-row{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid #f1d49b;padding:10px 0;font:inherit;color:inherit;cursor:pointer}
+.alert-row:first-of-type{border-top:0}
+.alert-when{flex:none;min-width:46px;font-weight:800;color:#b45309}
+.alert-row.today .alert-when{color:#c2260c}
+.home-today .check{margin:8px 0}
+.home-today .done-text{text-decoration:line-through;color:var(--muted,#6b7a90)}
+.planner-search{margin:0 0 12px}
+.planner-search input{width:100%;padding:12px;border:1px solid var(--line,#dfe6f0);border-radius:14px;font:inherit}
+.search-result{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line,#e8edf5);padding:10px 0;font:inherit;color:inherit;cursor:pointer}
+.search-date{flex:none;min-width:84px;font-weight:700;color:#1763db}
+.task-edit-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+.task-edit-row input{flex:1;min-width:0;padding:10px;border:1px solid var(--line,#dfe6f0);border-radius:12px;font:inherit}
+#calendarContent{touch-action:pan-y pinch-zoom}
+@keyframes planner-slide-next{from{opacity:.2;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes planner-slide-prev{from{opacity:.2;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.planner-tabpanel.slide-next{animation:planner-slide-next .18s ease-out}
+.planner-tabpanel.slide-prev{animation:planner-slide-prev .18s ease-out}
+@media(prefers-reduced-motion:reduce){.planner-tabpanel.slide-next,.planner-tabpanel.slide-prev{animation:none}}
+@media(max-width:520px){.planner-item{flex-direction:column}.planner-item-actions{justify-content:flex-start}.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
+
+.focus-timer{text-align:center;padding:16px 4px}
+.focus-clock{font-size:clamp(42px,10vw,72px);font-weight:850;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:12px 0;color:var(--primary)}
+.focus-done{min-height:1.6em;margin:0 0 8px;font-weight:800;color:var(--success)}
+.focus-options{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}
+.focus-options label{display:flex;align-items:center;gap:5px}
+.focus-options select{padding:9px;border:1px solid var(--line);border-radius:10px}
+.focus-flash{animation:focus-flash .45s ease-in-out 8}
+@keyframes focus-flash{0%,100%{background:var(--card)}50%{background:#ffe48a}}
+@media(prefers-reduced-motion:reduce){.focus-flash{animation:none;outline:4px solid #e6a600}}
+
+.planner-tabbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;position:sticky;top:0;z-index:8;padding:8px 0;background:var(--bg)}
+.planner-tabbar button{min-width:0;padding:11px 3px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:13px;font-weight:700}
+.planner-tabbar button[aria-selected="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
+.planner-tabpanel[hidden]{display:none!important}
+
+/* Compact mobile calendar toolbar: override global full-width button rules. */
+.planner-toolbar{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.planner-toolbar .planner-date-nav{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;gap:6px;align-items:center}
+.planner-toolbar .planner-date-nav strong{text-align:center;font-size:15px;min-width:0}
+.planner-toolbar .planner-view-switch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 58px;gap:6px}
+.planner-toolbar button.btn{display:inline-flex;justify-content:center;align-items:center;width:100%;min-width:0;min-height:38px;padding:7px 6px;margin:0;font-size:13px;line-height:1.2}
+.planner-toolbar .planner-date-nav button.btn{height:38px}
+
+.planner-form-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.planner-form-heading h3{margin:0}
+.planner-form-heading button.btn{width:auto;min-width:112px;padding:9px 12px;white-space:nowrap}
+#plannerEditor[hidden]{display:none!important}
+#plannerEditor{margin-top:14px}
+.planner-day-summary{margin:12px 0 2px;font-weight:600;color:var(--text);font-size:15px}
+.insights-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.insights-heading h3{margin:0}
+.insights-switch{display:flex;gap:5px}
+.insights-switch button.btn{width:auto;min-width:54px;padding:7px 10px;font-size:13px}
+.insights-bars{display:flex;gap:8px;align-items:end;justify-content:space-around;margin:18px 0 8px}
+.insights-bar{flex:1;text-align:center;min-width:0}
+.insights-bar-track{height:70px;display:flex;align-items:end;justify-content:center}
+.recovery-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}
+.recovery-choices button.btn{width:100%;min-width:0;padding:9px 4px;font-size:13px}
+.insights-heatmap{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:14px 0}
+.insights-weekday{text-align:center;font-size:12px;color:var(--muted)}
+.insights-day{aspect-ratio:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.insights-day.low{background:#dbeafe;color:#17324a}
+.insights-day.medium{background:#93c5fd;color:#17324a}
+.insights-day.high{background:#3b82f6;color:white}
+.insights-day.max{background:#1d4ed8;color:white}
+.insights-day.future{opacity:.45}
+.insights-day.selected{outline:2px solid var(--primary);outline-offset:2px}
+.insights-period{margin:6px 0 12px}
+.insights-details{margin-top:10px;font-size:12px;color:var(--muted)}
+.insights-details summary{cursor:pointer;list-style-position:inside}
+#progressInsights .planner-grid{margin-bottom:8px}
+#progressInsights .planner-grid strong{font-size:clamp(17px,4vw,24px)}
+
+/* Quiet, consistent mobile UI: visual-only overrides. */
+:root{--bg:#f7f9fc;--card:#fff;--text:#1f2937;--muted:#687589;--line:#e7ecf2;--radius:16px}
+body{background:#f7f9fc}
+.app{background:#f7f9fc}
+.screen{padding-top:18px}
+h1,h2,h3{color:var(--text);letter-spacing:-.025em}
+h2{font-size:21px;margin-bottom:14px}
+h3{font-size:16px;line-height:1.4}
+.card,.choice{border-color:var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(31,41,55,.025)}
+.card{padding:16px}
+.stack{gap:10px}
+.meta{color:var(--muted);line-height:1.45}
+.btn{border-radius:11px;font-weight:700}
+.btn.primary{background:#1763db;box-shadow:none}
+.btn.secondary{background:#eef3fb;color:#245ba5}
+.bottomnav{background:#fff;border-color:var(--line);box-shadow:0 -2px 12px rgba(31,41,55,.04)}
+.bottomnav button.active{background:#f0f5ff}
+.planner-tabbar{gap:0;padding:6px;background:#f0f3f8;border-radius:13px;position:sticky;top:0}
+.planner-tabbar button{border:0;background:transparent;color:#637083;border-radius:9px;padding:10px 2px;font-size:12px;min-height:44px;min-width:44px}
+.planner-tabbar button[aria-selected="true"]{background:#fff;color:#1763db;border:0;box-shadow:0 1px 5px rgba(30,55,85,.08)}
+.planner-toolbar{margin:10px 0}
+.planner-toolbar button.btn{min-height:36px}
+.planner-day{border-color:var(--line);border-radius:8px}
+.planner-day.selected{background:#f0f5ff}
+.insights-day{border-radius:7px}
+#progressInsights .planner-grid strong{font-weight:800;letter-spacing:-.03em}
+.recovery-choices{background:#f0f3f8;border-radius:11px;padding:4px;gap:3px}
+.recovery-choices button.btn{border-radius:8px;box-shadow:none;background:transparent;color:#637083}
+.recovery-choices button.btn.primary{background:#fff;color:#1763db;box-shadow:0 1px 5px rgba(30,55,85,.08)}
+@media(max-width:767px){.screen{padding:18px 14px 28px}.card{padding:15px}.dashboard-stats{gap:8px}.dashboard-stat{padding:13px;border-radius:13px;box-shadow:none}}
+@media(min-width:768px){.app{background:transparent}.screen{padding-top:36px}.card{padding:22px}}
+
+/* Compact timer actions and optional controls */
+#focusPanel .focus-timer{padding:8px 0 4px}
+#focusPanel .focus-clock{font-size:clamp(52px,12vw,68px);margin:18px 0 20px}
+#focusPanel .focus-actions{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:8px}
+#focusPanel .focus-actions button{min-height:48px;padding:11px 8px}
+#focusPanel .focus-actions .btn.ghost{background:#fff;color:var(--muted);font-size:13px;border:1px solid var(--line)}
+#focusPanel .focus-options{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:14px 0 8px}
+#focusPanel .focus-options label{display:flex;flex-direction:column;align-items:stretch;gap:5px;font-size:12px;color:var(--muted);min-width:0}
+#focusPanel .focus-options select{width:100%;min-width:0;padding:10px 8px;font-size:13px;background:var(--card);color:var(--text)}
+#focusPanel .focus-more{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+#focusPanel .focus-more summary{font-size:12px;color:var(--muted);cursor:pointer}
+#focusPanel .focus-alarm-options{grid-template-columns:minmax(0,1fr);max-width:240px}
+#focusPanel .focus-more p.meta{font-size:12px;margin:8px 0}
+
+/* Quiet secondary cards: consistent density and progressive disclosure */
+.dashboard-stats{gap:8px;margin:12px 0}
+.dashboard-stat{border:1px solid var(--line);border-radius:14px;padding:13px;box-shadow:none;background:var(--card)}
+.dashboard-stat .metric{font-size:23px;color:var(--text);margin:6px 0 3px;overflow-wrap:anywhere}
+.dashboard-stat .meta{line-height:1.4}
+.dashboard-grid{gap:10px;margin:12px 0}
+.dashboard-panel .card{display:flex;flex-direction:column;gap:7px}
+.dashboard-panel .card h3,.dashboard-panel .card h2{margin:0}
+.dashboard-panel .card p{margin:0 0 4px}
+.dashboard-panel .btn{margin-top:auto;min-height:44px;min-width:44px;padding:10px 16px;font-size:13px}
+.habit-row{align-items:center;gap:18px;border-bottom:1px solid var(--line);padding:5px 0}
+.habit-row .check{border:0;padding:10px 0}
+.habit-row p.meta{margin:0 0 8px 30px}
+.habit-row .habit-yesterday{width:auto;display:inline;padding:2px 8px;font-size:12px}
+.habit-row .habit-remove{width:auto;min-width:58px;min-height:44px;padding:8px 14px;font-size:12px;color:var(--muted)}
+.habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
+.habit-add .planner-form{margin-top:12px}
+.focus-history-more h4{margin:12px 0 8px}
+.focus-history-more p.meta{margin:6px 0}
   </style>
 </head>
 <body>
@@ -114,14 +385,14 @@
   </section>
 
   <section id="name" class="screen">
-    <div class="topbar"><button class="back" onclick="go('start')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('start')">←</button></div>
     <h2>어떻게 불러드릴까요?</h2>
-    <div class="field"><input id="nickname" value="" placeholder="예: 예지, 민준" /></div>
+    <div class="field"><input id="nickname" aria-label="이름" value="" placeholder="예: 예지, 민준" enterkeyhint="next" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();go('goalChoice')}" /></div>
     <button class="btn primary" onclick="go('goalChoice')">다음</button>
   </section>
 
   <section id="goalChoice" class="screen">
-    <div class="topbar"><button class="back" onclick="go('name')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="goalChoiceBack()">←</button></div>
     <h2>지금 가장 하고 싶은 것은 무엇인가요?</h2>
     <div class="stack">
       <button class="choice" onclick="go('companyChoice')"><strong>💼 취업하고 싶어요</strong><span>›</span></button>
@@ -132,7 +403,7 @@
   </section>
 
   <section id="companyChoice" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>생각해둔 회사가 있나요?</h2>
     <div class="stack">
       <button class="choice" onclick="go('company')"><strong>있어요</strong><span>›</span></button>
@@ -142,9 +413,9 @@
   </section>
 
   <section id="company" class="screen">
-    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>어느 회사에 관심이 있나요?</h2>
-    <div class="field"><input id="companyInput" value="" placeholder="회사명을 직접 입력하세요" /></div>
+    <div class="field"><input id="companyInput" aria-label="회사명" value="" placeholder="회사명을 직접 입력하세요" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectCompany()}" /></div>
     <div class="stack">
       <button class="choice" onclick="selectCompany('포스코')"><span><strong>포스코</strong><div class="meta">DEMO 선택지</div></span><span>›</span></button>
       <button class="choice" onclick="selectCompany('삼성전자')"><span><strong>삼성전자</strong><div class="meta">목표 입력 예시</div></span><span>›</span></button>
@@ -154,7 +425,7 @@
   </section>
 
   <section id="job" class="screen">
-    <div class="topbar"><button class="back" onclick="go('company')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('company')">←</button></div>
     <h2>어떤 일을 하고 싶나요?</h2>
     <div class="stack">
       <button class="choice" onclick="selectJob('설비기술')"><strong>설비기술</strong><span>›</span></button>
@@ -166,17 +437,17 @@
 
 
   <section id="jobOnly" class="screen">
-    <div class="topbar"><button class="back" onclick="go('companyChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>원하는 직무를 알려주세요.</h2>
     <p class="muted">정확하지 않아도 괜찮아요. 나중에 바꿀 수 있어요.</p>
-    <div class="field"><input id="jobInput" placeholder="예: 설비기술, 회계, 개발자" /></div>
+    <div class="field"><input id="jobInput" aria-label="직무" placeholder="예: 설비기술, 회계, 개발자" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectJob(this.value||'관심 직무')}" /></div>
     <button class="btn primary" onclick="selectJob(document.getElementById('jobInput').value || '관심 직무')">이 직무로 계속</button>
   </section>
 
   <section id="certStart" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 자격증을 준비하고 싶나요?</h2>
-    <div class="field"><input id="certInput" placeholder="예: 컴퓨터활용능력, 전기기사" /></div>
+    <div class="field"><input id="certInput" aria-label="자격증" placeholder="예: 컴퓨터활용능력, 전기기사" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();quickGoal((this.value||'자격증')+' 준비')}" /></div>
     <div class="stack">
       <button class="choice" onclick="quickGoal('컴퓨터활용능력 준비')"><strong>컴퓨터활용능력</strong><span>›</span></button>
       <button class="choice" onclick="quickGoal('전기기사 준비')"><strong>전기기사</strong><span>›</span></button>
@@ -185,7 +456,7 @@
   </section>
 
   <section id="policyStart" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 지원을 찾고 있나요?</h2>
     <div class="stack">
       <button class="choice" onclick="quickGoal('취업·구직 지원 찾기')"><strong>💼 취업·구직 지원</strong><span>›</span></button>
@@ -196,15 +467,15 @@
   </section>
 
   <section id="customGoal" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goalChoice')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>하고 싶은 일을 편하게 적어주세요.</h2>
     <p class="muted">문장으로 적어도 괜찮아요. 예: 올해 안에 서울로 이직하고 싶어요.</p>
-    <div class="field"><input id="customGoalInput" placeholder="내 목표를 한 문장으로 입력" /></div>
-    <button class="btn primary" onclick="createCustomGoal()">AI가 목표 정리하기</button>
+    <div class="field"><input id="customGoalInput" aria-label="내 목표" placeholder="내 목표를 한 문장으로 입력" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();createCustomGoal()}" /></div>
+    <button class="btn primary" onclick="createCustomGoal()">목표 정리하기</button>
   </section>
 
   <section id="profile" class="screen">
-    <div class="topbar"><button class="back" onclick="go('job')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('job')">←</button></div>
     <h2>더 잘 맞는 기회를 찾기 위해<br>몇 가지만 알려주세요.</h2>
     <div class="field"><label>현재 상태</label><select id="employmentStatus"><option>구직 중</option><option>재직 중</option><option>학생</option><option>기타</option></select></div>
     <div class="field"><label>관련 경력</label><input id="careerInput" placeholder="예: 2년 / 신입" /></div>
@@ -214,7 +485,7 @@
   </section>
 
   <section id="goalCreated" class="screen">
-    <div class="topbar"><span class="tag">✨ AI가 목표를 정리했어요</span></div>
+    <div class="topbar"><span class="tag">✨ 목표를 정리했어요</span></div>
     <h1 id="goalCreatedTitle">🎯 새 목표</h1>
     <p class="muted" id="goalCreatedSubtitle"></p>
     <div id="goalUnderstanding"></div>
@@ -224,44 +495,8 @@
   </section>
 
   <section id="home" class="screen">
-    <div class="topbar"><div><div class="logo" style="margin:0">LIFE AI</div><strong id="hello">안녕하세요 👋</strong></div><span>🔔</span></div>
+    <div class="topbar"><div><div class="logo" style="margin:0">LIFE AI</div><strong id="hello">안녕하세요 👋</strong></div></div>
     <div id="homeContent"></div>
-  </section>
-
-  <section id="jobDetail" class="screen">
-    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
-    <h2>💼 관심 회사 · 관심 직무 채용</h2>
-    <div id="legacyJobStatus" class="card">
-      <strong>🔎 고용24 실제 공고 확인</strong>
-      <p class="meta">목표에 입력한 회사·직무를 기준으로 실제 채용공고를 불러옵니다.</p>
-      <button class="btn secondary" onclick="loadLiveJobs()">실제 공고 불러오기</button>
-    </div>
-    <div id="legacyJobResults"></div>
-    <p class="danger"><strong>지원 마감 D-12</strong></p>
-    <div class="card">
-      <h3>✨ 왜 추천했나요?</h3>
-      <p>• 내가 입력한 관심회사 기준<br>• 내가 입력한 관심직무 기준<br>• 현재 프로토타입의 DEMO 추천</p>
-    </div>
-    <div class="section-title">현재 확인된 조건</div>
-    <div class="stack">
-      <div class="card"><span class="status success">🟢 경력</span><p class="meta">실제 조건 미연결 · 입력한 경력 정보를 바탕으로 비교할 예정</p></div>
-      <div class="card"><span class="status success">🟢 학력</span><p class="meta">실제 조건 미연결 · 입력한 학력 정보를 바탕으로 비교할 예정</p></div>
-      <div class="card"><span class="status warn">🟡 자격조건</span><p class="meta">일부 우대조건을 추가로 확인해보세요.</p></div>
-    </div>
-    <p class="muted" style="margin-top:14px">현재는 조건 비교 UI만 보여주는 DEMO예요. 실제 서비스에서는 공식 채용공고의 필수조건만 사용합니다.</p>
-    <div class="actions">
-      <button class="btn ghost" onclick="favorite()">♡ 관심 저장</button>
-      <button class="btn primary" onclick="go('prepare')">🎯 지원 준비</button>
-    </div>
-  </section>
-
-  <section id="prepare" class="screen">
-    <div class="topbar"><button class="back" onclick="go('jobDetail')">←</button></div>
-    <h2>지원 준비를 시작할까요?</h2>
-    <div class="card"><strong>🎯 생성할 목표</strong><p>선택한 회사·직무 지원</p></div>
-    <div class="card" style="margin-top:12px"><strong>📅 추가할 일정</strong><p>DEMO 마감 일정</p></div>
-    <div class="card" style="margin-top:12px"><strong>☑ 준비할 일</strong><p>지원자격 확인 · 이력서 준비 · 자기소개서 작성 · 증빙자료 확인 · 최종 지원서 검토</p></div>
-    <button class="btn primary" style="margin-top:18px" onclick="startPrep()">지원 준비 시작</button>
   </section>
 
   <section id="goals" class="screen">
@@ -270,7 +505,7 @@
   </section>
 
   <section id="goalDetail" class="screen">
-    <div class="topbar"><button class="back" onclick="go('goals')">←</button></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goals')">←</button></div>
     <h2 id="goalDetailTitle">🎯 내 목표</h2>
     <div class="big-status"><strong>현재 단계</strong><div id="stageText">지원 준비</div></div>
     <div class="section-title">할 일</div>
@@ -279,11 +514,11 @@
 
   <section id="calendar" class="screen">
     <div class="topbar"><h2 style="margin:0">📅 일정</h2></div>
-    <div id="calendarContent"></div>
+    <p class="meta">캘린더·일정 추가, 집중 타이머, 습관, 주간·월간 통계를 탭으로 나눠 볼 수 있어요.</p><div id="calendarContent"></div>
   </section>
 
   <section id="policy" class="screen">
-    <div class="topbar"><button class="back" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('home')">←</button><span class="tag">DEMO</span></div>
     <h2>🏛 나에게 맞는 지원 조건 확인</h2>
     <div class="card"><p>🟢 현재 입력 정보</p><p>🟡 세부 자격조건은 실제 정책 데이터 연결 후 확인</p><p id="incomeStatus">🟡 소득 정보가 필요한 정책일 수 있어요</p></div>
     <div id="incomeBox" class="card" style="margin-top:12px">
@@ -300,7 +535,7 @@
   </section>
 
   <section id="cert" class="screen">
-    <div class="topbar"><button class="back" onclick="historyBack()">←</button><span class="tag">DEMO</span></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="historyBack()">←</button></div>
     <h2 id="certTitle">🏅 자격증 준비</h2>
     <div class="card">
       <label for="certSearchInput"><strong>🔎 자격증 종목 검색</strong></label>
@@ -321,9 +556,9 @@
   </section>
 
 
-  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요.</p><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus"></div><div id="liveJobResults"></div></section>
+  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요. 결과가 없으면 회사명이나 직무로 검색어를 고쳐 다시 찾아 보세요.</p><label for="liveJobKeyword"><strong>검색어</strong></label><input id="liveJobKeyword" type="text" maxlength="100" placeholder="회사명 또는 직무"><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus"></div><div id="liveJobResults"></div></section>
   <section id="jobHub" class="screen">
-    <div class="topbar"><button class="back" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
     <button class="btn secondary" onclick="go('liveJobs')">고용24 공고 조회</button><p class="meta">관심 회사와 공고를 이 기기에 저장해요. 새 공고 자동 감지·알림은 제공하지 않아요.</p>
     <details class="card"><summary>＋ 관심 회사 등록</summary>
       <div class="field"><label for="watchCompany">회사명</label><input id="watchCompany" placeholder="예: 삼천리"></div>
@@ -336,11 +571,14 @@
       <div class="field"><label for="postingCompany">회사명 *</label><input id="postingCompany" required></div>
       <div class="field"><label for="postingTitle">공고명·직무 *</label><input id="postingTitle" required placeholder="예: 도시가스 시설관리 신입 채용"></div>
       <div class="field"><label for="postingUrl">공고 링크 *</label><input id="postingUrl" type="url" required placeholder="https://"></div>
+      <div class="posting-autofill"><button type="button" class="btn secondary" id="postingFetch" onclick="fillPostingFromUrl()">🔎 링크에서 정보 가져오기</button><p id="postingFetchStatus" class="meta" role="status" aria-live="polite"></p></div>
       <div class="field"><label for="postingDeadline">지원 마감일 (미정·채용시 마감이면 비워두세요)</label><input id="postingDeadline" type="date"></div>
+      <label class="check"><input id="postingAlways" type="checkbox"><span>상시채용·채용시 마감 (마감일이 없어요)</span></label>
+      <details><summary>공고 글을 복사해 붙여넣어 마감일 찾기 (선택)</summary><div class="field"><label for="postingPaste">공고 내용 붙여넣기</label><textarea id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)" style="width:100%;min-height:90px" placeholder="공고 화면의 글을 복사해서 붙여넣어 보세요"></textarea></div><button type="button" class="btn secondary" onclick="fillPostingFromPaste()">마감일 찾기</button></details>
       <details><summary>지역·조건 메모 추가 (선택)</summary><div class="field"><label for="postingRegion">근무지역 (선택)</label><input id="postingRegion"></div>
       <div class="field"><label for="postingNotes">필수·우대조건과 메모 (선택)</label><textarea id="postingNotes" style="width:100%;min-height:80px"></textarea></div></details>
       <button class="btn primary" type="submit">공고 저장</button><button class="btn ghost" type="button" onclick="clearPostingForm()">입력 초기화</button>
-      <p class="meta">링크 내용을 자동으로 읽지 않아요. 공식 공고를 확인해 내용을 입력해 주세요.</p>
+      <p class="meta">링크나 붙여넣은 글에서 찾은 내용은 참고용이에요. 틀릴 수 있으니 공식 공고에서 마감일을 꼭 확인하고 저장해 주세요.</p>
     </form></details>
     <div class="section-title">저장한 공고</div><div id="savedPostings" class="stack"></div>
   </section>
@@ -358,18 +596,28 @@
     <div id="myContent"></div>
   </section>
 
-  <nav id="bottomnav" class="bottomnav">
-    <button data-target="home" onclick="go('home')"><span class="navicon">⌂</span>홈</button>
-    <button data-target="opportunities" onclick="go('opportunities')"><span class="navicon">⌕</span>기회</button>
-    <button data-target="goals" onclick="go('goals')"><span class="navicon">◎</span>목표</button>
-    <button data-target="calendar" onclick="go('calendar')"><span class="navicon">□</span>일정</button>
-    <button data-target="my" onclick="go('my')"><span class="navicon">○</span>MY</button>
+  <nav id="bottomnav" class="bottomnav" aria-label="주요 메뉴">
+    <button data-target="home" onclick="go('home','replace')"><span class="navicon" aria-hidden="true">⌂</span>홈</button>
+    <button data-target="opportunities" onclick="go('opportunities','replace')"><span class="navicon" aria-hidden="true">⌕</span>기회</button>
+    <button data-target="goals" onclick="go('goals','replace')"><span class="navicon" aria-hidden="true">◎</span>목표</button>
+    <button data-target="calendar" onclick="go('calendar','replace')"><span class="navicon" aria-hidden="true">□</span>일정</button>
+    <button data-target="my" onclick="go('my','replace')"><span class="navicon" aria-hidden="true">○</span>MY</button>
   </nav>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="saveFailBanner" class="save-fail-banner" role="alert" hidden><span>기록을 저장하지 못했어요. 지금 닫으면 방금 입력한 내용이 사라질 수 있어요.</span><button type="button" onclick="exportLifeAIBackup()">지금 백업</button></div>
+<button type="button" id="updateBanner" class="update-banner" hidden onclick="location.reload()">새 버전이 있어요. 눌러서 새로고침</button>
 
+<script src="logic.js"></script>
 <script>
+
+const STORAGE_KEY='lifeAIPrototypeV5';
+const DAMAGED_KEY=STORAGE_KEY+'.damaged';
+const WEEKDAYS_SHORT=['일','월','화','수','목','금','토'];
+const WEEKDAYS_LONG=WEEKDAYS_SHORT.map(d=>d+'요일');
+// Day of the week (0 = Sunday) for a 'YYYY-MM-DD' date.
+function weekdayOf(date){return new Date(date+'T12:00:00Z').getUTCDay();}
 
 const state = {
   nickname:'',
@@ -390,13 +638,105 @@ const state = {
   activity:[]
 };
 let savedState;
-try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
+let startupNotice='';
+/* Damaged originals are kept under a dated name and never overwrite an earlier one. Returns true only if the original is really stored. */
+const DAMAGED_PREFIX=DAMAGED_KEY;
+function archiveDamagedState(raw){
+  try{
+    if(localStorage.getItem(DAMAGED_PREFIX)===raw) return true;
+    const base=DAMAGED_PREFIX+'.'+new Date().toISOString().slice(0,10);
+    for(let n=1;n<=20;n++){
+      const key=n===1?base:base+'-'+n;
+      const old=localStorage.getItem(key);
+      if(old===raw) return true;
+      if(old===null){localStorage.setItem(key,raw);return localStorage.getItem(key)===raw;}
+    }
+  }catch(e){}
+  return false;
+}
+function damagedArchives(){
+  const out=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key&&key.startsWith(DAMAGED_PREFIX)){const raw=localStorage.getItem(key);if(raw!==null)out.push({key,raw});}
+    }
+  }catch(e){}
+  return out.sort((a,b)=>a.key<b.key?-1:1);
+}
+function downloadDamagedState(){
+  const archives=damagedArchives();
+  if(!archives.length){toast('보관된 손상 원본이 없어요.');return;}
+  try{
+    const payload={format:'life-ai-damaged-original',exportedAt:new Date().toISOString(),archives:archives.map(x=>({name:x.key,raw:x.raw}))};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-damaged-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('손상된 원본을 파일로 저장했어요.');
+  }catch(e){toast('원본 파일을 만들지 못했어요.');}
+}
+let startupNoticeMs=0;
+try { savedState=localStorage.getItem(STORAGE_KEY); } catch(e) {}
 if(savedState){
-  try { Object.assign(state, JSON.parse(savedState)); } catch(e) {}
+  let parsedSaved=null;
+  try { parsedSaved=JSON.parse(savedState); } catch(e) {}
+  const cleaned=LifeLogic.sanitizeState(LifeLogic.migrateState(parsedSaved));
+  if(cleaned){
+    Object.assign(state,cleaned.state);
+    if(cleaned.dropped.length){
+      // Keep the untouched original so nothing is lost, and tell the user once (only if it was really kept).
+      startupNotice=archiveDamagedState(savedState)
+        ?'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
+        :'저장된 기록 일부가 올바르지 않아 건너뛰었어요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
+      startupNoticeMs=6000;
+    }
+  } else {
+    startupNotice=archiveDamagedState(savedState)
+      ?'저장된 기록을 읽지 못해 새로 시작해요. 원본은 이 기기에 따로 남겨 두었어요. (내 정보 화면에서 내려받을 수 있어요)'
+      :'저장된 기록을 읽지 못해 새로 시작해요. 원본을 따로 보관하지 못했어요. 저장 공간을 확인해 주세요.';
+    startupNoticeMs=6000;
+  }
 }
+state.schemaVersion=Math.max(Number(state.schemaVersion)||0,LifeLogic.STATE_SCHEMA_VERSION);
+// A new goal was started (the old one put aside) and never finished: bring the put-aside goal back.
+LifeLogic.restoreParkedGoal(state);
+let lifeAISaveWarningShown=false;
+/* Set once a backup restore is written: until the page reloads, nothing may overwrite the restored data with the old in-memory state. */
+let lifeAIRestoring=false;
 function persistState(){
-  try { localStorage.setItem('lifeAIPrototypeV5', JSON.stringify(state)); } catch(e) {}
+  if(lifeAIRestoring)return false;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    lifeAISaveWarningShown=false;
+    const banner=document.getElementById('saveFailBanner');
+    if(banner)banner.hidden=true;
+    return true;
+  } catch(e) {
+    // Stays on screen until a later save succeeds (the toast below disappears after a moment).
+    const banner=document.getElementById('saveFailBanner');
+    if(banner)banner.hidden=false;
+    if(!lifeAISaveWarningShown){
+      lifeAISaveWarningShown=true;
+      if(typeof toast==='function')toast('기록을 저장하지 못했어요. 저장 공간을 확인하고 내 데이터 백업을 이용해 주세요.',6000);
+    }
+    return false;
+  }
 }
+/* Another tab (or a backup restore in another tab) saved new records. This tab still holds the old copy and would
+   overwrite them on its next save, so it re-reads everything from storage instead of keeping stale data. */
+let lifeAIReloadingForStorage=false;
+function onStateStorageEvent(event){
+  if(!event||(event.key!==null&&event.key!==STORAGE_KEY))return;
+  if(event.key!==null&&event.newValue===event.oldValue)return;
+  if(lifeAIReloadingForStorage)return;
+  lifeAIReloadingForStorage=true;
+  try{toast('다른 창에서 기록이 바뀌었어요. 최신 내용으로 다시 불러와요.');}catch(e){}
+  setTimeout(()=>{try{location.reload();}catch(e){lifeAIReloadingForStorage=false;}},900);
+}
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('storage',onStateStorageEvent);
 
 const taskNames = ['기본 조건 확인','필요 자료 정리','핵심 준비 시작','최종 검토','완료 기록'];
 
@@ -405,48 +745,248 @@ const taskNames = ['기본 조건 확인','필요 자료 정리','핵심 준비 
 function createAIFirstGoal(){
   const raw=(document.getElementById('aiFirstGoal')?.value||'').trim();
   if(!raw){ toast('하고 싶은 일을 한 문장으로 적어주세요.'); return; }
-  state.nickname=getNick();
+  applyNewGoal(raw,{activity:'AI에게 새 목표를 말했어요'});
+}
+/* Every way of creating a goal ends here: reset progress, save the nickname, parse the sentence, log it, show the result. */
+function applyNewGoal(rawText,extra={}){
   resetGoalProgress();
-  state.parsedGoal=inferGoal(raw);
-  state.goalType=state.parsedGoal.type;
-  state.mainGoal=raw;
-  addActivity('AI에게 새 목표를 말했어요');
+  state.nickname=getNick();
+  state.mainGoal=rawText;
+  state.parsedGoal=extra.parsedGoal||inferGoal(rawText);
+  state.goalType=extra.goalType||state.parsedGoal.type;
+  addActivity(extra.activity);
   finishGoalCreation();
 }
+/* Clears what the certificate screen shows (running searches, typed name) so it does not carry over to another goal. */
+function resetGoalScreenState(){
+  resetCertSearch();
+  lastCertLookup=null;
+  for(const id of ['liveCertStatus','liveCertResults','certSearchMatches']){const box=document.getElementById(id);if(box)box.innerHTML='';}
+}
+/* Called when a goal is being created: the goal slot starts empty and gets a new id. */
 function resetGoalProgress(){
   state.jobPreparationStarted=false;state.jobSubmitted=false;
   state.completedTasks=[false,false,false,false,false];
   state.policyIncomeAdded=false;state.policyIncome='';
-  ++certSearchVersion;++certScheduleVersion;
-  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
   state.certSchedule=null;
-  const input=document.getElementById('certSearchInput');
-  if(input){input.value='';input.dataset.code='';}
+  state.taskNames=[]; // a new goal starts with the default steps
+  state.goalId=newJobId();
+  resetGoalScreenState();
 }
-function editCurrentGoal(){
-  const next=prompt('목표 이름을 수정해보세요. 진행상태는 유지돼요.', state.mainGoal || '');
+
+/* ---------- several goals (the logic lives in logic.js; these functions connect it to the screens) ---------- */
+function addGoal(){
+  if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 추가해 주세요.');return;}
+  // The current goal is put aside right away, so choosing a company or type in the next screens never changes it.
+  if(state.mainGoal&&!LifeLogic.parkActiveGoal(state,newJobId)){toast('목표를 추가하지 못했어요. 다시 시도해 주세요.');return;}
+  persistState();resetGoalScreenState();
+  go('goalChoice');
+}
+function goalChoiceBack(){
+  go(LifeLogic.goalCount(state)>0?'goals':'name'); // go() brings the put-aside goal back when the new one is dropped
+}
+function switchToGoal(id){
+  if(!LifeLogic.switchGoal(state,newJobId,id)){toast('그 목표를 찾지 못했어요.');return;}
+  persistState();resetGoalScreenState();
+  toast('목표를 바꿨어요: '+state.mainGoal);
+  renderGoals();
+}
+async function removeGoalById(id){
+  const goal=LifeLogic.goalList(state,newJobId).find(g=>g.id===id);
+  if(!goal)return;
+  if(LifeLogic.goalCount(state)<=1){toast('마지막 목표는 지울 수 없어요. 새 목표를 추가한 뒤 지워 주세요.');return;}
+  if(!await uiConfirm('"'+goal.title+'" 목표를 지울까요?\n이 목표의 진행 기록과 저장한 시험 일정이 함께 지워져요. (저장한 공고·습관·일정은 그대로예요)',{title:'목표 삭제',ok:'삭제',danger:true}))return;
+  const res=LifeLogic.removeGoal(state,newJobId,id);
+  if(!res.ok){toast('목표를 지우지 못했어요.');return;}
+  persistState();resetGoalScreenState();
+  toast('목표를 지웠어요.');
+  renderGoals();
+}
+async function editCurrentGoal(){
+  const next=await uiPrompt('목표 이름을 수정해보세요. 진행상태는 유지돼요.', state.mainGoal || '',{title:'목표 수정',maxLength:120});
   if(next===null) return;
   const value=next.trim();
   if(!value){ toast('목표는 비워둘 수 없어요.'); return; }
   state.mainGoal=value;
-  // Renaming preserves the current goal type and progress.
-  state.parsedGoal={...state.parsedGoal,raw:value};
+  // Renaming preserves the current goal type and progress, but refreshes subject/region/timing so cert search follows the new name.
+  const reparsed=inferGoal(value);
+  state.parsedGoal={...state.parsedGoal,raw:value,subject:reparsed.subject,region:reparsed.region,timing:reparsed.timing};
   addActivity('목표를 수정했어요');
   persistState();
   renderMy();
   toast('목표를 수정했어요.');
 }
-function resetPrototype(){
-  if(!confirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?')) return;
-  try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
+
+const LIFE_AI_BACKUP_FORMAT=LifeLogic.BACKUP_FORMAT;
+const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
+/* Builds the backup file text. The date of this backup is set before copying, so the file holds it.
+   rollback() undoes the date when the backup did not happen after all. */
+function makeLifeAIBackup(){
+  const hadBackupAt=Object.prototype.hasOwnProperty.call(state,'lastBackupAt'),previousBackupAt=state.lastBackupAt;
+  const exportedAt=new Date().toISOString();
+  state.lastBackupAt=exportedAt;
+  const backupState=JSON.parse(JSON.stringify(state));
+  delete backupState.focusRun; // a running timer in a file would be counted as a finished session when restored later
+  const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
+  return {
+    text:JSON.stringify(payload,null,2),
+    filename:'life-ai-backup-'+koreaToday()+'.json',
+    rollback(){if(hadBackupAt)state.lastBackupAt=previousBackupAt;else delete state.lastBackupAt;}
+  };
+}
+function downloadBackupFile(made){
+  const blob=new Blob([made.text],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;link.download=made.filename;
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+function finishBackup(){
+  delete state.backupSnoozeUntil;persistState();
+  refreshBackupNudges();
+}
+function exportLifeAIBackup(){
+  let made=null;
+  try{
+    made=makeLifeAIBackup();
+    downloadBackupFile(made);
+    finishBackup();
+    toast('백업 파일을 만들었어요. 내려받은 파일이 기기에 있는지 확인해 주세요.');
+  }catch(e){
+    if(made)made.rollback();
+    toast('백업 파일을 만들지 못했어요.');
+  }
+}
+/* Sends the backup file through the phone's share sheet (KakaoTalk, mail, Drive ...) so it can be opened on another device
+   with "백업 파일 복원하기". Browsers that cannot share files save the file instead. */
+async function shareLifeAIBackup(){
+  let made=null;
+  try{
+    made=makeLifeAIBackup();
+    const file=typeof File==='function'?new File([made.text],made.filename,{type:'application/json'}):null;
+    const canShare=file&&typeof navigator!=='undefined'&&typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]});
+    if(canShare){
+      await navigator.share({files:[file],title:'life-ai 백업',text:'life-ai 백업 파일이에요. 다른 기기에서 앱의 MY → 백업 파일 복원하기로 열어 주세요.'});
+      finishBackup();
+      toast('백업 파일을 보냈어요. 다른 기기에서 MY → 백업 파일 복원하기로 열어 주세요.');
+    }else{
+      downloadBackupFile(made);
+      finishBackup();
+      toast('이 브라우저는 바로 보내기를 지원하지 않아 파일로 저장했어요. 저장된 파일을 카카오톡 등으로 보내 주세요.');
+    }
+  }catch(e){
+    if(made)made.rollback();
+    if(e&&e.name==='AbortError')return; // the share sheet was closed: nothing was sent
+    toast('백업 파일을 보내지 못했어요. "내 데이터 백업하기"로 파일을 저장해 주세요.');
+  }
+}
+/* Deadline calendar (.ics): one all-day event per unapplied posting (관심·준비 중) whose deadline is today or later.
+   The UID is built from the posting id, so importing the file again updates the events instead of duplicating them. */
+function icsEscape(text){return String(text??'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n|\r/g,'\\n');}
+function icsFold(line){
+  // Content lines are limited to 75 octets; continuation lines start with one space. Never split a character.
+  const out=[];let cur='',bytes=0,limit=75;
+  for(const ch of line){
+    const cp=ch.codePointAt(0),size=cp<0x80?1:cp<0x800?2:cp<0x10000?3:4;
+    if(bytes+size>limit){out.push(cur);cur=' ';bytes=1;limit=75;}
+    cur+=ch;bytes+=size;
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
+function deadlinePostingsForCalendar(){
+  const today=koreaToday();
+  return (Array.isArray(state.jobPostings)?state.jobPostings:[])
+    .filter(p=>p&&p.id&&['관심','준비 중'].includes(p.stage)&&p.deadline&&LifeLogic.validDate(p.deadline)&&p.deadline>=today);
+}
+function buildDeadlineICS(postings,nowMs){
+  const stamp=new Date(nowMs).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const compact=d=>d.replace(/-/g,'');
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//life-ai//deadline-calendar//KO','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  postings.forEach(p=>{
+    const desc=['지원 마감일이에요.',safeUrl(p.url)].filter(Boolean).join('\n');
+    lines.push('BEGIN:VEVENT','UID:life-ai-posting-'+String(p.id).replace(/[^A-Za-z0-9_-]/g,'')+'@life-ai',
+      'DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+compact(p.deadline),'DTEND;VALUE=DATE:'+compact(plannerDateOffset(p.deadline,1)),
+      'SUMMARY:'+icsEscape('[마감] '+p.company+' · '+p.title),'DESCRIPTION:'+icsEscape(desc),'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.map(icsFold).join('\r\n')+'\r\n';
+}
+function exportDeadlineCalendar(){
+  const list=deadlinePostingsForCalendar();
+  if(!list.length){toast('내보낼 마감일이 없어요. 마감일이 있는 관심·준비 중 공고를 먼저 저장해 주세요.');return;}
+  try{
+    const blob=new Blob([buildDeadlineICS(list,Date.now())],{type:'text/calendar;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download='life-ai-deadlines-'+koreaToday()+'.ics';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast('마감일 '+list.length+'건을 캘린더 파일로 저장했어요. 파일을 열어 캘린더에 추가해 주세요.');
+  }catch(e){toast('캘린더 파일을 만들지 못했어요.');}
+}
+/* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
+function backupNudgeHTML(){
+  const nudge=LifeLogic.backupNudge(state,Date.now());
+  if(!nudge)return '';
+  return `<div class="backup-nudge" role="note"><p>💾 ${esc(nudge.message)}</p><button class="btn primary" onclick="exportLifeAIBackup()">지금 백업</button><button class="btn ghost" onclick="snoozeBackupNudge()">7일 뒤에</button></div>`;
+}
+function snoozeBackupNudge(){
+  state.backupSnoozeUntil=new Date(Date.now()+7*86400000).toISOString();persistState();refreshBackupNudges();
+}
+function refreshBackupNudges(){
+  document.querySelectorAll?.('.backup-nudge-slot').forEach(slot=>{slot.innerHTML=backupNudgeHTML();});
+}
+function openLifeAIBackup(){
+  const input=document.getElementById('lifeAIBackupFile');
+  if(!input)return;
+  input.value='';
+  input.click();
+}
+/* Errors made on purpose carry a Korean message that is safe to show; any other error gets a general message. */
+function backupError(message){return Object.assign(new Error(message),{friendly:true});}
+async function importLifeAIBackup(input){
+  const file=input.files?.[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
+  try{
+    const result=LifeLogic.readBackup(await file.text());
+    if(!result.ok)throw backupError(result.message);
+    if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
+    const safe=result.state;
+    delete safe.focusRun; // also for older backup files made while a timer was running
+    const snapshot=localStorage.getItem(STORAGE_KEY);
+    // Keep the data being replaced under a second name so a wrong restore can still be undone.
+    let keptBefore=false;
+    if(snapshot!==null){try{localStorage.setItem(STORAGE_KEY+'.beforeRestore',snapshot);keptBefore=true;}catch(keepError){}}
+    try{
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(safe));
+    }catch(error){
+      try{localStorage.removeItem(STORAGE_KEY+'.beforeRestore');}catch(removeError){}
+      try{if(snapshot!==null)localStorage.setItem(STORAGE_KEY,snapshot);}catch(rollbackError){}
+      throw backupError('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
+    }
+    lifeAIRestoring=true;
+    await uiAlert('복원이 완료됐어요. '+(keptBefore?'복원 전 기록은 이 기기에 따로 보관했어요('+STORAGE_KEY+'.beforeRestore). 잘못 복원했다면 이 보관본으로 되돌릴 수 있어요. 다시 복원하면 보관본은 새 내용으로 바뀌어요.':'복원 전 기록은 따로 보관하지 못했어요.')+'\n앱을 새로고침합니다.',{title:'복원 완료'});
+    location.reload();
+  }catch(e){toast(e&&e.friendly?e.message:'백업 파일을 읽지 못했어요. 다시 시도해 주세요.');}
+}
+
+async function resetPrototype(){
+  if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n보관해 둔 손상 원본도 함께 지워져요.\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  try { for(const x of damagedArchives()) localStorage.removeItem(x.key); } catch(e) {}
   location.reload();
 }
 
 function inferGoal(text){
   const t=(text||'').trim();
   const out={raw:t, type:'custom', intent:'목표 실행', region:'', timing:'', subject:'', confidence:'low'};
-  if(/취업|이직|입사|회사/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
-  if(/자격증|기사|기능사|기능장|기술사|컴활|컴퓨터활용|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
+  // '회사' alone (e.g. '회사 끝나고 운동하기') is not a job goal; '기사' alone (e.g. '뉴스 기사 읽기', '택시기사') is not a cert goal.
+  const certGisa=/[가-힣A-Za-z0-9]기사(?:를|을|는|은|도)?(?:\s*(?:자격|준비|취득|합격|시험|필기|실기|공부|따기|도전|올해|이번|\d+개월)|[^가-힣]|$)/.test(t.replace(/(택시|운전|버스|화물|신문|뉴스|인터넷|기자)\s*기사/g,' '));
+  if(/취업|이직|입사|회사\s*(?:지원|합격|들어가)/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
+  if(certGisa||/자격증|기능사|기능장|기술사|컴활|컴퓨터활용|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
   if(/지원금|지원사업|혜택|보조금|정책/.test(t)){ out.type='policy'; out.intent='지원 찾기'; out.confidence='high'; }
   const regions=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주','광양','포항'];
   out.region=regions.find(r=>t.includes(r))||'';
@@ -460,21 +1000,18 @@ function inferGoal(text){
 function understandingHTML(){
   const p=state.parsedGoal||{};
   if(!p.raw && state.goalType==='job'){
-    return `<div class="card"><strong>AI가 이해한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${state.selectedCompany||'회사 미정'}</span> <span class="tag">${state.selectedJob||'직무 미정'}</span></div></div>`;
+    return `<div class="card"><strong>정리한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${esc(state.selectedCompany||'회사 미정')}</span> <span class="tag">${esc(state.selectedJob||'직무 미정')}</span></div></div>`;
   }
-  if(!p.raw) return `<div class="card"><strong>AI가 이해한 내용</strong><p class="meta">${state.mainGoal}</p></div>`;
+  if(!p.raw) return `<div class="card"><strong>정리한 내용</strong><p class="meta">${esc(state.mainGoal)}</p></div>`;
   const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
   const note=p.confidence==='low'
     ? '아직 목표 유형을 확실히 판단하기 어려워요. 우선 일반 목표로 시작하고 이후 필요한 정보를 더 확인할게요.'
-    : '입력한 문장에서 핵심 목표를 정리했어요. 잘못 이해한 부분은 MY에서 수정할 수 있어요.';
-  return `<div class="card"><strong>AI가 이렇게 이해했어요</strong><div style="margin-top:10px">${chips||'<span class="tag">목표 실행</span>'}</div><p class="meta" style="margin-top:10px">${note}</p></div>`;
+    : '입력한 단어로 분류한 결과예요. 잘못된 부분은 MY에서 수정할 수 있어요.';
+  return `<div class="card"><strong>이렇게 정리했어요</strong><div style="margin-top:10px">${chips||'<span class="tag">목표 실행</span>'}</div><p class="meta" style="margin-top:10px">${note}</p></div>`;
 }
 function priorityReason(){
   if(state.goalType==='job'){
-    return {title:'관심 회사와 공고를 관리해보세요',desc:'관심 회사에서 공고를 확인하고, 저장한 공고의 준비와 마감일을 관리해요.',cta:'취업 관리 열기'};
-    if(state.jobSubmitted) return '이미 제출한 일정은 더 이상 재촉하지 않고 다음 단계만 보여줘요.';
-    if(state.jobPreparationStarted) return '준비 중인 목표가 있으므로 새 정보보다 미완료 행동을 먼저 보여줘요.';
-    return '취업 목표가 있으므로 가장 먼저 지원 가능한 기회를 확인하도록 정했어요.';
+    return '취업 목표가 있으므로 관심 회사와 공고를 저장해 마감일을 챙기는 것부터 보여줘요.';
   }
   if(state.goalType==='cert') return '시험 일정이 준비 계획 전체를 결정하므로 가장 먼저 확인하도록 정했어요.';
   if(state.goalType==='policy') return '지원 가능 여부를 먼저 알아야 불필요한 신청 준비를 줄일 수 있어요.';
@@ -488,13 +1025,7 @@ function addActivity(text){
 function createCustomGoal(){
   const raw=(document.getElementById('customGoalInput').value||'').trim();
   if(!raw){ toast('목표를 한 문장으로 적어주세요.'); return; }
-  resetGoalProgress();
-  state.parsedGoal=inferGoal(raw);
-  state.goalType=state.parsedGoal.type;
-  state.mainGoal=raw;
-  state.nickname=getNick();
-  addActivity('목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal(raw,{activity:'목표를 만들었어요'});
 }
 
 function startOrContinue(){
@@ -507,71 +1038,177 @@ function startOrContinue(){
 function getNick(){
   return (document.getElementById('nickname')?.value || state.nickname || '사용자').trim();
 }
-function go(id){
+/* Browser history: each screen change leaves an entry so the phone's Back gesture returns to the previous screen
+   instead of closing the app. mode 'replace' (bottom menu) and the very first screen do not add entries;
+   mode 'pop' is used when the browser itself moved through history. */
+let currentScreen='start';
+let screenHistoryStarted=false;
+function recordScreenHistory(id,mode){
+  if(mode==='pop'){screenHistoryStarted=true;return;}
+  try{
+    if(typeof history==='undefined')return;
+    const entry={screen:id};
+    if(!screenHistoryStarted||mode==='replace'||id===currentScreen){if(history.replaceState)history.replaceState(entry,'');}
+    else if(history.pushState)history.pushState(entry,'');
+    screenHistoryStarted=true;
+  }catch(e){}
+}
+function onScreenPopState(event){
+  const id=event?.state?.screen;
+  if(!id||!document.getElementById(id))return;
+  go(id,'pop');
+}
+/* The certificate screen can be opened from several places; remember where from so ← goes back there. */
+let certReturnTo='home';
+/* Screens of the "make a goal" flow. Leaving them while the goal slot is still empty means the new goal was dropped. */
+const GOAL_FLOW_SCREENS=['start','name','goalChoice','companyChoice','company','job','jobOnly','certStart','policyStart','customGoal','profile','goalCreated'];
+function go(id,mode){
+  // Old screens that now open the job hub instead.
+  const redirects={jobDetail:'jobHub',prepare:'jobHub'};
+  id=redirects[id]||id;
+  if(!GOAL_FLOW_SCREENS.includes(id)&&LifeLogic.restoreParkedGoal(state)){persistState();resetGoalScreenState();}
+  recordScreenHistory(id,mode);
+  if(id==='cert'&&currentScreen&&currentScreen!=='cert')certReturnTo=currentScreen;
+  currentScreen=id;
+  renderedDay=koreaToday();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
   const showNav = ['home','opportunities','goals','goalDetail','calendar','my','jobHub'].includes(id);
   nav.classList.toggle('show', showNav);
-  document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll(`.bottomnav button[data-target="${id}"]`).forEach(b=>b.classList.add('active'));
+  document.querySelectorAll('.bottomnav button').forEach(b=>{b.classList.remove('active');b.removeAttribute('aria-current');});
+  document.querySelectorAll(`.bottomnav button[data-target="${id}"]`).forEach(b=>{b.classList.add('active');b.setAttribute('aria-current','page');});
   if(id==='cert') initCertSearch();
   if(id==='home') renderHome();
   if(id==='goals') renderGoals();
-  if(id==='goalDetail') renderTasks();
-  if(id==='calendar') renderCalendar();
+  if(id==='goalDetail'){taskEditing=false;renderTasks();}
+  if(id==='calendar'){renderCalendar();plannerShowSwipeHint();}
   if(id==='my') renderMy();
   if(id==='jobHub') renderJobHub();
+  if(id==='liveJobs'){const k=document.getElementById('liveJobKeyword');if(k)k.value=defaultLiveJobKeyword();}
   if(id==='opportunities') filterOpportunities('all');
   if(id==='policy') renderIncomeState();
+  // Move keyboard/screen-reader focus to the new screen's heading so the change is announced and Tab continues from there.
+  try{
+    const heading=document.getElementById(id).querySelector('h1,h2');
+    if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
+  }catch(e){}
   requestAnimationFrame(() => {
     window.scrollTo(0,0);
     document.documentElement.scrollTop=0;
     document.body.scrollTop=0;
   });
 }
-function toast(msg){
+/* How long a toast stays: 1.8s plus 0.05s per character (max 8s). `minMs` keeps important warnings up longer. */
+function toastDuration(msg,minMs){
+  return Math.min(8000,Math.max(1800+String(msg||'').length*50,minMs||0));
+}
+let toastTimer=null;
+function toast(msg,minMs){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),1800);
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),toastDuration(msg,minMs));
 }
-function historyBack(){ go('home'); }
+/* In-app dialogs. They replace the browser's confirm/prompt/alert, which look out of place in an installed
+   app and can be blocked. Each returns a Promise; closing with Esc, the backdrop or "취소" resolves to null/false. */
+let uiDialogQueue=Promise.resolve();
+function uiAsk(config){
+  const run=()=>new Promise(resolve=>{
+    if(typeof document.createElement!=='function'){resolve(config.fallback);return;}
+    const previous=document.activeElement;
+    const wrap=document.createElement('div');
+    wrap.className='ui-modal';
+    const box=document.createElement('div');
+    box.className='ui-modal-box';
+    box.setAttribute('role',config.alert?'alertdialog':'dialog');
+    box.setAttribute('aria-modal','true');
+    // The title names the dialog and the message is its description, so screen readers read what is being asked.
+    if(config.title){
+      const h=document.createElement('h3');h.id='uiModalTitle';h.textContent=config.title;box.appendChild(h);
+      box.setAttribute('aria-labelledby','uiModalTitle');
+    } else box.setAttribute('aria-label','확인');
+    const p=document.createElement('p');p.id='uiModalMessage';p.textContent=config.message||'';box.appendChild(p);
+    box.setAttribute('aria-describedby','uiModalMessage');
+    let input=null;
+    if(config.input){input=document.createElement('input');input.type='text';input.maxLength=config.maxLength||200;input.value=config.defaultValue||'';input.setAttribute('aria-label',config.message||'입력');box.appendChild(input);}
+    const actions=document.createElement('div');actions.className='ui-modal-actions';
+    const finish=value=>{
+      document.removeEventListener('keydown',onKey,true);
+      wrap.remove();
+      try{if(previous&&previous.focus)previous.focus();}catch(e){}
+      resolve(value);
+    };
+    const buttons=[];
+    (config.buttons||[]).forEach(def=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='btn '+(def.kind||'ghost');b.textContent=def.label;
+      b.addEventListener('click',()=>finish(typeof def.value==='function'?def.value(input):def.value));
+      actions.appendChild(b);buttons.push(b);
+    });
+    box.appendChild(actions);wrap.appendChild(box);
+    function onKey(event){
+      if(event.key==='Escape'){event.preventDefault();finish(config.cancelValue);}
+      else if(event.key==='Enter'&&input&&document.activeElement===input){event.preventDefault();finish(input.value);}
+      else if(event.key==='Tab'){
+        const items=[...(input?[input]:[]),...buttons];
+        const index=items.indexOf(document.activeElement);
+        event.preventDefault();
+        items[(index+(event.shiftKey?-1:1)+items.length)%items.length].focus();
+      }
+    }
+    wrap.addEventListener('mousedown',event=>{if(event.target===wrap)finish(config.cancelValue);});
+    document.addEventListener('keydown',onKey,true);
+    document.body.appendChild(wrap);
+    (input||buttons[config.focusIndex!=null?config.focusIndex:buttons.length-1]||buttons[0]).focus();
+    if(input)input.select();
+  });
+  const next=uiDialogQueue.then(run,run);
+  uiDialogQueue=next.catch(()=>{});
+  return next;
+}
+function uiConfirm(message,opts={}){
+  return uiAsk({message,title:opts.title,cancelValue:false,fallback:true,focusIndex:opts.danger?0:1,
+    buttons:[{label:opts.cancel||'취소',kind:'ghost',value:false},{label:opts.ok||'확인',kind:opts.danger?'danger':'primary',value:true}]});
+}
+function uiChoice(message,choices,opts={}){
+  return uiAsk({message,title:opts.title,cancelValue:null,fallback:null,focusIndex:0,
+    buttons:[...choices.map(c=>({label:c.label,kind:c.kind||'secondary',value:c.value})),{label:'취소',kind:'ghost',value:null}]});
+}
+function uiPrompt(message,defaultValue,opts={}){
+  return uiAsk({message,title:opts.title,input:true,defaultValue,maxLength:opts.maxLength,cancelValue:null,fallback:null,
+    buttons:[{label:'취소',kind:'ghost',value:null},{label:opts.ok||'확인',kind:'primary',value:input=>input.value}]});
+}
+function uiAlert(message,opts={}){
+  return uiAsk({message,title:opts.title,alert:true,cancelValue:undefined,fallback:undefined,buttons:[{label:'확인',kind:'primary',value:undefined}]});
+}
+function historyBack(){ go(certReturnTo||'home'); }
 
+/* 회사·직무는 '목표 만들기'를 누를 때까지 임시로만 들고 있다. 중간에 나가도 지금 목표가 바뀌지 않게 한다. */
+const pendingGoal={company:'',job:''};
 function selectCompany(name){
   const typed=(document.getElementById('companyInput')?.value||'').trim();
-  state.selectedCompany=name || typed || '관심 회사';
-  state.goalType='job';
+  pendingGoal.company=name || typed || '관심 회사';
   go('job');
 }
 function selectJob(name){
-  state.selectedJob=(name||'관심 직무').trim();
-  state.goalType='job';
+  pendingGoal.job=(name||'관심 직무').trim();
   go('profile');
 }
 function createGoal(){
-  resetGoalProgress();
-  state.nickname=getNick();
-  state.goalType='job';
+  if(pendingGoal.company) state.selectedCompany=pendingGoal.company;
+  if(pendingGoal.job) state.selectedJob=pendingGoal.job;
+  pendingGoal.company='';pendingGoal.job='';
   state.employmentStatus=document.getElementById('employmentStatus')?.value || '';
   state.career=(document.getElementById('careerInput')?.value||'').trim();
   state.education=document.getElementById('educationInput')?.value || '';
   state.ownedCert=(document.getElementById('certOwnedInput')?.value||'').trim();
   const company=state.selectedCompany || '관심 회사';
   const job=state.selectedJob || '관심 직무';
-  state.mainGoal=`${company} ${job} 취업`;
-  state.parsedGoal={};
-  addActivity('취업 목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal(`${company} ${job} 취업`,{parsedGoal:{},goalType:'job',activity:'취업 목표를 만들었어요'});
 }
 function quickGoal(title){
-  resetGoalProgress();
-  state.nickname=getNick();
-  state.mainGoal=(title||'새 목표').trim();
-  state.parsedGoal=inferGoal(state.mainGoal);
-  state.goalType=state.parsedGoal.type;
-  if(document.getElementById('certStart').classList.contains('active')) state.goalType='cert';
-  addActivity('목표를 만들었어요');
-  finishGoalCreation();
+  applyNewGoal((title||'새 목표').trim(),{goalType:document.getElementById('certStart').classList.contains('active')?'cert':'',activity:'목표를 만들었어요'});
 }
 function finishGoalCreation(){
   const nick=getNick();
@@ -589,7 +1226,7 @@ function goalPlanCards(){
     const goalHint=state.parsedGoal?.region ? `${state.parsedGoal.region} 지역을 우선 반영` : `${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준`;
     return `
       <div class="stack">
-        <div class="card"><strong>1. 맞는 채용 찾기</strong><p class="meta">${goalHint}</p></div>
+        <div class="card"><strong>1. 맞는 채용 찾기</strong><p class="meta">${esc(goalHint)}</p></div>
         <div class="card"><strong>2. 지원 준비 체크리스트</strong><p class="meta">조건 확인 → 서류 준비 → 최종 제출</p></div>
         <div class="card"><strong>3. 놓치면 안 되는 일정</strong><p class="meta">지원 마감과 준비 일정을 한곳에서 관리</p></div>
       </div>`;
@@ -620,9 +1257,7 @@ function goalPlanCards(){
 
 function currentAction(){
   if(state.goalType==='job'){
-    if(state.jobSubmitted) return {title:'결과를 기다리는 중이에요', desc:'지원 완료를 기록했어요. 결과 일정이 생기면 추가하면 돼요.', cta:'목표 보기'};
-    if(state.jobPreparationStarted) return {title:'지원 준비를 이어가세요', desc:'지금은 필요한 서류를 하나씩 끝내는 게 가장 중요해요.', cta:'할 일 보기'};
-    return {title:'관심 회사와 공고를 관리해보세요', desc:`${state.selectedCompany||'관심 회사'} · ${state.selectedJob||'관심 직무'} 기준으로 예시 기회를 준비했어요.`, cta:'추천 기회 보기'};
+    return {title:'관심 회사와 공고를 관리해보세요', desc:'관심 회사와 공고를 저장하면 마감일과 준비 목록을 함께 챙겨 드려요.', cta:'공고 관리 열기'};
   }
   if(state.goalType==='cert') return {title:'다음 시험 일정을 먼저 확인해보세요', desc:'접수일과 시험일을 알면 준비 계획을 바로 만들 수 있어요.', cta:'자격증 기회 보기'};
   if(state.goalType==='policy') return {title:'내가 받을 수 있는 지원부터 확인해보세요', desc:'현재 정보로 확인하고, 부족한 조건만 추가로 물어볼게요.', cta:'지원 조건 보기'};
@@ -633,16 +1268,43 @@ function renderHome(){
   const c=document.getElementById('homeContent');
   document.getElementById('hello').textContent=`안녕하세요, ${getNick()}님 👋`;
   const a=currentAction();
+  const {done:completed,total:taskTotal,percent:progress}=LifeLogic.goalProgress(state);
+  const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
+  const favorites=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
+  const nextEvent=LifeLogic.nextExam(state,koreaToday()); // the closest exam date over all goals
   c.innerHTML=`
-    <div class="card" style="padding:22px">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="tag">오늘 가장 먼저</span><span class="meta">PROTOTYPE</span></div>
-      <h2 style="margin:12px 0 6px">${a.title}</h2>
-      <p class="muted">${a.desc}</p>
-      <p class="meta">✨ ${priorityReason()}</p>
-      <button class="btn primary" onclick="${state.goalType==='job' ? "go('jobHub')" : state.goalType==='policy' ? "go('policy')" : state.goalType==='cert' ? "go('cert')" : state.goalType==='job' ? "go('jobHub')" : "go('opportunities')"}">${a.cta}</button>
+    ${upcomingBannerHTML()}
+    <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
+    <div class="soft-overview" aria-label="내 생활 요약">
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(fmtDate(nextEvent.date)):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">💼</span><div class="soft-overview-copy"><strong>저장한 공고 ${jobs.length}건</strong><span class="meta">관심 회사 ${(Array.isArray(state.watchCompanies)?state.watchCompanies:[]).length}곳 · 관심 자격증 ${favorites.length}개</span></div><button class="soft-overview-action" onclick="go('jobHub')" aria-label="채용공고 관리 보기">관리</button></div>
     </div>
-    <div class="section-title">내 목표</div>
-    <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표가 없어요')}</strong><p class="meta">목표에 맞춰 추천과 할 일을 정리해요.</p></div>
+    ${goalProgressListHTML()}
+    ${homeTodayHTML()}
+    <div class="dashboard-grid">
+      <div class="dashboard-panel"><div class="card">
+        <span class="tag">✨ 오늘 가장 먼저</span><h2 style="margin:12px 0 8px">${esc(a.title)}</h2>
+        <p class="muted">${esc(a.desc)}</p><p class="meta">${esc(priorityReason())}</p>
+        <button class="btn primary" onclick="go('${state.goalType==='job'?'jobHub':state.goalType==='cert'?'cert':state.goalType==='policy'?'policy':'goals'}')">${esc(a.cta)}</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>🎯 내 목표</h3><p><strong>${esc(state.mainGoal||'아직 목표가 없어요')}</strong></p>
+        ${LifeLogic.goalCount(state)>1?`<p class="meta">다른 목표 ${LifeLogic.goalCount(state)-1}개도 있어요. 목표 화면에서 바꿀 수 있어요.</p>`:''}
+        <button class="btn secondary" onclick="go('goals')">목표·할 일 보기</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>💼 채용공고 관리</h3><p class="meta">지원 현황과 마감일을 확인하세요.</p>
+        <button class="btn secondary" onclick="go('jobHub')">관심 회사·지원 현황</button>
+        <button class="btn ghost" onclick="go('liveJobs')">고용24 실제 공고 조회</button>
+      </div></div>
+      <div class="dashboard-panel"><div class="card">
+        <h3>🏅 자격증·시험일정</h3>
+        <p class="meta">시험 일정을 조회하고 내 캘린더에서 확인하세요.</p>
+        <button class="btn secondary" onclick="go('cert')">Q-Net 시험일정 조회</button>
+        <button class="btn ghost" onclick="go('calendar')">내 캘린더 열기</button>
+      </div></div>
+    </div>
     <div class="section-title">지금 볼 만한 기회</div>
     ${opportunityCards()}
   `;
@@ -663,51 +1325,71 @@ function filterOpportunities(filter){
     button.classList.toggle('active',button.dataset.filter===filter);
     button.setAttribute('aria-pressed',String(button.dataset.filter===filter));
   });
-  if(!count) feed.innerHTML='<div class="card"><p class="meta">현재 목표에 연결된 해당 종류의 기회가 없어요.</p></div>';
+  if(!count) feed.innerHTML='<div class="card"><p class="meta">'+(filter==='all'?'지금 목표에 연결된 기회가 아직 없어요.':'이 종류의 기회는 아직 없어요. "전체"를 눌러 다른 기회를 확인해 보세요.')+'</p></div>';
+}
+/* Big banner at the top of the home screen: deadlines, interviews, exam dates and high-priority entries in the next 3 days. */
+function alertWhen(left){return left<=0?'오늘':left===1?'내일':left+'일 뒤';}
+function upcomingBannerHTML(){
+  const list=LifeLogic.upcomingAlerts(state,koreaToday(),3);
+  if(!list.length)return '';
+  const icon={job:'💼',interview:'🗣',cert:'🏅',planner:'📌'};
+  const soon=list.filter(a=>a.left<=1).length;
+  const rows=list.slice(0,4).map(a=>`<button type="button" class="alert-row${a.left<=0?' today':''}" onclick="go('${a.go}')"><span class="alert-when">${alertWhen(a.left)}</span><span><strong>${icon[a.kind]||'📌'} ${esc(a.title)}</strong><br><span class="meta">${esc([a.label,fmtDate(a.date)].filter(Boolean).join(' · '))}</span></span></button>`).join('');
+  return `<div class="card urgent-postings" role="note"><h3>⏰ 곧 다가오는 일정 ${list.length}건</h3>${soon?`<p class="meta">오늘·내일 챙길 일정이 ${soon}건 있어요.</p>`:''}${rows}${list.length>4?`<p class="meta">외 ${list.length-4}건</p>`:''}</div>`;
+}
+/* "Today" card on the home screen: today's own entries and habits, checked right here. */
+function homeTodayHTML(){
+  const today=koreaToday();
+  const entries=plannerForDate(today).filter(e=>e.origin==='personal');
+  const habits=habitEntries();
+  const total=entries.length+habits.length;
+  const done=entries.filter(e=>e.done).length+habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
+  if(!total)return `<div class="card home-today"><h3>✅ 오늘 할 일</h3><p class="meta">오늘 등록한 일정과 습관이 아직 없어요.</p><button class="btn secondary" onclick="plannerOpenForm();go('calendar')">＋ 일정 추가</button></div>`;
+  const entryRows=entries.map(e=>`<label class="check"><input type="checkbox" ${e.done?'checked':''} data-id="${esc(e.id)}" onchange="homeToggleEntry(this.dataset.id)"><span><strong class="${e.done?'done-text':''}">${esc(e.title)}</strong>${e.time?` <span class="meta">${esc(e.time)}</span>`:''}</span></label>`).join('');
+  const habitRows=habits.map(h=>{const on=Array.isArray(h.checks)&&h.checks.includes(today);return `<label class="check"><input type="checkbox" ${on?'checked':''} data-id="${esc(h.id)}" onchange="homeToggleHabit(this.dataset.id)"><span><strong class="${on?'done-text':''}">🌱 ${esc(h.name)}</strong></span></label>`;}).join('');
+  return `<div class="card home-today"><h3>✅ 오늘 할 일 <span class="meta">${done}/${total}</span></h3>${entryRows}${habitRows}<button class="btn ghost" onclick="go('calendar')">일정·습관 전체 보기</button></div>`;
+}
+function homeToggleEntry(id){
+  const e=plannerEntries().find(x=>x.id===id);if(!e)return;
+  LifeLogic.toggleDone(e,koreaToday());persistState();renderHome();
+}
+function homeToggleHabit(id){
+  if(habitSetCheck(id,koreaToday())){persistState();renderHome();}
+}
+/* With several goals: the progress of each goal (inside the details block of the home screen). */
+function goalProgressListHTML(){
+  if(LifeLogic.goalCount(state)<2)return '';
+  const rows=LifeLogic.goalList(state,newJobId).map(g=>{
+    const src=g.active?state:(state.otherGoals||[]).find(x=>x.id===g.id)||{};
+    const p=LifeLogic.goalProgress({goalType:src.goalType,completedTasks:src.completedTasks,jobPostings:state.jobPostings});
+    return `<p class="meta"><strong>${esc(g.title)}</strong>${g.active?' (지금 집중 중)':''} · ${p.done}/${p.total}단계 · ${p.percent}%</p>`;
+  }).join('');
+  return `<div class="card"><h3>🎯 목표별 진행</h3>${rows}</div>`;
 }
 function opportunityCards(){
   if(state.goalType==='cert'){
     return `
       <div class="stack">
         <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${esc(state.mainGoal.replace(' 준비',''))}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
-        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="toast('외부 테스트 전에는 DEMO 기회만 보여줘요.')">둘러보기</button></div>
+        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="go('jobHub')">취업 관리 열기</button></div>
       </div>`;
   }
   if(state.goalType==='policy'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${state.mainGoal}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
-        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 확장할 영역이에요.')">둘러보기</button></div>
+        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${esc(state.mainGoal)}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><span class="meta">🛠 준비 중이에요</span></div>
       </div>`;
   }
   if(state.goalType==='job'){
-    return '<div class="card"><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
-    const company=state.selectedCompany || '관심 회사';
-    const job=state.selectedJob || '관심 직무';
-    return `
-      <div class="stack">
-        <div class="card opportunity"><span class="tag">💼 취업 · DEMO</span><strong>${company} ${job} 채용 예시</strong><span class="meta">고용24 연동 시 실제 공고와 지원 마감일을 확인해요.</span><button class="btn secondary" onclick="go('jobDetail')">자세히 보기</button></div>
-        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${job} 관련 자격 탐색</strong><span class="meta">취업 목표와 연결되는 준비 기회를 보여줘요.</span><button class="btn secondary" onclick="go('cert')">둘러보기</button></div>
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>취업 준비 지원 탐색</strong><span class="meta">현재 정보로 확인 가능한 정책을 살펴봐요.</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
-      </div>`;
+    return '<div class="card opportunity"><span class="tag">💼 취업</span><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
   }
   return `
     <div class="stack">
-      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${state.mainGoal || '내 목표'}”를 기준으로 탐색하는 구조예요. 실제 데이터 연결 전에는 DEMO로 보여줘요.</span><button class="btn secondary" onclick="toast('실제 데이터 연결 단계에서 추천을 붙일 예정이에요.')">둘러보기</button></div>
+      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${esc(state.mainGoal || '내 목표')}”를 기준으로 연결된 기회를 찾아 줄 거예요.</span><span class="meta">🛠 준비 중이에요</span></div>
     </div>`;
 }
 
-function startPrep(){
-  state.jobPreparationStarted=true;
-  addActivity('지원 준비를 시작했어요');
-  toast('지원 준비 목표와 일정이 만들어졌어요.');
-  go('goals');
-}
-function favorite(){
-  state.favorite=!state.favorite;
-  persistState();
-  toast(state.favorite?'관심 목록에 저장했어요.':'관심 저장을 해제했어요.');
-}
 function renderIncomeState(){
   document.getElementById('incomeSelect').value=state.policyIncome||'';
   document.getElementById('incomeStatus').textContent=state.policyIncomeAdded?'소득 정보 입력 완료 · 자격 판정 전':'소득 정보를 선택해 주세요.';
@@ -719,20 +1401,47 @@ function saveIncome(){
   state.policyIncome=value;state.policyIncomeAdded=true;
   addActivity('소득 정보를 저장했어요');renderIncomeState();
 }
+function goalStatusText(type){
+  return type==='job'?'기회 탐색 중':type==='cert'?'시험 일정 확인 단계':type==='policy'?'조건 확인 단계':'첫 행동 정리 중';
+}
+function goalCardsHTML(){
+  const goals=LifeLogic.goalList(state,newJobId);
+  const icon={job:'💼',cert:'🏅',policy:'🏛'};
+  if(!goals.length)return '<div class="card"><h3>아직 목표가 없어요</h3><p class="meta">하고 싶은 일을 정하면 시험 일정과 할 일을 정리해 드려요.</p></div>';
+  return goals.map(g=>`<div class="card goal-card${g.active?' active':''}">
+      <h3>${icon[g.type]||'✨'} ${esc(g.title)}</h3>
+      <p class="meta">${goalStatusText(g.type)}${g.active?' · 지금 집중 중':''}</p>
+      <div class="planner-item-actions">
+        ${g.active?`<button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>`
+          :`<button class="btn secondary" data-id="${esc(g.id)}" onclick="switchToGoal(this.dataset.id)">이 목표로 바꾸기</button>`}
+        ${goals.length>1?`<button class="btn ghost" aria-label="${esc(g.title)} 목표 삭제" data-id="${esc(g.id)}" onclick="removeGoalById(this.dataset.id)">삭제</button>`:''}
+      </div>
+    </div>`).join('');
+}
+/* Interested companies are shown next to the goals too, with their official recruiting page. */
+function goalCompaniesHTML(){
+  const companies=Array.isArray(state.watchCompanies)?state.watchCompanies:[];
+  if(!companies.length)return '';
+  return `<div class="section-title">💼 관심 회사</div><div class="stack">${companies.map(c=>`<div class="card">
+      <h3>${esc(c.name)}</h3>
+      <p class="meta">${safeUrl(c.url)?'등록한 공식 채용 페이지가 있어요.':'공식 채용 페이지 주소는 아직 없어요.'}</p>
+      <div class="planner-item-actions">
+        ${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">공식 채용 페이지 열기</a>`:''}
+        <button class="btn ghost" onclick="go('jobHub')">공고 저장·관리</button>
+      </div></div>`).join('')}</div>`;
+}
 function renderGoals(){
   const el=document.getElementById('goalsContent');
-  const status = state.goalType==='job'
-    ? (state.jobSubmitted?'지원 완료':state.jobPreparationStarted?'지원 준비 중':'기회 탐색 중')
-    : state.goalType==='cert'?'시험 일정 확인 단계'
-    : state.goalType==='policy'?'조건 확인 단계'
-    : '첫 행동 정리 중';
-  el.innerHTML=`
-    <div class="card">
-      <h3>${esc(state.mainGoal || '새 목표')}</h3>
-      <p class="meta">${status}</p>
-      <button class="btn secondary" onclick="go('goalDetail')">목표 자세히 보기</button>
-    </div>`;
+  el.innerHTML=`<div class="stack">${goalCardsHTML()}
+    <button class="btn primary" onclick="addGoal()">＋ 목표 추가하기</button></div>
+    <p class="meta" style="margin-top:12px">목표는 최대 ${LifeLogic.MAX_GOALS}개까지 두고, 지금 집중할 목표를 골라 쓸 수 있어요. 홈의 시험 일정·진행률은 지금 집중 중인 목표 기준이에요.</p>
+    ${goalCompaniesHTML()}`;
 }
+const TASK_PLANS={
+  cert:{stage:'응시 준비',tasks:['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시']},
+  policy:{stage:'조건 확인',tasks:['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록']},
+  custom:{stage:'실행 준비',tasks:['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록']}
+};
 function renderTasks(){
   document.getElementById('goalDetailTitle').textContent='🎯 '+(state.mainGoal||'내 목표');
   const box=document.getElementById('taskList');
@@ -740,106 +1449,1002 @@ function renderTasks(){
     document.getElementById('stageText').textContent='공고별 지원 관리';
     box.innerHTML='<button class="btn primary" onclick="go(\'jobHub\')">저장한 공고에서 준비하기</button>';return;
   }
-  if(state.goalType==='cert'){
-    document.getElementById('stageText').textContent='응시 준비';
-    box.innerHTML=['응시 일정 확인','응시조건 확인','공부 계획 만들기','원서접수','시험 응시'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
+  const plan=TASK_PLANS[state.goalType]||TASK_PLANS.custom;
+  document.getElementById('stageText').textContent=plan.stage;
+  const names=LifeLogic.goalTaskNames(state,plan.tasks);
+  if(taskEditing){
+    box.innerHTML=`<p class="meta">이름을 고치거나 지우고, 내 할 일을 더할 수 있어요. (최대 ${LifeLogic.MAX_TASKS}개)</p>
+      ${names.map((t,i)=>`<div class="task-edit-row"><input value="${esc(t)}" maxlength="100" aria-label="할 일 ${i+1} 이름" data-i="${i}" onchange="taskRename(Number(this.dataset.i),this.value)"><button class="btn ghost" aria-label="${esc(t)} 삭제" data-i="${i}" onclick="taskRemove(Number(this.dataset.i))">삭제</button></div>`).join('')}
+      <div class="task-edit-row"><input id="newTaskName" maxlength="100" placeholder="새 할 일 (예: 필기 1회독)" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();taskAdd()}"><button class="btn secondary" onclick="taskAdd()">추가</button></div>
+      <div class="stack"><button class="btn primary" onclick="taskEditDone()">완료</button><button class="btn ghost" onclick="taskReset()">기본 할 일로 되돌리기</button></div>`;
     return;
   }
-  if(state.goalType==='policy'){
-    document.getElementById('stageText').textContent='조건 확인';
-    box.innerHTML=['지원대상 확인','추가 조건 입력','필요서류 확인','신청 일정 저장','신청 완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
-    return;
-  }
-  if(state.goalType!=='job'){
-    document.getElementById('stageText').textContent='실행 준비';
-    box.innerHTML=['목표 구체화','관련 기회 탐색','첫 행동 선택','일정 정하기','완료 기록'].map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${t}</strong></span></label>`).join('');
-    return;
-  }
-  if(state.jobSubmitted){
-    document.getElementById('stageText').textContent='지원 완료 ✓';
-    box.innerHTML=`<div class="card"><h3 class="success">🎉 지원이 기록됐어요.</h3><p>지원 완료를 기록했어요.</p><div class="divider"></div><strong>다음 단계</strong><p>결과 일정이 생기면 추가해보세요.</p></div>`;
-    return;
-  }
-  document.getElementById('stageText').textContent=state.jobPreparationStarted?'지원 준비':'기회 탐색';
-  const jobTasks=['지원자격 최종 확인','이력서 준비','자기소개서 작성','증빙자료 확인','최종 지원서 제출'];
-  box.innerHTML=jobTasks.map((t,i)=>`
-    <label class="check">
-      <input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"/>
-      <span><strong>${t}</strong></span>
-    </label>`).join('');
+  box.innerHTML=names.map((t,i)=>`<label class="check"><input type="checkbox" ${state.completedTasks[i]?'checked':''} onchange="toggleTask(${i})"><span><strong>${esc(t)}</strong></span></label>`).join('')
+    +'<button class="btn ghost" style="margin-top:12px" onclick="taskEditStart()">✏️ 할 일 편집</button>';
 }
-function toggleTask(i){
-  if(state.goalType==='job' && i===4 && !state.completedTasks[i]){
-    const ok=confirm('지원서를 실제로 제출했나요?');
-    if(!ok) return;
-    state.completedTasks[i]=true;
-    state.jobSubmitted=true;
-    addActivity('지원 완료를 기록했어요');
-    toast('지원 완료가 기록됐어요.');
-  } else {
-    state.completedTasks[i]=!state.completedTasks[i];
-  }
+/* The to-do steps of a goal can be renamed, deleted and extended (the default steps are the starting point). */
+let taskEditing=false;
+function taskPlanDefaults(){return (TASK_PLANS[state.goalType]||TASK_PLANS.custom).tasks;}
+function taskEditStart(){taskEditing=true;renderTasks();}
+function taskEditDone(){taskEditing=false;renderTasks();}
+function taskAdd(){
+  const input=document.getElementById('newTaskName');
+  const res=LifeLogic.addGoalTask(state,taskPlanDefaults(),input?.value);
+  if(!res.ok){toast(res.reason==='full'?'할 일은 최대 '+LifeLogic.MAX_TASKS+'개까지 둘 수 있어요.':'할 일 이름을 적어 주세요.');return;}
+  persistState();renderTasks();
+  const next=document.getElementById('newTaskName');if(next&&next.focus)next.focus(); // keep adding
+}
+function taskRename(index,value){
+  const res=LifeLogic.renameGoalTask(state,taskPlanDefaults(),index,value);
+  if(!res.ok){toast('할 일 이름은 비워 둘 수 없어요.');renderTasks();return;}
+  persistState();
+}
+async function taskRemove(index){
+  const names=LifeLogic.goalTaskNames(state,taskPlanDefaults());
+  if(!Number.isInteger(index)||index<0||index>=names.length)return;
+  if(names.length<=1){toast('할 일은 최소 1개는 있어야 해요.');return;}
+  if(!await uiConfirm('"'+names[index]+'" 할 일을 지울까요?',{title:'할 일 삭제',ok:'삭제',danger:true}))return;
+  const res=LifeLogic.removeGoalTask(state,taskPlanDefaults(),index);
+  if(!res.ok){toast('할 일을 지우지 못했어요.');return;}
+  persistState();renderTasks();
+}
+async function taskReset(){
+  if(!await uiConfirm('내가 만든 할 일을 지우고 기본 할 일로 되돌릴까요?\n기본 단계의 완료 표시는 그대로 남아요.',{title:'기본 할 일로 되돌리기',ok:'되돌리기',danger:true}))return;
+  LifeLogic.resetGoalTasks(state,taskPlanDefaults());
+  persistState();renderTasks();
+}
+async function toggleTask(i){
+  state.completedTasks[i]=!state.completedTasks[i];
   persistState();
   renderTasks();
 }
-function koreaToday(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());}
-function certCalendarHTML(schedule){
-  if(!schedule?.items?.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
+function koreaToday(){return LifeLogic.koreaDate(Date.now());}
+/* The date the current screen was drawn for. An installed app is often resumed, not reopened, so when it
+   becomes visible on a new day the screen is drawn again (otherwise "오늘" and the habit checks stay on yesterday). */
+let swRegistration=null;
+/* A new service worker does not change a screen that is already open. Check for a new version whenever the app
+   becomes visible, and offer a reload button (no automatic reload, so typed text is never lost). */
+function checkForAppUpdate(){
+  try{const pending=swRegistration&&swRegistration.update&&swRegistration.update();if(pending&&pending.catch)pending.catch(()=>{});}catch(e){}
+}
+function showUpdateBanner(){const banner=document.getElementById('updateBanner');if(banner)banner.hidden=false;}
+function watchAppUpdates(container){
+  if(!container||typeof container.addEventListener!=='function')return;
+  const hadController=Boolean(container.controller); // the very first install also changes the controller; that is not an update
+  container.addEventListener('controllerchange',()=>{if(hadController)showUpdateBanner();});
+}
+let renderedDay=koreaToday();
+function refreshIfNewDay(){
   const today=koreaToday();
-  const items=[...schedule.items].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  if(today===renderedDay)return;
+  renderedDay=today;
+  const id=document.querySelector('.screen.active')?.id;
+  const draw={home:renderHome,calendar:renderCalendar,my:renderMy,jobHub:renderJobHub}[id];
+  if(draw)draw();
+}
+function certCalendarHTML(schedule){
+  const scheduleItems=LifeLogic.scheduleItems(schedule);
+  if(!scheduleItems.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
+  const today=koreaToday();
+  const items=[...scheduleItems].sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const future=items.filter(e=>(e.endDate||e.startDate)>=today),past=items.filter(e=>(e.endDate||e.startDate)<today);
   const next=future.find(e=>e.type.includes('접수'));
   const rows=list=>list.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?' ~ '+esc(fmtDate(e.endDate)):''}<br><span class="meta">${esc(e.round)}</span></p>`).join('');
-  return `<div class="card"><h3>${esc(schedule.qualification?.name)} · ${esc(schedule.year)}년</h3><p class="meta">이 기기에 저장된 공식 일정 · ${schedule.fetchedAt?'조회일 '+esc(fmtDate(schedule.fetchedAt.slice(0,10))):'변경 여부는 Q-Net에서 확인하세요.'}</p>${next?`<h3>다음 접수${next.startDate<=today?' · 접수 기간 중':''}</h3>${rows([next])}`:'<p class="meta">조회한 연도에 남은 접수 일정이 없어요.</p>'}<h3>진행 중·앞으로의 일정</h3>${future.length?rows(future):'<p class="meta">남은 일정이 없어요. 다음 연도를 조회해 보세요.</p>'}${past.length?`<details><summary>지난 일정 ${past.length}개</summary>${rows(past)}</details>`:''}<button class="btn secondary" onclick="go('cert')">공식 일정 다시 조회</button></div>`;
+  return `<div class="card"><h3>${esc(schedule.qualification?.name)} · ${esc(schedule.year)}년</h3><p class="meta">이 기기에 저장된 공식 일정 · ${schedule.fetchedAt?'조회일 '+esc(fmtDate(Number.isFinite(Date.parse(schedule.fetchedAt))?LifeLogic.koreaDate(Date.parse(schedule.fetchedAt)):String(schedule.fetchedAt).slice(0,10))):'변경 여부는 Q-Net에서 확인하세요.'}</p>${next?`<h3>다음 접수${next.startDate<=today?' · 접수 기간 중':''}</h3>${rows([next])}`:'<p class="meta">조회한 연도에 남은 접수 일정이 없어요.</p>'}<h3>진행 중·앞으로의 일정</h3>${future.length?rows(future):'<p class="meta">남은 일정이 없어요. 다음 연도를 조회해 보세요.</p>'}${past.length?`<details><summary>지난 일정 ${past.length}개</summary>${rows(past)}</details>`:''}<button class="btn secondary" onclick="go('cert')">공식 일정 다시 조회</button></div>`;
 }
+let plannerView='month';
+let plannerSelected=koreaToday();
+let plannerEditing='';
+function plannerEntries(){
+  if(!Array.isArray(state.plannerEntries))state.plannerEntries=[];
+  return state.plannerEntries;
+}
+function plannerDateOffset(date,days){return LifeLogic.dateOffset(date,days);}
+function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
+function plannerForDate(date){
+  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
+  const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external',postingId:x.id}));
+  const interviews=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.interviewDate===date&&!['합격','불합격','지원 취소'].includes(x.stage)).map(x=>({title:x.company+' · '+x.title+' 면접',date,category:'job',origin:'external',postingId:x.id,time:/^([01]\d|2[0-3]):[0-5]\d$/.test(x.interviewTime||'')?x.interviewTime:''}));
+  // Looked-up exam dates: registration and exam periods only. origin 'cert' (not 'external') keeps them out of the "check first" list.
+  const certs=LifeLogic.certSchedulesOf(state).flatMap(s=>LifeLogic.scheduleItems(s.schedule))
+    .filter(x=>x&&/접수|시험/.test(x.type||'')&&x.startDate<=date&&date<=(x.endDate||x.startDate))
+    .map(x=>{
+      const name=(x.qualificationName||'자격증')+' '+x.label;
+      const period=/접수/.test(x.type||'');
+      // what "add to my schedule" creates: the deadline day of a registration period, the first day of an exam
+      return {title:name,date,category:'cert',origin:'cert',addTitle:period?name+' 마감':name,addDate:period?(x.endDate||x.startDate):x.startDate};
+    });
+  return [...own,...jobs,...interviews,...certs].sort((x,y)=>(x.time||'99:99').localeCompare(y.time||'99:99'));
+}
+function plannerNavigate(days){
+  if(plannerView==='month'){
+    const [year,month]=plannerSelected.split('-').map(Number);
+    const d=new Date(Date.UTC(year,month-1+(days>0?1:-1),1,12));
+    plannerSelected=d.toISOString().slice(0,10);
+  } else plannerSelected=plannerDateOffset(plannerSelected,days);
+  renderCalendar();
+}
+/* Screen-reader label for a calendar day button: date, weekday, number of events and whether it is today. */
+function plannerDayLabel(date,count,isToday){
+  const d=new Date(date+'T12:00:00Z');
+  const week=WEEKDAYS_LONG[d.getUTCDay()];
+  return `${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${week}, ${count?`일정 ${count}개`:'일정 없음'}${isToday?', 오늘':''}`;
+}
+function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
+function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
+let plannerFormOpen=false;
+/* After the form opens, bring it into view and put the cursor in the title box (it can be far below the day list). */
+function plannerRevealEditor(){
+  document.getElementById('plannerEditor')?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  document.getElementById('plannerTitle')?.focus?.({preventScroll:true});
+}
+function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
+function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
+let plannerEditingDate='';
+function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
+async function plannerSave(){
+  const get=id=>document.getElementById(id)?.value.trim()||'';
+  const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
+  if(!title||title.length>120||!LifeLogic.validDate(date)){toast('제목(120자 이하)과 날짜를 확인해 주세요.');return;}
+  if(until&&(!LifeLogic.validDate(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
+  const editingId=plannerEditing,occurrence=plannerEditingDate;
+  const before=plannerEntries().find(e=>e.id===editingId);
+  let scope='all';
+  if(before&&LifeLogic.isRepeating(before)){
+    // A repeating item can change for just this day, or for every day it repeats.
+    scope=await uiChoice('반복 일정이에요. 어느 범위를 수정할까요?',[
+      {value:'one',label:'이번 일정만 ('+occurrence+')',kind:'primary'},
+      {value:'all',label:'모든 반복 일정',kind:'secondary'}],{title:'반복 일정 수정'});
+    if(scope===null)return;
+  }
+  const entries=plannerEntries();
+  const old=entries.find(e=>e.id===editingId);
+  let repeatIgnored=false;
+  if(old&&scope==='one'){
+    repeatIgnored=repeat!=='none'||Boolean(until);
+    LifeLogic.skipOccurrence(old,occurrence);
+    entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
+  }else{
+    // The form shows the day the user tapped; if they left it unchanged, the series keeps its own start date.
+    const startDate=old&&LifeLogic.isRepeating(old)&&date===occurrence&&repeat!=='none'?old.date:date;
+    const item={...(old||{}),id:old?.id||newJobId(),title,date:startDate,time,category,repeat,until,priority};
+    if(LifeLogic.isRepeating(item)){item.done=false;if(!Array.isArray(item.doneDates))item.doneDates=[];}
+    else{item.done=Boolean(old?.done)&&!LifeLogic.isRepeating(old);delete item.doneDates;delete item.skipDates;}
+    const index=entries.findIndex(e=>e.id===item.id);
+    if(index>=0)entries[index]=item;else entries.push(item);
+  }
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast(repeatIgnored?'일정을 저장했어요. 이번 일정만 바꾸면 반복은 적용되지 않아요.':'일정을 저장했어요.');
+}
+async function plannerRemove(id,date){
+  const item=plannerEntries().find(x=>x.id===id);
+  if(!item)return;
+  const occurrence=date||plannerSelected;
+  if(LifeLogic.isRepeating(item)){
+    const scope=await uiChoice('반복 일정이에요. 어떻게 삭제할까요?',[
+      {value:'one',label:'이번 일정만 삭제 ('+occurrence+')',kind:'danger'},
+      {value:'all',label:'모든 반복 일정 삭제',kind:'danger'}],{title:'반복 일정 삭제'});
+    if(scope===null)return;
+    const target=plannerEntries().find(x=>x.id===id);
+    if(!target)return;
+    if(scope==='one')LifeLogic.skipOccurrence(target,occurrence);
+    else state.plannerEntries=plannerEntries().filter(x=>x.id!==id);
+  }else{
+    if(!await uiConfirm('이 일정을 삭제할까요?',{title:'일정 삭제',ok:'삭제',danger:true}))return;
+    state.plannerEntries=plannerEntries().filter(x=>x.id!==id);
+  }
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;persistState();renderCalendar();
+}
+/* Exam dates are read-only on the calendar. This button copies one into the user's own schedule (so time, notes and
+   reminders-by-priority can be added). */
+function certEntryExists(title,date){return plannerEntries().some(x=>x&&x.title===title&&x.date===date);}
+function certAddHTML(e){
+  if(!e.addTitle||!LifeLogic.validDate(e.addDate))return '';
+  if(certEntryExists(e.addTitle,e.addDate))return `<div class="planner-item-actions"><span class="meta">✓ 내 일정에 있어요 (${esc(fmtDate(e.addDate))})</span></div>`;
+  return `<div class="planner-item-actions"><button class="btn ghost" data-title="${esc(e.addTitle)}" data-date="${esc(e.addDate)}" onclick="plannerAddFromCert(this.dataset.title,this.dataset.date)">＋ 내 일정에 추가 (${esc(fmtDate(e.addDate))})</button></div>`;
+}
+function plannerAddFromCert(title,date){
+  title=String(title||'').trim();
+  if(!title||title.length>120||!LifeLogic.validDate(date)){toast('이 일정은 추가할 수 없어요.');return;}
+  if(certEntryExists(title,date)){toast('이미 내 일정에 있어요.');return;}
+  plannerEntries().push({id:newJobId(),title,date,time:'',category:'study',repeat:'none',until:'',priority:'high',done:false});
+  plannerSelected=date;
+  const saved=persistState();renderCalendar();
+  if(saved)toast('내 일정에 추가했어요. 시간 등은 일정의 "수정"에서 바꿀 수 있어요.');
+}
+/* Search box on the calendar tab: planner entries, saved postings and exam dates. */
+let plannerSearchQuery='';
+function plannerSearchResultsHTML(){
+  const q=plannerSearchQuery.trim();
+  if(!q)return '';
+  const list=LifeLogic.searchSchedule(state,q,koreaToday());
+  if(!list.length)return '<p class="meta">찾은 일정이 없어요.</p>';
+  const icon={entry:'📌',job:'💼',cert:'🏅'};
+  return list.map(r=>`<button type="button" class="search-result" data-kind="${esc(r.kind)}" data-date="${esc(r.date)}" onclick="plannerSearchOpen(this.dataset.kind,this.dataset.date)"><span class="search-date">${r.date?esc(fmtDate(r.date)):'날짜 없음'}</span><span><strong>${icon[r.kind]||'📌'} ${esc(r.title)}</strong>${r.sub?`<br><span class="meta">${esc(r.sub)}</span>`:''}</span></button>`).join('');
+}
+function plannerSearchRun(value){
+  plannerSearchQuery=String(value||'').slice(0,60);
+  const box=document.getElementById('plannerSearchResults');
+  if(box)box.innerHTML=plannerSearchResultsHTML(); // only the result list is redrawn, so typing is not interrupted
+}
+function plannerSearchOpen(kind,date){
+  if(kind==='job'){go('jobHub');return;}
+  if(LifeLogic.validDate(date))plannerGoToDate(date);
+}
+function plannerSearchHTML(){
+  return `<div class="planner-search"><input id="plannerSearch" type="search" placeholder="🔍 일정·공고 검색 (예: 치과)" maxlength="60" value="${esc(plannerSearchQuery)}" oninput="plannerSearchRun(this.value)" aria-label="일정 검색"><div id="plannerSearchResults">${plannerSearchResultsHTML()}</div></div>`;
+}
+function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
+function plannerPostpone(id){
+  const e=plannerEntries().find(x=>x.id===id);
+  if(!e||LifeLogic.isRepeating(e)||!LifeLogic.validDate(e.date)||!e.date)return;
+  e.date=plannerDateOffset(e.date,1);
+  persistState();renderCalendar();toast('일정을 '+e.date+'로 미뤘어요.');
+}
+function plannerEscapeAttr(s){return esc(String(s||''));}
+let focusTickTimer=null,focusEndTimer=null;
+let focusDeadline=0;
+let focusRemaining=(LifeLogic.isFocusMinutes(state.focusSettings?.minutes)?Number(state.focusSettings.minutes):25)*60;
+let focusRunning=false;
+let focusAudioContext=null;
+/* Minutes of the session that just ended. It stays on the timer card until the next start/reset/change,
+   so a short toast that disappears is not the only sign that the timer finished. Not saved. */
+let focusDoneMinutes=0;
+function focusDoneText(){return focusDoneMinutes?'✅ '+focusDoneMinutes+'분 집중을 마쳤어요':'';}
+function focusSettings(){
+  if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
+  if(!LifeLogic.isFocusMinutes(state.focusSettings.minutes))state.focusSettings.minutes=25;
+  if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
+  state.focusSettings.category=LifeLogic.focusCategoryName(state.focusSettings.category);
+  return state.focusSettings;
+}
+function focusFormat(seconds){
+  const n=Math.max(0,Math.ceil(seconds));
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function focusUpdateUI(){
+  const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
+  const clockText=focusFormat(focusRemaining),buttonText=focusRunning?'일시정지':'시작';
+  // Only touch the page when the text really changed.
+  if(clock&&clock.textContent!==clockText)clock.textContent=clockText;
+  if(button&&button.textContent!==buttonText)button.textContent=buttonText;
+  const doneNote=document.getElementById('focusDoneNote'),doneText=focusDoneText();
+  if(doneNote&&doneNote.textContent!==doneText)doneNote.textContent=doneText;
+  // Show the countdown in the browser tab title so a hidden tab still tells the time.
+  try{const title=focusRunning?'⏱ '+clockText+' · life-ai':focusDoneMinutes?'✅ 집중이 끝났어요 · life-ai':'life-ai | 나의 목표와 일정';if(document.title!==title)document.title=title;}catch(e){}
+}
+/* The running/paused timer is saved so a reload, a closed tab or a phone that unloads the page
+   does not lose the session. Only the end time is stored while running, so time keeps counting. */
+function focusSaveRun(){
+  const cfg=focusSettings(),total=Number(cfg.minutes)*60;
+  if(focusRunning){
+    state.focusRun={status:'running',deadline:focusDeadline,minutes:Number(cfg.minutes),category:cfg.category};
+  }else if(focusRemaining>0&&focusRemaining<total){
+    state.focusRun={status:'paused',remaining:focusRemaining,minutes:Number(cfg.minutes),category:cfg.category};
+  }else delete state.focusRun;
+  persistState();
+}
+function focusStopTimer(){
+  focusRunning=false;clearTimeout(focusTickTimer);clearTimeout(focusEndTimer);focusTickTimer=null;focusEndTimer=null;
+  focusWakeRelease();
+}
+/* Keep the screen on while the timer runs (optional). Browsers drop the lock when the page is hidden,
+   so it is requested again when the page becomes visible. Unsupported devices do nothing. */
+let focusWakeSentinel=null;
+function focusWakeAcquire(){
+  try{
+    if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel||document.hidden)return;
+    if(typeof navigator==='undefined'||!navigator.wakeLock||typeof navigator.wakeLock.request!=='function')return;
+    navigator.wakeLock.request('screen').then(sentinel=>{
+      if(!focusRunning||!focusSettings().keepAwake||focusWakeSentinel){try{sentinel.release();}catch(e){}return;}
+      focusWakeSentinel=sentinel;
+      if(typeof sentinel.addEventListener==='function')sentinel.addEventListener('release',()=>{if(focusWakeSentinel===sentinel)focusWakeSentinel=null;});
+    }).catch(()=>{});
+  }catch(e){}
+}
+function focusWakeRelease(){
+  const sentinel=focusWakeSentinel;focusWakeSentinel=null;
+  try{if(sentinel)Promise.resolve(sentinel.release()).catch(()=>{});}catch(e){}
+}
+function focusChangeKeepAwake(checked){
+  focusSettings().keepAwake=Boolean(checked);persistState();
+  if(checked)focusWakeAcquire();else focusWakeRelease();
+}
+/* Two timeouts instead of a 0.5 s interval: one wakes up exactly when the shown second changes,
+   one fires at the end time so the finish is not missed while the tab is throttled. */
+function focusScheduleTick(){
+  clearTimeout(focusTickTimer);clearTimeout(focusEndTimer);
+  const left=focusDeadline-Date.now();
+  const toNextSecond=left-(Math.ceil(left/1000)-1)*1000;
+  focusTickTimer=setTimeout(focusTick,Math.max(0,toNextSecond)+5);
+  focusEndTimer=setTimeout(focusTick,Math.max(0,left)+5);
+}
+function focusTick(){
+  if(!focusRunning)return;
+  focusRemaining=Math.max(0,Math.ceil((focusDeadline-Date.now())/1000));
+  focusUpdateUI();
+  if(focusRemaining>0)focusScheduleTick();
+  if(focusRemaining===0){
+    const finished={minutes:Number(focusSettings().minutes),category:focusSettings().category,completedAt:new Date(focusDeadline).toISOString(),date:LifeLogic.koreaDate(focusDeadline)};
+    focusStopTimer();
+    focusRemaining=Number(focusSettings().minutes)*60;
+    delete state.focusRun;
+    focusDoneMinutes=finished.minutes;
+    focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
+    focusUpdateUI();
+  }
+}
+function focusStartPause(){
+  if(focusRunning){
+    focusTick();
+    if(focusRunning){focusStopTimer();focusSaveRun();}
+  }else{
+    if(focusRemaining<=0)focusRemaining=Number(focusSettings().minutes)*60;
+    focusDoneMinutes=0;
+    focusDeadline=Date.now()+focusRemaining*1000;
+    focusRunning=true;
+    focusScheduleTick();
+    focusSaveRun();
+    focusWakeAcquire();
+  }
+  focusUpdateUI();
+}
+/* 지금까지 집중한 시간(분, 내림). 아직 끝나지 않은 세션일 때만 센다. */
+function focusElapsedMinutes(){
+  const total=Number(focusSettings().minutes)*60;
+  const remaining=focusRunning?Math.max(0,Math.ceil((focusDeadline-Date.now())/1000)):focusRemaining;
+  return remaining>0?Math.max(0,Math.floor((total-remaining)/60)):0;
+}
+async function focusReset(){
+  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){
+    const elapsed=focusElapsedMinutes();
+    if(elapsed>=1){
+      const choice=await uiChoice(`지금까지 ${elapsed}분 집중했어요. 어떻게 할까요?`,[
+        {label:`${elapsed}분 기록하고 끝내기`,kind:'primary',value:'record'},
+        {label:'기록 없이 초기화',kind:'secondary',value:'discard'}
+      ],{title:'타이머 초기화'});
+      if(choice!=='record'&&choice!=='discard')return;
+      if(choice==='record'){
+        // 안내창이 떠 있는 동안 시간이 더 지났거나 타이머가 끝났을 수 있어서 다시 계산한다.
+        const minutes=focusElapsedMinutes();
+        if(minutes>=1)focusRecordCompletion({minutes,category:focusSettings().category||'study',completedAt:new Date().toISOString(),date:LifeLogic.koreaDate(Date.now())});
+      }
+    }else if(!await uiConfirm('진행 중인 집중 시간을 초기화할까요? 완료되지 않은 시간은 기록되지 않아요.',{title:'타이머 초기화',ok:'초기화'}))return;
+  }
+  focusStopTimer();
+  focusDoneMinutes=0;
+  focusRemaining=Number(focusSettings().minutes)*60;
+  delete state.focusRun;persistState();focusUpdateUI();
+}
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(focusRunning){focusTick();focusWakeAcquire();}refreshIfNewDay();checkForAppUpdate();});
+async function focusChangeMinutes(value){
+  if(value==='custom'){
+    const typed=await uiPrompt('집중할 시간을 분 단위로 입력해 주세요. (1~180분)',String(focusSettings().minutes),{title:'집중 시간 직접 입력',maxLength:3});
+    if(typed===null||typed===undefined){renderCalendar();return;}
+    value=String(typed).trim();
+    if(!LifeLogic.isFocusMinutes(value)){toast('1~180 사이의 숫자(분)를 입력해 주세요.');renderCalendar();return;}
+  }
+  const previous=Number(focusSettings().minutes);
+  if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
+  focusStopTimer();
+  focusDoneMinutes=0;
+  focusSettings().minutes=Number(value);
+  focusRemaining=Number(value)*60;
+  delete state.focusRun;persistState();focusUpdateUI();
+}
+function focusChangeAlarm(value){
+  focusSettings().alarm=value;persistState();
+  const note=document.getElementById('focusAlarmNote');
+  if(note)note.textContent=focusAlarmDescription();
+}
+function focusAlarmDescription(){
+  const alarm=focusSettings().alarm;
+  return alarm==='vibrate'?'진동이 지원되지 않는 기기에서는 화면 안내만 표시됩니다.':
+    alarm==='sound'?'소리는 브라우저의 오디오 재생 정책과 음량 설정에 영향을 받습니다.':
+    alarm==='flash'?'타이머 카드가 깜빡입니다. 화면이 꺼져 있으면 보이지 않습니다.':'완료 메시지만 표시합니다.';
+}
+function focusPrimeSound(){
+  if(focusSettings().alarm!=='sound')return;
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    focusAudioContext=focusAudioContext||new AudioCtx();
+    if(focusAudioContext.state==='suspended')focusAudioContext.resume().catch(()=>{});
+  }catch(e){}
+}
+function focusNotify(){
+  const mode=focusSettings().alarm;
+  focusShowNotification();
+  const panel=document.getElementById('focusPanel');
+  if(panel){panel.classList.remove('focus-flash');void panel.offsetWidth;if(mode==='flash')panel.classList.add('focus-flash');}
+  if(mode==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+  if(mode==='sound'){
+    let played=false;
+    try{
+      const ctx=focusAudioContext;
+      if(ctx&&ctx.state==='running'){
+        const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+        oscillator.type='sine';oscillator.frequency.value=740;
+        gain.gain.setValueAtTime(.001,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.18,ctx.currentTime+.03);
+        gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.7);
+        oscillator.connect(gain).connect(ctx.destination);
+        oscillator.start();oscillator.stop(ctx.currentTime+.72);
+        played=true;
+      }
+    }catch(e){}
+    // Sound can only start after a tap. If it was not ready (app reopened while the timer ran), vibrate and flash instead.
+    if(!played){
+      if(navigator.vibrate)navigator.vibrate([250,150,250,150,450]);
+      if(panel)panel.classList.add('focus-flash');
+    }
+  }
+}
+function focusHistory(){
+  if(!Array.isArray(state.focusHistory))state.focusHistory=[];
+  return state.focusHistory;
+}
+function focusRecordCompletion(done){
+  const minutes=Number(done?.minutes||focusSettings().minutes);
+  const category=done?.category||focusSettings().category;
+  const completedAt=done?.completedAt||new Date().toISOString();
+  // The same finished session can be seen by two open tabs; record it only once.
+  if(focusHistory().some(x=>x.completedAt===completedAt))return;
+  focusHistory().unshift({date:done?.date||koreaToday(),minutes,category,completedAt});
+  const limit=LifeLogic.FOCUS_HISTORY_LIMIT;
+  if(state.focusHistory.length>limit){
+    state.focusHistory.length=limit;
+    toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.',6000);
+  }
+  persistState();
+  // Do not redraw the whole planner: that would erase a title or habit name the user is typing.
+  // Only the two record cards change, and only while the planner screen is open.
+  if(document.getElementById('calendar')?.classList.contains('active')){
+    const report=document.getElementById('progressInsights'),records=document.getElementById('focusHistoryCard');
+    if(report)report.outerHTML=progressInsightsHTML();
+    if(records)records.outerHTML=focusHistoryHTML();
+    const summary=document.getElementById('focusTodaySummary');
+    if(summary){const t=focusTodaySummary();summary.textContent='오늘 집중 '+t.minutes+'분 · 세션 '+t.sessions+'번';}
+  }
+}
+function focusChangeCategory(value){
+  if(LifeLogic.focusCategoryName(value)!==value)return;
+  focusSettings().category=value;
+  if(state.focusRun&&typeof state.focusRun==='object')state.focusRun.category=value;
+  persistState();
+}
+/* Browser notification when the timer ends while the tab is hidden. It works only while the page is
+   still alive in the background; without a push server a fully closed app cannot ring. */
+function focusNotificationsSupported(){return typeof Notification!=='undefined';}
+/* The option was saved as on, but the browser/phone settings now block notifications: switch it off and say so once
+   (it cannot repeat, because the setting is off afterwards). Returns true when it did. */
+function focusNotifyBlockedCheck(){
+  if(!focusSettings().notify||!focusNotificationsSupported()||Notification.permission!=='denied')return false;
+  focusSettings().notify=false;persistState();
+  toast('브라우저에서 알림이 막혀 있어요. 설정에서 허용해 주세요.',6000);
+  return true;
+}
+async function focusShowNotification(){
+  if(focusNotifyBlockedCheck()){renderCalendar();return;}
+  if(!focusSettings().notify||!focusNotificationsSupported()||Notification.permission!=='granted')return;
+  if(typeof document.hidden!=='undefined'&&!document.hidden)return;
+  const title='집중 시간이 끝났어요';
+  const options={body:Number(focusSettings().minutes)+'분 집중을 마쳤어요. 잠깐 쉬어가요.',icon:'icons/icon-192.png',badge:'icons/icon-192.png',tag:'life-ai-focus'};
+  try{
+    const registration=navigator.serviceWorker&&navigator.serviceWorker.getRegistration?await navigator.serviceWorker.getRegistration():null;
+    if(registration&&registration.showNotification){await registration.showNotification(title,options);return;}
+    new Notification(title,options);
+  }catch(e){}
+}
+async function focusChangeNotify(checked){
+  if(!checked){focusSettings().notify=false;persistState();return;}
+  if(!focusNotificationsSupported()){
+    focusSettings().notify=false;persistState();renderCalendar();
+    toast('이 브라우저는 알림을 지원하지 않아요. 홈 화면에 앱을 추가하면 가능할 수 있어요.');return;
+  }
+  let permission=Notification.permission;
+  if(permission==='default'){try{permission=await Notification.requestPermission();}catch(e){permission='denied';}}
+  focusSettings().notify=permission==='granted';persistState();
+  if(permission!=='granted'){renderCalendar();toast('알림이 허용되지 않았어요. 브라우저 설정에서 허용해 주세요.');}
+  else toast('타이머가 끝나면 알림을 보내요.');
+}
+/* Called once at startup: continue, or settle, a timer saved before the page was closed. */
+function focusRestore(){
+  const resumed=LifeLogic.resumeFocus(state.focusRun,Date.now());
+  if(resumed.status==='idle'){if(state.focusRun){delete state.focusRun;persistState();}return;}
+  focusSettings().minutes=resumed.minutes;focusSettings().category=resumed.category;
+  if(resumed.status==='paused'){focusRemaining=resumed.remaining;}
+  else if(resumed.status==='running'){
+    focusRemaining=resumed.remaining;focusDeadline=resumed.deadline;focusRunning=true;
+    focusScheduleTick();
+    focusWakeAcquire();
+  }else{
+    delete state.focusRun;
+    focusRemaining=Number(focusSettings().minutes)*60;
+    focusDoneMinutes=resumed.minutes;
+    focusRecordCompletion({minutes:resumed.minutes,category:resumed.category,completedAt:resumed.finishedAt,date:resumed.date});
+    startupNotice=startupNotice||resumed.minutes+'분 집중이 끝났어요. 기록에 저장했어요.';
+  }
+  focusUpdateUI();
+}
+let insightsPeriod='week';
+let insightsSelectedDate='';
+function insightsSelectDate(date){insightsSelectedDate=date;const target=document.getElementById('progressInsights');if(target)target.outerHTML=progressInsightsHTML();}
+function insightsSetPeriod(period){
+  if(period!=='week'&&period!=='month')return;
+  insightsPeriod=period;
+  const target=document.getElementById('progressInsights');
+  if(target)target.outerHTML=progressInsightsHTML();
+}
+function progressInsightsHTML(){
+  const today=koreaToday();
+  const monthly=insightsPeriod==='month';
+  const {start,end,dates}=LifeLogic.periodDates(today,monthly?'month':'week');
+  const habits=habitEntries();
+  const history=focusHistory();
+  const days=dates.map(date=>{
+    const possible=date<=today?habits.filter(h=>!h.createdAt||h.createdAt<=date).length:0;
+    const done=date<=today?habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length:0;
+    const minutes=date<=today?history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0):0;
+    return {date,done,possible,minutes};
+  });
+  const totalPossible=days.reduce((sum,d)=>sum+d.possible,0);
+  const checked=days.reduce((sum,d)=>sum+d.done,0);
+  const rate=totalPossible?Math.round(checked/totalPossible*100):0;
+  const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
+  const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
+  const buckets=days.map((d,i)=>({label:WEEKDAYS_SHORT[i],minutes:d.minutes}));
+  const maxMinutes=Math.max(25,...buckets.map(d=>d.minutes));
+  const monthOffset=weekdayOf(start);
+  const selectedDay=insightsSelectedDate&&insightsSelectedDate>=start&&insightsSelectedDate<=end?insightsSelectedDate:today;
+  const selected=days.find(d=>d.date===selectedDay);
+  const maxDayMinutes=Math.max(1,...days.map(d=>d.minutes));
+  const heatmap=Array.from({length:monthOffset},()=>'<span aria-hidden="true"></span>').concat(days.map(d=>{
+    const level=d.date>today?'future':d.minutes===0?'none':d.minutes/maxDayMinutes<.25?'low':d.minutes/maxDayMinutes<.5?'medium':d.minutes/maxDayMinutes<.75?'high':'max';
+    return `<button type="button" class="insights-day ${level} ${selectedDay===d.date?'selected':''}" aria-label="${d.date} 집중 ${d.minutes}분" aria-pressed="${selectedDay===d.date}" onclick="insightsSelectDate('${d.date}')">${Number(d.date.slice(8))}</button>`;
+  })).join('');
+  return `<div class="card" id="progressInsights">
+    <div class="insights-heading"><h3>📈 실천 리포트</h3>
+      <div class="insights-switch" role="group" aria-label="리포트 기간">
+        <button type="button" class="btn ${monthly?'secondary':'primary'}" aria-pressed="${!monthly}" onclick="insightsSetPeriod('week')">주간</button>
+        <button type="button" class="btn ${monthly?'primary':'secondary'}" aria-pressed="${monthly}" onclick="insightsSetPeriod('month')">월간</button>
+      </div>
+    </div>
+    <p class="meta insights-period">${start.slice(5)} ~ ${end.slice(5)}</p>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${minutes}분</strong><p class="meta">집중 시간</p></div>
+      <div><strong>${activeDays}일</strong><p class="meta">활동한 날</p></div>
+      <div><strong>${totalPossible?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
+    </div>
+    ${monthly?`<div class="insights-heatmap" aria-label="월간 날짜별 집중 시간">
+      ${WEEKDAYS_SHORT.map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
+      ${heatmap}
+    </div>
+    <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="group" aria-label="이번 주 요일별 집중 시간">
+      ${buckets.map(d=>`<div class="insights-bar" role="img" aria-label="${d.label} ${d.minutes}분"><div class="insights-bar-track"><div style="width:65%;height:${d.minutes?Math.max(3,Math.round(d.minutes/maxMinutes*70)):0}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    </div>`}
+    <details class="insights-details"><summary>집계 기준 보기</summary><p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p><p class="meta">등록일 이후 오늘까지의 습관과 완료된 집중 세션만 집계합니다. 기록이 없는 날은 실패로 간주하지 않아요.</p></details>
+  </div>`;
+}
+let focusHistoryOpen=false;
+function focusHistoryRefresh(){renderCalendar();}
+/* Add a session done without the timer. completedAt starts with "manual-" so it never matches a timer session. */
+function focusHistoryAdd(){
+  const date=document.getElementById('focusManualDate')?.value||'';
+  const minutes=Number(document.getElementById('focusManualMinutes')?.value);
+  const category=document.getElementById('focusManualCategory')?.value||'study';
+  if(!LifeLogic.validDate(date)||date>koreaToday()){toast('날짜를 확인해 주세요. 오늘까지만 기록할 수 있어요.');return;}
+  if(!Number.isInteger(minutes)||minutes<1||minutes>600){toast('집중한 시간을 1~600분 사이 숫자로 입력해 주세요.');return;}
+  if(!['study','job','personal'].includes(category)){toast('종류를 선택해 주세요.');return;}
+  const history=focusHistory();
+  const at=history.findIndex(x=>x.date<=date);
+  history.splice(at<0?history.length:at,0,{date,minutes,category,completedAt:'manual-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)});
+  const limit=LifeLogic.FOCUS_HISTORY_LIMIT;
+  if(history.length>limit){history.length=limit;toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');}
+  else toast('집중 기록을 추가했어요.');
+  persistState();focusHistoryOpen=true;focusHistoryRefresh();
+}
+async function focusHistoryRemove(id){
+  if(!focusHistory().some(x=>x.completedAt===id))return;
+  if(!await uiConfirm('이 집중 기록을 지울까요? 통계에서도 빠져요.',{title:'집중 기록 삭제',ok:'삭제',danger:true}))return;
+  state.focusHistory=focusHistory().filter(x=>x.completedAt!==id);
+  persistState();focusHistoryOpen=true;focusHistoryRefresh();
+}
+function focusHistoryHTML(){
+  const history=focusHistory();
+  const today=koreaToday(),weekStart=LifeLogic.weekStart(today);
+  const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
+  const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
+  const categories=Object.fromEntries(LifeLogic.FOCUS_CATEGORIES.map(c=>[c.name,c.label]));
+  const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:history.filter(x=>x.category===c.name).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  return `<div class="card" id="focusHistoryCard"><h3>📊 집중 기록</h3>
+    <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
+      <div><strong>${weekMin}분</strong><p class="meta">이번 주</p></div>
+      <div><strong>${Math.floor(allMin/60)}시간 ${allMin%60}분</strong><p class="meta">전체</p></div>
+    </div>
+    <details class="focus-history-more" ${focusHistoryOpen?'open':''} ontoggle="focusHistoryOpen=this.open"><summary>목표별 기록·최근 활동 보기</summary><h4>목표별 누적 집중</h4>
+    ${breakdown.map(x=>`<p class="meta">${x.label}: ${Math.floor(x.minutes/60)}시간 ${x.minutes%60}분</p>`).join('')}
+    <p class="meta">타이머가 0초까지 완료된 세션이 자동으로 기록됩니다. 중간에 종료한 시간은 포함하지 않으며, 타이머 없이 한 공부는 아래에서 직접 추가할 수 있어요.</p>
+    ${history.slice(0,5).map(x=>`<div class="planner-item"><p class="meta" style="margin:0">${esc(x.date)} · ${esc(categories[x.category]||'기타')} · ${Number(x.minutes)||0}분</p>${x.completedAt?`<button class="btn ghost habit-remove" aria-label="${esc(x.date)} ${Number(x.minutes)||0}분 기록 삭제" onclick="focusHistoryRemove('${esc(x.completedAt)}')">삭제</button>`:''}</div>`).join('')}
+    <h4>기록 직접 추가</h4>
+    <div class="planner-form">
+      <label>날짜<input id="focusManualDate" type="date" value="${today}" max="${today}"></label>
+      <label>집중한 시간(분)<input id="focusManualMinutes" type="number" min="1" max="600" step="1" value="30"></label>
+      <label class="wide">종류<select id="focusManualCategory">${Object.entries(categories).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')}</select></label>
+      <button class="btn secondary wide" onclick="focusHistoryAdd()">기록 추가</button>
+    </div></details>
+  </div>`;
+}
+/* 오늘 날짜의 집중 기록만 합산한다 (focusHistoryHTML의 '오늘'과 같은 방식). */
+function focusTodaySummary(){
+  const today=koreaToday(),done=focusHistory().filter(x=>x.date===today);
+  return {minutes:done.reduce((n,x)=>n+Number(x.minutes||0),0),sessions:done.length};
+}
+function focusPanelHTML(){
+  focusNotifyBlockedCheck();
+  const todaySum=focusTodaySummary();
+  const cfg=focusSettings();
+  return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
+    <p class="meta">지금 할 수 있는 만큼, 차분하게 집중해요.</p>
+    <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
+      <p class="focus-done" id="focusDoneNote" role="status" aria-live="polite">${focusDoneText()}</p>
+      <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
+    </div>
+    <p class="meta" id="focusTodaySummary">오늘 집중 ${todaySum.minutes}분 · 세션 ${todaySum.sessions}번</p>
+    <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
+      ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}${LifeLogic.FOCUS_MINUTES.includes(Number(cfg.minutes))?'':`<option value="${Number(cfg.minutes)}" selected>${Number(cfg.minutes)}분 (직접 입력)</option>`}<option value="custom">직접 입력 (1~180분)</option>
+    </select></label>
+    </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
+      ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}
+    </select></label></div>
+    <p class="meta" id="focusAlarmNote">${focusAlarmDescription()}</p>
+    <label class="check focus-notify"><input type="checkbox" ${cfg.notify?'checked':''} onchange="focusChangeNotify(this.checked)"><span>화면이 가려져 있을 때 브라우저 알림도 받기</span></label>
+    <label class="check focus-notify"><input type="checkbox" id="focusKeepAwake" ${cfg.keepAwake?'checked':''} onchange="focusChangeKeepAwake(this.checked)"><span>집중하는 동안 화면 켜 두기 (지원하는 기기만)</span></label>
+    <p class="meta">타이머는 저장돼서 앱을 다시 열어도 이어져요. 단, 알림과 알람은 앱이 백그라운드에서 살아 있을 때만 울려요. 완전히 종료됐거나 절전 중이면 다시 열 때 끝난 시간이 기록돼요.</p></details>
+  </div>`;
+}
+function habitEntries(){
+  if(!Array.isArray(state.habits))state.habits=[];
+  return state.habits;
+}
+function habitAdd(){
+  const input=document.getElementById('habitName');
+  const name=input?.value.trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
+  const saved=persistState();renderCalendar();if(saved)toast('습관을 추가했어요.');
+}
+/* Checks or unchecks a habit on a day. Returns false when nothing changed (unknown habit, bad or future day). */
+function habitSetCheck(id,date){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return false;
+  if(!LifeLogic.validDate(date)||!date||date>koreaToday())return false; // future days cannot be checked
+  if(!Array.isArray(habit.checks))habit.checks=[];
+  if(habit.checks.includes(date))habit.checks=habit.checks.filter(d=>d!==date);
+  else habit.checks.push(date);
+  return true;
+}
+function habitToggle(id,date){
+  date=date||koreaToday(); // read when tapped, not when the screen was drawn
+  if(!habitSetCheck(id,date))return;
+  persistState();renderCalendar();
+}
+async function habitRename(id){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  const answer=await uiPrompt('새 습관 이름을 입력해 주세요. 체크 기록은 그대로 남아요.',habit.name||'',{title:'습관 이름 수정',maxLength:60});
+  if(answer===null||answer===undefined)return;
+  const name=String(answer).trim();
+  if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
+  if(name===habit.name)return;
+  if(habitEntries().some(x=>x.id!==id&&x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
+  habit.name=name;
+  persistState();renderCalendar();toast('습관 이름을 바꿨어요.');
+}
+async function habitRemove(id){
+  if(!await uiConfirm('습관과 완료 기록을 삭제할까요?',{title:'습관 삭제',ok:'삭제',danger:true}))return;
+  state.habits=habitEntries().filter(x=>x.id!==id);
+  persistState();renderCalendar();
+}
+function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday());}
+function habitPanelHTML(){
+  const today=koreaToday(),yesterday=plannerDateOffset(today,-1),habits=habitEntries();
+  const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
+  return `<div class="card"><h3>🌱 오늘의 습관</h3>
+    <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} data-id="${esc(h.id)}" onchange="habitToggle(this.dataset.id,koreaToday())"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" data-id="${esc(h.id)}" onclick="habitToggle(this.dataset.id,'${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" data-id="${esc(h.id)}" onclick="habitRename(this.dataset.id)">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" data-id="${esc(h.id)}" onclick="habitRemove(this.dataset.id)">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
+  </div>`;
+}
+function plannerAgenda(){
+  const today=koreaToday();
+  const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
+  return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
+    .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+/* Unfinished one-time personal entries from the last 14 days (repeating ones are skipped). */
+function plannerOverdue(){
+  const today=koreaToday(),from=plannerDateOffset(today,-14);
+  return plannerEntries().filter(e=>e&&!LifeLogic.isRepeating(e)&&!e.done&&LifeLogic.validDate(e.date)&&e.date&&e.date>=from&&e.date<today)
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function plannerGoToDate(date){plannerActiveTab='calendar';plannerSelect(date);}
+function plannerOverdueHTML(){
+  const list=plannerOverdue();
+  if(!list.length)return '';
+  return `<div class="card" id="overduePanel"><h3>⏳ 밀린 일정</h3>
+    <p class="meta">최근 14일 안에 끝내지 못한 일정이에요. 괜찮아요, 하나씩 정리해 봐요.</p>
+    ${list.map(e=>`<div class="planner-item"><div><strong>${esc(e.title)}</strong><p class="meta">${esc(e.date)} · ${esc(e.time||'종일')}</p></div><div><button class="btn ghost" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerToggle(this.dataset.id,'${esc(e.date)}')">✓ 완료</button><button class="btn ghost" onclick="plannerGoToDate('${esc(e.date)}')">날짜로 이동</button></div></div>`).join('')}
+  </div>`;
+}
+/* Next occurrence of each high-priority item that is still open. Repeating items are looked up over the next 31 days
+   (skipped dates and per-date done flags are respected); a one-time item keeps its own date. */
+function plannerUpcomingPriority(){
+  const today=koreaToday();
+  const span=Array.from({length:31},(_,i)=>plannerDateOffset(today,i));
+  return plannerEntries().filter(e=>e&&e.priority==='high').map(e=>{
+    const date=LifeLogic.isRepeating(e)?span.find(d=>LifeLogic.occurs(e,d)&&!LifeLogic.isDone(e,d)):(e.date>=today&&!LifeLogic.isDone(e,e.date)?e.date:null);
+    return date?{...e,date}:null;
+  }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+}
+/* life-ai principle: encourage progress while allowing rest without judgment. */
+function recoveryMode(){return state.recoveryMode==='rest'?'rest':state.recoveryMode==='gentle'?'gentle':'normal';}
+function recoverySetMode(mode){
+  if(!['normal','gentle','rest'].includes(mode))return;
+  state.recoveryMode=mode;persistState();renderCalendar();
+}
+function recoveryPanelHTML(){
+  const mode=recoveryMode();
+  return `<div class="card" id="recoveryPanel">
+    <h3>🌿 오늘의 페이스</h3>
+    <p class="meta">열심히 살아갈 수 있도록 돕되, 힘든 날에는 쉬어갈 수 있도록 배려할게요.</p>
+    <div class="recovery-choices" role="group" aria-label="오늘의 페이스">
+      ${[['normal','평소대로'],['gentle','천천히'],['rest','쉬어가기']].map(([value,label])=>`<button type="button" class="btn ${mode===value?'primary':'secondary'}" aria-pressed="${mode===value}" onclick="recoverySetMode('${value}')">${label}</button>`).join('')}
+    </div>
+    <p class="meta" aria-live="polite">${mode==='rest'?'숨을 천천히 들이쉬고 내쉬어 보세요. 오늘은 쉬어가도 괜찮아요.':mode==='gentle'?'오늘은 작은 일 하나면 충분해요. 준비되면 5분부터 시작해 보세요.':'오늘도 내 속도에 맞춰 한 걸음씩 나아가요.'}</p>
+    <p class="meta">페이스 선택은 기록을 삭제하거나 중요한 시험·면접 일정을 숨기지 않아요. 알림 설정도 변경하지 않아요.</p>
+  </div>`;
+}
+function plannerFocusHTML(){
+  const agenda=plannerAgenda();
+  const urgent=agenda.filter(e=>e.priority==='high'||e.origin==='external');
+  return `<div class="card"><h3>✨ 앞으로 7일 · AI 실행 브리핑</h3>
+    <p class="meta">내 일정과 저장한 채용 마감일을 바탕으로 중요한 일을 정리했어요. AI 서버 분석이 아닌 일정 기반 추천입니다.</p>
+    ${urgent.length?`<strong>먼저 확인할 일정</strong><div class="stack">${urgent.slice(0,5).map(e=>`<p>🔔 ${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}</div>`:'<p class="meta">우선 확인할 마감일이나 높은 우선순위 일정이 없어요.</p>'}
+    <strong>7일간 예정된 일정 ${agenda.length}건</strong>
+    ${agenda.slice(0,8).map(e=>`<p class="meta">${esc(e.occursOn)} · ${esc(e.title)}</p>`).join('')}
+    <button class="btn secondary" onclick="plannerSelect(koreaToday())">오늘 일정 보기</button>
+  </div>`;
+}
+/* '오늘' 탭에서 아직 안 한 습관을 바로 체크할 수 있게 보여 준다 (체크는 habitToggle 그대로). */
+function todayHabitsHTML(){
+  const today=koreaToday(),habits=habitEntries();
+  if(!habits.length)return '';
+  const left=habits.filter(h=>!(Array.isArray(h.checks)&&h.checks.includes(today)));
+  if(!left.length)return `<div class="card" id="todayHabits"><h3>🌱 오늘의 습관</h3><p class="meta">오늘 습관을 모두 해냈어요. 정말 잘했어요! 🎉</p></div>`;
+  return `<div class="card" id="todayHabits"><h3>🌱 오늘 남은 습관 ${left.length}개</h3>
+    ${left.slice(0,5).map(h=>`<label class="check"><input type="checkbox" data-id="${esc(h.id)}" onchange="habitToggle(this.dataset.id,'${today}')"><span><strong>${esc(h.name)}</strong></span></label>`).join('')}
+    ${left.length>5?`<p class="meta">나머지 ${left.length-5}개는 습관 탭에서 볼 수 있어요.</p>`:''}
+  </div>`;
+}
+let plannerActiveTab='today';
+const PLANNER_TABS=['today','calendar','habits','stats'];
+const PLANNER_TAB_LABELS=[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']];
+/* Arrow keys, Home and End move between the tabs. Returns the tab to go to, or null for any other key. */
+function plannerTabTarget(current,key){
+  const names=PLANNER_TABS,i=names.indexOf(current);
+  if(i<0)return null;
+  if(key==='ArrowRight')return names[(i+1)%names.length];
+  if(key==='ArrowLeft')return names[(i+names.length-1)%names.length];
+  if(key==='Home')return names[0];
+  if(key==='End')return names[names.length-1];
+  return null;
+}
+function plannerTabKey(event,tab){
+  const target=plannerTabTarget(tab,event.key);
+  if(!target)return;
+  event.preventDefault();
+  plannerSwitchTab(target);
+  document.getElementById('plannerTab-'+target)?.focus();
+}
+/* slide: 'next' | 'prev' when the tab was changed by a swipe, so the new tab slides in from that side. */
+function plannerSwitchTab(tab,slide){
+  if(!PLANNER_TABS.includes(tab))return;
+  plannerActiveTab=tab;
+  document.querySelectorAll('#calendarContent .planner-tabpanel').forEach(panel=>{
+    panel.hidden=panel.dataset.tab!==tab;
+    if(!panel.hidden&&slide&&panel.classList){
+      panel.classList.remove('slide-next','slide-prev');
+      void panel.offsetWidth; // restart the animation
+      panel.classList.add('slide-'+slide);
+    }
+  });
+  document.querySelectorAll('#calendarContent .planner-tabbar button').forEach(button=>{
+    const selected=button.dataset.tab===tab;
+    button.setAttribute('aria-selected',String(selected));
+    button.tabIndex=selected?0:-1;
+    if(selected&&slide&&button.scrollIntoView)button.scrollIntoView({block:'nearest',inline:'nearest'});
+  });
+}
+/* Swipe sideways on the schedule screen to move to the next / previous tab (today → calendar → habits → stats).
+   Not for touches that start on a field (typing, date picker) or at the very edge of the screen (the phone's own Back gesture). */
+let plannerSwipe=null;
+function plannerTouchStart(event){
+  const touch=event.touches&&event.touches[0];
+  plannerSwipe=null;
+  if(!touch||event.touches.length>1)return;
+  if(event.target&&event.target.closest&&event.target.closest('input,select,textarea,[data-no-swipe]'))return;
+  const width=typeof window!=='undefined'&&window.innerWidth?window.innerWidth:0;
+  if(width&&(touch.clientX<24||touch.clientX>width-24))return;
+  plannerSwipe={x:touch.clientX,y:touch.clientY,at:Date.now()};
+}
+function plannerTouchEnd(event){
+  const start=plannerSwipe;plannerSwipe=null;
+  const touch=event.changedTouches&&event.changedTouches[0];
+  if(!start||!touch)return false;
+  const direction=LifeLogic.swipeDirection(touch.clientX-start.x,touch.clientY-start.y,Date.now()-start.at);
+  const next=direction&&LifeLogic.stepTab(PLANNER_TABS,plannerActiveTab,direction);
+  if(!next)return false;
+  plannerSwitchTab(next,direction);
+  if(typeof window!=='undefined'&&window.scrollTo)window.scrollTo(0,0); // the new tab starts at its top
+  return true;
+}
+(function(){
+  const area=document.getElementById('calendarContent');
+  if(!area||!area.addEventListener)return;
+  area.addEventListener('touchstart',plannerTouchStart,{passive:true});
+  area.addEventListener('touchend',plannerTouchEnd,{passive:true});
+  area.addEventListener('touchcancel',()=>{plannerSwipe=null;},{passive:true});
+})();
+let plannerSwipeHintShown=false;
+function plannerShowSwipeHint(){ // once per phone: tell about the swipe
+  if(plannerSwipeHintShown)return;
+  plannerSwipeHintShown=true;
+  try{
+    if(localStorage.getItem('lifeAISwipeHint'))return;
+    localStorage.setItem('lifeAISwipeHint','1');
+    toast('화면을 좌우로 밀어서 탭을 옮길 수 있어요.');
+  }catch(e){}
+}
+let plannerRenderedToday='';
+/* Phone left open past midnight: when the app becomes visible on a new day, move today's date forward and redraw. */
+function plannerDayRollover(){
+  if(!plannerRenderedToday)return;
+  const today=koreaToday();
+  if(today===plannerRenderedToday)return;
+  if(plannerSelected===plannerRenderedToday)plannerSelected=today;
+  renderCalendar();
+}
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden)plannerDayRollover();});
 function renderCalendar(){
   const c=document.getElementById('calendarContent');
-  if(state.goalType==='job'){
-    c.innerHTML=jobCalendarHTML();
-  } else if(state.goalType==='cert'){
-    c.innerHTML=certCalendarHTML(state.certSchedule);
-  } else if(state.goalType==='policy'){
-    c.innerHTML=`<div class="card"><h3>지원사업 일정</h3><p class="meta">조건 확인 후 신청 마감 일정을 연결할 예정이에요.</p></div>`;
-  } else {
-    c.innerHTML=`<div class="card"><h3>아직 등록된 일정이 없어요.</h3><p class="meta">목표에서 첫 행동을 정하면 여기에 일정이 생겨요.</p></div>`;
+  const today=koreaToday();
+  plannerRenderedToday=today;
+  if(!LifeLogic.validDate(plannerSelected))plannerSelected=today;
+  const startOfWeek=LifeLogic.weekStart;
+  let dates=[];
+  if(plannerView==='day')dates=[plannerSelected];
+  else if(plannerView==='week')dates=Array.from({length:7},(_,i)=>plannerDateOffset(startOfWeek(plannerSelected),i));
+  else {
+    const first=plannerSelected.slice(0,7)+'-01',start=startOfWeek(first);
+    dates=Array.from({length:42},(_,i)=>plannerDateOffset(start,i));
   }
-  if(state.goalType!=='job'&&state.jobPostings?.length) c.innerHTML+=jobCalendarHTML();
+  const existing=plannerEntries().find(e=>e.id===plannerEditing);
+  const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+WEEKDAYS_SHORT[weekdayOf(plannerSelected)]+')':plannerSelected;
+  const dayList=plannerForDate(plannerSelected);
+  const upcoming=plannerUpcomingPriority();
+  c.innerHTML=`
+    <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
+      ${PLANNER_TAB_LABELS.map(([tab,label])=>`<button type="button" role="tab" id="plannerTab-${tab}" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" aria-controls="plannerPanel-${tab}" tabindex="${plannerActiveTab===tab?0:-1}" onclick="plannerSwitchTab('${tab}')" onkeydown="plannerTabKey(event,'${tab}')">${label}</button>`).join('')}
+    </div>
+    <section class="planner-tabpanel" id="plannerPanel-today" data-tab="today" role="tabpanel" aria-labelledby="plannerTab-today" ${plannerActiveTab==='today'?'':'hidden'}>
+      ${recoveryPanelHTML()}
+      ${plannerFocusHTML()}
+      ${plannerOverdueHTML()}
+      ${todayHabitsHTML()}
+      ${focusPanelHTML()}
+    </section>
+    <section class="planner-tabpanel" id="plannerPanel-habits" data-tab="habits" role="tabpanel" aria-labelledby="plannerTab-habits" ${plannerActiveTab==='habits'?'':'hidden'}>
+      ${habitPanelHTML()}
+    </section>
+    <section class="planner-tabpanel" id="plannerPanel-stats" data-tab="stats" role="tabpanel" aria-labelledby="plannerTab-stats" ${plannerActiveTab==='stats'?'':'hidden'}>
+      ${progressInsightsHTML()}
+      ${focusHistoryHTML()}
+    </section>
+    <section class="planner-tabpanel" id="plannerPanel-calendar" data-tab="calendar" role="tabpanel" aria-labelledby="plannerTab-calendar" ${plannerActiveTab==='calendar'?'':'hidden'}>
+    ${plannerSearchHTML()}
+    <div class="card">
+      <div class="planner-toolbar">
+        <div class="planner-date-nav">
+          <button class="btn secondary" aria-label="이전 기간" onclick="plannerNavigate(${plannerView==='month'?-28:plannerView==='week'?-7:-1})">〈 이전</button>
+          <strong>${esc(dateLabel)}</strong>
+          <button class="btn secondary" aria-label="다음 기간" onclick="plannerNavigate(${plannerView==='month'?28:plannerView==='week'?7:1})">다음 〉</button>
+        </div>
+        <div class="planner-view-switch" role="group" aria-label="캘린더 보기">
+          <button class="btn ${plannerView==='month'?'primary':'secondary'}" aria-pressed="${plannerView==='month'}" onclick="plannerSetView('month')">월</button>
+          <button class="btn ${plannerView==='week'?'primary':'secondary'}" aria-pressed="${plannerView==='week'}" onclick="plannerSetView('week')">주</button>
+          <button class="btn ${plannerView==='day'?'primary':'secondary'}" aria-pressed="${plannerView==='day'}" onclick="plannerSetView('day')">일</button>
+          <button class="btn ghost" onclick="plannerSelect(koreaToday())">오늘</button>
+        </div>
+      </div>
+      ${plannerView==='day'
+        ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${WEEKDAYS_LONG[weekdayOf(plannerSelected)]}의 일정</p>`
+        :`<div class="planner-grid">${WEEKDAYS_SHORT.map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
+        ${dates.map(date=>{const dayEvents=plannerForDate(date);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
+        </div>`}
+
+    </div>
+    <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
+      ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong>${e.origin==='external'?'💼 ':e.origin==='cert'?'🏅 ':''}${esc(e.title)}</strong><p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.origin==='cert'?'조회한 자격증 일정':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
+      ${e.origin==='personal'?`<div class="planner-item-actions"><button class="btn ghost" aria-label="${e.done?'완료 취소':'완료 표시'}: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerToggle(this.dataset.id,'${plannerSelected}')">${e.done?'완료 취소':'완료'}</button>${LifeLogic.isRepeating(e)?'':`<button class="btn ghost" aria-label="내일로 미루기: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerPostpone(this.dataset.id)">내일</button>`}<button class="btn ghost" aria-label="수정: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerEdit(this.dataset.id,'${plannerSelected}')">수정</button><button class="btn ghost" aria-label="삭제: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerRemove(this.dataset.id,'${plannerSelected}')">삭제</button></div>`:e.origin==='cert'?certAddHTML(e):e.origin==='external'?`<div class="planner-item-actions"><button class="btn ghost" onclick="go('jobHub')">공고 보기</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
+    </div>
+    <div class="card">
+      <div class="planner-form-heading">
+        <h3>${existing?'✏️ 일정 수정':'일정 관리'}</h3>
+        <button type="button" class="btn secondary" aria-expanded="${plannerFormOpen}" aria-controls="plannerEditor" onclick="${plannerFormOpen?'plannerCancelForm()':'plannerOpenForm()'}">${plannerFormOpen?'닫기':'＋ 일정 추가'}</button>
+      </div>
+      <div id="plannerEditor" ${plannerFormOpen?'':'hidden'}><div class="planner-form">
+      <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing&&LifeLogic.isRepeating(existing)&&plannerEditingDate?plannerEditingDate:(existing?.date||plannerSelected))}"></label>
+      <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
+      <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
+      <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
+      <label>반복<select id="plannerRepeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>
+      <label>반복 종료일 (선택)<input id="plannerUntil" type="date" value="${plannerEscapeAttr(existing?.until)}"></label>
+      <button class="btn primary wide" onclick="plannerSave()">${existing?'변경 저장':'일정 저장'}</button>
+      <button type="button" class="btn ghost wide" onclick="plannerCancelForm()">취소</button>
+    </div></div></div>
+    ${upcoming.length?`<div class="card"><h3>✨ 우선 준비할 일정</h3>${upcoming.map(e=>`<p>🔔 ${esc(e.date)} · ${esc(e.title)}</p>`).join('')}</div>`:''}
+    ${state.goalType==='cert'?certCalendarHTML(state.certSchedule):''}
+    <p class="meta">채용 마감일은 저장된 공고에서 자동 표시됩니다. 반복 일정은 시작일 이후에 표시되며 알림 발송은 아직 지원하지 않습니다.</p>
+    </section>
+  `;
+  document.getElementById('focusCategory').value=focusSettings().category;
+  document.getElementById('plannerCategory').value=existing?.category||'personal';
+  document.getElementById('plannerPriority').value=existing?.priority||'normal';
+  document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
+
+const GOAL_TYPE_NAMES={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
+function goalTypeName(type){return Object.hasOwn(GOAL_TYPE_NAMES,type)?GOAL_TYPE_NAMES[type]:'미설정';}
 function renderMy(){
   const c=document.getElementById('myContent');
   c.innerHTML=`
     <div class="card"><h3>${esc(getNick())}님 👋</h3><p class="muted">지금 입력한 정보만 추천에 사용하고 있어요.</p></div>
     <div class="section-title">현재 목표</div>
     <div class="card"><strong>🎯 ${esc(state.mainGoal || '아직 목표 없음')}</strong></div>
-    <div class="section-title">AI가 알고 있는 정보</div>
+    <div class="section-title">저장된 정보</div>
     <div class="stack">
-      <div class="card"><strong>목표 유형</strong><p class="meta">${state.goalType || '미설정'}</p></div>
+      <div class="card"><strong>목표 유형</strong><p class="meta">${goalTypeName(state.goalType)}</p></div>
       ${state.goalType==='job'?`
-      <div class="card"><strong>관심 회사·직무</strong><p class="meta">${state.selectedCompany||'미입력'} · ${state.selectedJob||'미입력'}</p></div>
-      <div class="card"><strong>취업 정보</strong><p class="meta">${state.employmentStatus||'미입력'} · ${state.career||'경력 미입력'} · ${state.education||'학력 미입력'}</p></div>
-      <div class="card"><strong>보유 자격증</strong><p class="meta">${state.ownedCert||'입력 없음'}</p></div>`:''}
+      <div class="card"><strong>관심 회사·직무</strong><p class="meta">${esc(state.selectedCompany||'미입력')} · ${esc(state.selectedJob||'미입력')}</p></div>
+      <div class="card"><strong>취업 정보</strong><p class="meta">${esc(state.employmentStatus||'미입력')} · ${esc(state.career||'경력 미입력')} · ${esc(state.education||'학력 미입력')}</p></div>
+      <div class="card"><strong>보유 자격증</strong><p class="meta">${esc(state.ownedCert||'입력 없음')}</p></div>`:''}
       <div class="card"><strong>🏛 지원조건 정보</strong><p class="meta">${state.policyIncomeAdded?'소득 정보 확인됨':'필요할 때만 추가로 확인'}</p></div>
     </div>
     <div class="section-title">최근 활동</div>
-    <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${x}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${esc(x)}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
+    <div class="section-title">내 데이터 백업·복원</div>
+    <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
+    <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(Number.isFinite(Date.parse(state.lastBackupAt))?LifeLogic.koreaDate(Date.parse(state.lastBackupAt)):state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><p class="meta">📱↔💻 기기를 바꿔 쓰려면: 한쪽에서 <strong>다른 기기로 보내기</strong>를 눌러 카카오톡 등으로 보내고, 다른 기기에서 그 파일을 <strong>백업 파일 복원하기</strong>로 열어요. 이 앱의 기록은 각 기기에 따로 저장돼요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn secondary" onclick="shareLifeAIBackup()">📤 다른 기기로 보내기</button><button class="btn ghost" onclick="exportDeadlineCalendar()">📅 마감일 캘린더로 내보내기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" />${damagedArchives().length?'<button class="btn ghost" onclick="downloadDamagedState()">⬇ 손상된 원본 내려받기</button>':''}</div></div>
     <div class="section-title">목표 관리</div>
     <div class="stack">
-      <button class="btn secondary" onclick="go('goalChoice')">＋ 새 목표로 바꾸기</button>
+      <button class="btn secondary" onclick="addGoal()">＋ 목표 추가하기</button>
       <button class="btn ghost" onclick="editCurrentGoal()">✏️ 현재 목표 수정</button>
       <button class="btn ghost" onclick="resetPrototype()">↺ 처음부터 다시 시작</button>
-    </div>
-    <div class="section-title">테스트하면서 생각해볼 것</div>
-    <div class="card"><p>① 처음 봤을 때 무슨 앱인지 알겠나요?</p><p>② 내 목표를 이해한다고 느꼈나요?</p><p>③ 홈에서 지금 뭘 해야 할지 알겠나요?</p><p>④ 실제 정보가 연결되면 다시 쓰고 싶나요?</p></div>`;
+    </div>`;
 }
 
-// Make the DEMO job detail reflect the user's chosen company/job.
-
 const postingStages=['관심','준비 중','지원 완료','면접','합격','불합격','지원 취소'];
+const POSTING_TASKS=['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'];
 function jobCollections(){
   if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
   if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
+  state.jobPostings.forEach(p=>{if(p&&!Array.isArray(p.tasks))p.tasks=POSTING_TASKS.map(()=>false);});
 }
 function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
@@ -853,68 +2458,215 @@ function addWatchCompany(){
   if(raw&&!url){toast('http 또는 https 주소를 입력해 주세요.');return;}
   const existing=state.watchCompanies.find(x=>x.name.replace(/\s/g,'')===name.replace(/\s/g,''));
   if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
-  persistState();renderJobHub();toast('관심 회사를 저장했어요.');
+  const saved=persistState();renderJobHub();if(saved)toast('관심 회사를 저장했어요.');
 }
-function removeWatchCompany(id){
+async function removeWatchCompany(id){
+  if(!await uiConfirm('관심 회사에서 뺄까요?',{title:'관심 회사 해제',ok:'빼기',danger:true}))return;
   state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
 }
 function clearPostingForm(){
   ['postingId','postingCompany','postingTitle','postingUrl','postingDeadline','postingRegion','postingNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('postingAlways').checked=false;
   document.getElementById('postingFormTitle').textContent='관심 공고 저장';
 }
-function validDeadline(value){
-  if(!value)return true;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
-  const date=new Date(value+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+/* Fills the posting form from the pasted link. Only EMPTY fields are filled, so nothing the user typed is overwritten. */
+let postingFetchVersion=0;
+function postingSetStatus(message){const el=document.getElementById('postingFetchStatus');if(el)el.textContent=message;}
+function postingFillField(id,value){
+  const el=document.getElementById(id);
+  if(!el||!value||String(el.value||'').trim())return false;
+  el.value=value;return true;
+}
+/* The text that came with a phone share is only a stand-in title: when the link gives a real title, that one wins. */
+let sharedTitleText='';
+function applyPostingInfo(info){
+  const filled=[];
+  const siteName=info.siteName||'';
+  const titleBox=document.getElementById('postingTitle');
+  if(sharedTitleText&&titleBox&&titleBox.value===sharedTitleText&&LifeLogic.cleanTitle(info.title,siteName))titleBox.value='';
+  sharedTitleText='';
+  if(postingFillField('postingTitle',LifeLogic.cleanTitle(info.title,siteName)))filled.push('공고명');
+  if(postingFillField('postingCompany',info.company))filled.push('회사명');
+  if(postingFillField('postingRegion',info.region))filled.push('근무지역');
+  const today=koreaToday();
+  let deadline=info.deadline&&LifeLogic.validDate(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
+  if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
+  let note='';
+  if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';
+  else if(deadline){
+    if(postingFillField('postingDeadline',deadline.date)){filled.push('마감일');if(!deadline.confident)note=' 마감일은 글에서 추정한 값이라 꼭 확인해 주세요.';}
+    else{
+      // The deadline box already has a value: it is kept, but the user is told what the text says.
+      const typed=String(document.getElementById('postingDeadline')?.value||'').trim();
+      note=typed===deadline.date?' 글에 적힌 마감일('+deadline.date+')이 입력한 값과 같아요.':' 글에는 마감일이 '+deadline.date+'로 적혀 있어요. 지금 입력한 값과 달라요.';
+    }
+  }
+  const deadlinePast=Boolean(deadline&&deadline.past);
+  if(!filled.length&&!note)return {found:false,message:'읽었지만 채울 만한 정보를 찾지 못했어요. 직접 입력해 주세요.',deadlinePast};
+  let message=filled.length?'채운 항목: '+filled.join(', ')+'.':'';
+  if(filled.includes('회사명')&&info.companyInferred)message+=' 회사명은 페이지 정보로 추정한 값이에요.';
+  if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
+  return {found:true,message:(message+note+' 내용을 확인해 주세요.').trim(),deadlinePast};
+}
+// AbortSignal.timeout is missing in older browsers, so the timeout is built from AbortController.
+async function fetchWithTimeout(url,ms){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),ms);
+  try{return await fetch(url,{signal:controller.signal});}
+  finally{clearTimeout(timer);}
+}
+async function fillPostingFromUrl(){
+  const url=LifeLogic.cleanPostingUrl(document.getElementById('postingUrl')?.value||'');
+  if(!url){postingSetStatus('먼저 올바른 공고 링크를 입력해 주세요.');return;}
+  const version=++postingFetchVersion;
+  const button=document.getElementById('postingFetch');
+  if(button)button.disabled=true;
+  postingSetStatus('링크를 읽는 중이에요…');
+  try{
+    let response;
+    try{response=await fetchWithTimeout('/.netlify/functions/link-preview?url='+encodeURIComponent(url),15000);}
+    catch(networkError){
+      // Only a failed request (no network, timeout) is shown as an internet problem; other errors are code problems.
+      if(version!==postingFetchVersion)return;
+      postingSetStatus('지금은 링크를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+      return;
+    }
+    const data=await response.json().catch(()=>({}));
+    if(version!==postingFetchVersion)return;
+    if(!response.ok||!data.ok){const failure=new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');failure.friendly=true;throw failure;}
+    const applied=applyPostingInfo(data);
+    let message=applied.message;
+    // A deadline that was found but is already past is explained in the message; do not also say "not found".
+    if(!applied.deadlinePast&&!document.getElementById('postingDeadline')?.value){
+      // Many sites draw the deadline with JavaScript, so a link alone cannot show it. Point to the paste box and open it.
+      message+=' 마감일은 링크에서 찾지 못했어요. 공고 화면의 글을 복사해 아래 "붙여넣기" 칸에 넣으면 찾아 드려요.';
+      const box=document.getElementById('postingPaste')?.closest?.('details');
+      if(box)box.open=true;
+    }
+    postingSetStatus(message);
+  }catch(e){
+    if(version!==postingFetchVersion)return;
+    postingSetStatus(e.friendly&&e.message?e.message:'링크를 읽지 못했어요. 직접 입력해 주세요.');
+  }finally{
+    if(version===postingFetchVersion&&button)button.disabled=false;
+  }
+}
+function fillPostingFromPaste(){
+  const text=document.getElementById('postingPaste')?.value||'';
+  if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
+  const {found,message}=applyPostingInfo({description:text});
+  const linkFilled=postingFillField('postingUrl',LifeLogic.cleanPostingUrl(LifeLogic.firstUrl(text)));
+  if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
+  else postingSetStatus(linkFilled?'글 안의 링크를 채웠어요. 마감일은 찾지 못했으니 직접 입력해 주세요.':'글에서 마감일로 볼 만한 날짜를 찾지 못했어요. 직접 입력해 주세요.');
+}
+/* The phone's Share sheet opens the app as index.html?title=&text=&url= (see share_target in manifest.json). */
+function handleSharedLink(){
+  if(typeof location==='undefined')return false;
+  const shared=LifeLogic.parseShareParams(location.search);
+  if(!shared)return false;
+  shared.url=LifeLogic.cleanPostingUrl(shared.url);
+  if(!shared.url)return false;
+  try{if(typeof history!=='undefined'&&history.replaceState)history.replaceState(history.state||null,'',location.pathname);}catch(e){}
+  jobCollections();
+  go('jobHub');
+  if(state.jobPostings.some(x=>LifeLogic.cleanPostingUrl(x.url)===shared.url)){toast('이미 저장한 공고예요. 아래 목록에서 확인해 주세요.');return true;}
+  const editor=document.getElementById('postingEditor');
+  if(editor)editor.open=true;
+  clearPostingForm();
+  document.getElementById('postingUrl').value=shared.url;
+  sharedTitleText=shared.title||'';
+  if(shared.title)document.getElementById('postingTitle').value=shared.title;
+  toast('공유한 링크를 가져왔어요. 정보를 확인해 주세요.');
+  postingSetStatus('"링크에서 정보 가져오기"를 누르면 회사명과 마감일을 찾아 볼게요.');
+  return true;
 }
 function savePosting(){
   jobCollections();const value=id=>document.getElementById(id).value.trim();
-  const company=value('postingCompany'),title=value('postingTitle'),url=safeUrl(value('postingUrl')),deadline=value('postingDeadline');
+  const alwaysOpen=document.getElementById('postingAlways').checked;
+  const company=value('postingCompany'),title=value('postingTitle'),url=LifeLogic.cleanPostingUrl(value('postingUrl')),deadline=alwaysOpen?'':value('postingDeadline');
   if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
-  if(!validDeadline(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
+  if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
-  if(!existing&&state.jobPostings.some(x=>x.url===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
-  const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
-  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
-  persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();toast('공고와 마감일을 저장했어요.');
+  if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
+  const data={company,title,url,deadline,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes')};
+  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()});
+  const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
   const fields={postingId:p.id,postingCompany:p.company,postingTitle:p.title,postingUrl:p.url,postingDeadline:p.deadline,postingRegion:p.region,postingNotes:p.notes};
   Object.entries(fields).forEach(([id,value])=>document.getElementById(id).value=value||'');
+  document.getElementById('postingAlways').checked=Boolean(p.alwaysOpen);
   document.getElementById('postingEditor').open=true;
   document.getElementById('postingFormTitle').textContent='공고 수정';document.getElementById('postingForm').scrollIntoView({behavior:'smooth'});
 }
-function deletePosting(id){
-  if(!confirm('이 공고와 지원 준비 기록을 삭제할까요?'))return;
+async function deletePosting(id){
+  if(!await uiConfirm('이 공고와 지원 준비 기록을 삭제할까요?',{title:'공고 삭제',ok:'삭제',danger:true}))return;
   state.jobPostings=state.jobPostings.filter(x=>x.id!==id);persistState();renderJobHub();
 }
 function setPostingStage(id,stage){
   const p=state.jobPostings.find(x=>x.id===id);if(!p||!postingStages.includes(stage))return;
-  p.stage=stage;persistState();renderJobHub();
+  if(p.stage!==stage)p.stageChangedAt=koreaToday();
+  p.stage=stage;
+  const saved=persistState();
+  // Redrawing the list closes every card, so remember which ones were open and open them again.
+  const openIds=[...(document.querySelectorAll?.('#savedPostings details[data-posting][open]')||[])].map(d=>d.dataset.posting);
+  renderJobHub();
+  document.querySelectorAll?.('#savedPostings details[data-posting]').forEach(d=>{if(openIds.includes(d.dataset.posting)||d.dataset.posting===id)d.open=true;});
+  if(saved)toast('저장했어요.');
+}
+function postingStageLine(p){
+  if(!p.stageChangedAt||!LifeLogic.validDate(p.stageChangedAt)||['관심','준비 중'].includes(p.stage))return '';
+  const n=Math.round((Date.parse(koreaToday()+'T00:00:00Z')-Date.parse(p.stageChangedAt+'T00:00:00Z'))/86400000);
+  return `<p class="meta">${esc(p.stage)} · ${n<=0?'오늘 바꿨어요':n+'일째'}</p>`;
+}
+/* 카드 겉에 보이는 '지원 상태 · 준비 2/4' 글자 */
+function postingProgressText(p){
+  const done=(Array.isArray(p.tasks)?p.tasks:[]).slice(0,4).filter(x=>x===true).length;
+  return esc(p.stage||'관심')+' · 준비 '+done+'/4';
 }
 function setPostingTask(id,index,checked){
-  const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
+  jobCollections();
+  const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>=POSTING_TASKS.length)return;
   p.tasks[index]=checked;persistState();
+  // 목록을 다시 그리면 펼쳐 둔 칸이 닫히므로, 카드 겉의 글자만 바꾼다.
+  document.querySelectorAll('.posting-progress').forEach(el=>{if(el.dataset.id===id)el.innerHTML=postingProgressText(p);});
 }
 function setInterviewDate(id,value){
-  if(!validDeadline(value)){toast('면접 날짜를 확인해 주세요.');return;}
+  if(value&&!LifeLogic.validDate(value)){toast('면접 날짜를 확인해 주세요.');return;}
   const posting=state.jobPostings.find(x=>x.id===id);if(!posting)return;
-  posting.interviewDate=value;persistState();
+  posting.interviewDate=value;
+  if(persistState())toast('저장했어요.');
 }
-function jobCalendarHTML(){
-  jobCollections();if(!state.jobPostings.length)return '<div class="card"><p>저장한 취업 공고가 없어요.</p><button class="btn secondary" onclick="go(\'jobHub\')">공고 저장하기</button></div>';
-  const today=koreaToday(),active=state.jobPostings.filter(x=>['관심','준비 중'].includes(x.stage));
-  const future=active.filter(x=>x.deadline&&x.deadline>=today).sort((a,b)=>a.deadline.localeCompare(b.deadline));
-  const past=active.filter(x=>x.deadline&&x.deadline<today),unknown=active.filter(x=>!x.deadline);
-  const rows=list=>list.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${p.deadline?esc(fmtDate(p.deadline))+' · '+esc(daysUntil(p.deadline)):'마감일 미정 · 공식 공고 확인 필요'}</p>`).join('');
-  const interviews=state.jobPostings.filter(x=>x.interviewDate&&x.interviewDate>=today&&!['합격','불합격','지원 취소'].includes(x.stage)).sort((a,b)=>a.interviewDate.localeCompare(b.interviewDate));
-  return `<div class="card">${interviews.length?'<h3>다가오는 면접</h3>'+interviews.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${esc(fmtDate(p.interviewDate))}</p>`).join(''):''}<h3>취업 지원 마감</h3>${future.length?rows(future):'<p class="meta">다가오는 지원 마감이 없어요.</p>'}${unknown.length?`<h3>마감일 확인 필요</h3>${rows(unknown)}`:''}${past.length?`<details><summary>마감된 공고 ${past.length}개</summary>${rows(past)}</details>`:''}<p class="meta">지원 완료·면접·결과를 기록한 공고는 지원 마감 목록에서 제외해요.</p><button class="btn secondary" onclick="go('jobHub')">공고 관리</button></div>`;
+function setInterviewTime(id,value){
+  if(value&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)){toast('면접 시간을 확인해 주세요.');return;}
+  const posting=state.jobPostings.find(x=>x.id===id);if(!posting)return;
+  posting.interviewTime=value;persistState();
+}
+/* Display order only (stored order is not changed): open + nearest deadline, open + no deadline,
+   applied/finished, then open postings whose deadline has passed. */
+function postingsForDisplay(){
+  const today=koreaToday();
+  const rank=p=>!['관심','준비 중'].includes(p.stage)?2:!p.deadline?1:p.deadline>=today?0:3;
+  return state.jobPostings.map((p,i)=>({p,i,r:rank(p)}))
+    .sort((a,b)=>a.r-b.r||(a.r===0?a.p.deadline.localeCompare(b.p.deadline):0)||a.i-b.i).map(x=>x.p);
 }
 function renderJobHub(){
   jobCollections();
-  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('');
-  document.getElementById('savedPostings').innerHTML=state.jobPostings.map(p=>`<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):'마감일 미정'}</p><a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`).join('')||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('')||'<div class="card"><p class="meta">아직 관심 회사가 없어요. 위 \'＋ 관심 회사 등록\'에서 추가해 보세요.</p></div>';
+  const today=koreaToday();
+  const shown=postingsForDisplay(),active=shown.filter(p=>!postingIsEnded(p,today)),ended=shown.filter(p=>postingIsEnded(p,today));
+  document.getElementById('savedPostings').innerHTML=active.map(postingCardHTML).join('')+(ended.length?`<details ${endedPostingsOpen?'open':''} ontoggle="endedPostingsOpen=this.open"><summary>끝난 공고 ${ended.length}개 (합격·불합격·지원 취소·마감 지남)</summary><div class="stack">${ended.map(postingCardHTML).join('')}</div></details>`:'')
+    ||'<div class="card"><p class="meta">공고 링크를 저장하면 준비 체크리스트와 마감일을 함께 관리할 수 있어요.</p></div>';
+}
+/* 끝난 공고: 결과가 나온 공고, 또는 아직 지원하지 않았는데 마감이 지난 공고. 화면에서 나누기만 하고 데이터는 그대로 둔다. */
+let endedPostingsOpen=false;
+function postingIsEnded(p,today){
+  if(['합격','불합격','지원 취소'].includes(p.stage))return true;
+  return ['관심','준비 중'].includes(p.stage||'관심')&&Boolean(p.deadline)&&p.deadline<today;
+}
+function postingCardHTML(p){
+  return `<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(fmtDate(p.deadline))+' '+esc(daysUntil(p.deadline)):p.alwaysOpen?'상시채용':'마감일 미정'} · <span class="posting-progress" data-id="${esc(p.id)}">${postingProgressText(p)}</span></p>${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><label>면접 시간 (선택)<input type="time" value="${esc(p.interviewTime||'')}" data-id="${esc(p.id)}" onchange="setInterviewTime(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`;
 }
 
 function esc(s){
@@ -933,23 +2685,36 @@ function daysUntil(s){
   const t=String(s||'').replace(/\D/g,'');
   if(t.length!==8)return '';
   const iso=`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`;
-  if(!validDeadline(iso))return '';
+  if(!LifeLogic.validDate(iso))return '';
   const n=Math.round((Date.parse(iso+'T00:00:00Z')-Date.parse(koreaToday()+'T00:00:00Z'))/86400000);
   return n<0?'마감':n===0?'오늘 마감':`D-${n}`;
+}
+let liveJobsController;
+let liveJobsRequestVersion=0;
+function defaultLiveJobKeyword(){
+  return ([state.selectedCompany,state.selectedJob].filter(Boolean).join(' ') || state.parsedGoal?.raw || state.mainGoal || '').trim();
 }
 async function loadLiveJobs(){
   const status=document.getElementById('liveJobStatus');
   const box=document.getElementById('liveJobResults');
   if(!status||!box) return;
-  const keyword=[state.selectedCompany,state.selectedJob].filter(Boolean).join(' ') || state.parsedGoal?.raw || state.mainGoal || '';
+  const input=document.getElementById('liveJobKeyword');
+  const keyword=((input?.value||'').trim()||defaultLiveJobKeyword());
+  const version=++liveJobsRequestVersion;
+  liveJobsController?.abort();
+  liveJobsController=new AbortController();
+  if(!keyword||keyword.length>100){
+    status.innerHTML='<strong>검색어를 확인해 주세요.</strong><p class="meta">회사 또는 관심 직무를 1~100자로 설정해 주세요.</p>';
+    box.innerHTML='';
+    return;
+  }
   status.innerHTML=`<strong>⏳ 고용24에서 찾는 중…</strong><p class="meta">검색어: ${esc(keyword)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`);
-    const data=await r.json();
-    if(!r.ok) throw new Error(data.message||'채용정보를 불러오지 못했어요.');
+    const data=await fetchJson(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,liveJobsController.signal);
+    if(version!==liveJobsRequestVersion) return;
     if(!data.items?.length){
-      status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
+      status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><p class="meta">검색어: ${esc(keyword)}</p><p class="meta">위 검색어 칸을 회사명이나 직무로 고쳐서 다시 조회해 보세요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
       return;
     }
     status.innerHTML=`<strong>🟢 고용24 실제 데이터</strong><p class="meta">${esc(data.source)} · ${data.items.length}건 확인</p>`;
@@ -964,7 +2729,14 @@ async function loadLiveJobs(){
       </div>`).join('')
     }</div>`;
   }catch(e){
-    status.innerHTML=`<strong>🟡 실데이터 연결 대기</strong><p class="meta">${esc(e.message)}</p><p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
+    if(version!==liveJobsRequestVersion||e.name==='AbortError') return;
+    if(e.name==='TimeoutError'){
+      status.innerHTML=`<strong>🟡 ${SLOW_CONNECTION_MESSAGE}</strong><p class="meta">고용24에서 15초 안에 답이 오지 않았어요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
+      return;
+    }
+    // The environment-variable hint only makes sense when the server says the key is missing (503).
+    const keyMissing=e.serverStatus===503;
+    status.innerHTML=`<strong>🟡 ${isNetworkError(e)?'인터넷 연결이 필요해요':'실데이터 연결 대기'}</strong><p class="meta">${esc(friendlyErrorMessage(e,'채용정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'))}</p>${keyMissing?'<p class="meta">Netlify 환경변수 WORK24_AUTH_KEY가 설정되어 있어야 해요.</p>':''}<button class="btn secondary" onclick="loadLiveJobs()">다시 시도</button>`;
   }
 }
 function certQueryName(){
@@ -972,14 +2744,43 @@ function certQueryName(){
   const raw=state.mainGoal||'';
   return raw.replace(/취득|준비|목표|자격증/g,' ').replace(/\s+/g,' ').trim();
 }
+// A lookup is only stored as the saved official schedule when it is for the goal's own certificate
+// (and not an older year, nor a later year that would hide the upcoming dates already saved).
+let lastCertLookup=null;
+function certNameKey(s){return String(s||'').replace(/\s+/g,'');}
+function isGoalCertSchedule(data,year){
+  if(state.goalType!=='cert') return false;
+  const goal=certNameKey(certQueryName()), got=certNameKey(data?.qualification?.name);
+  if(!goal||!got||!(goal===got||got.includes(goal)||goal.includes(got))) return false;
+  const today=koreaToday(), thisYear=Number(today.slice(0,4));
+  if(Number(year)<thisYear) return false;
+  if(Number(year)>thisYear){
+    const kept=(Array.isArray(state.certSchedule?.rounds)?state.certSchedule.rounds:[]).some(r=>(r.events||[]).some(e=>e.startDate&&e.startDate>=today));
+    if(kept) return false;
+  }
+  return true;
+}
 function startCertGoal(){
   const name=document.getElementById('certSearchInput').value.trim();
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
-  const schedule=state.certSchedule;
-  if(state.mainGoal!==name+' 준비') resetGoalProgress();
-  if(schedule?.qualification?.name===name) state.certSchedule=schedule;
-  state.goalType='cert';state.mainGoal=name+' 준비';state.parsedGoal=inferGoal(state.mainGoal);
-  persistState();toast('취득 준비 목표를 만들었어요.');go('goals');
+  const title=name+' 준비';
+  const lookup=lastCertLookup; // the reset below clears it, so keep the result that was just looked up
+  const same=LifeLogic.findGoalByTitle(state,title,newJobId);
+  let message='취득 준비 목표를 만들었어요.';
+  if(same){ // already a goal: use it instead of making a copy
+    if(!same.active)LifeLogic.switchGoal(state,newJobId,same.id);
+    message='이미 있는 목표라서 그 목표로 바꿨어요.';
+  }else{
+    if(state.mainGoal){
+      if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 만들어 주세요.');return;}
+      LifeLogic.parkActiveGoal(state,newJobId); // the goal in use stays, as one of the goals
+    }
+    resetGoalProgress();
+    state.goalType='cert';state.mainGoal=title;state.parsedGoal=inferGoal(state.mainGoal);
+    message='취득 준비 목표를 추가했어요.';
+  }
+  if(lookup&&isGoalCertSchedule(lookup.data,lookup.year)) state.certSchedule={...lookup.data,fetchedAt:lookup.fetchedAt};
+  persistState();toast(message);go('goals');
 }
 function saveFavoriteCert(){
   const input=document.getElementById('certSearchInput');
@@ -992,11 +2793,21 @@ function saveFavoriteCert(){
 function openFavoriteCert(button){
   go('cert');chooseCert(button);
 }
-function removeFavoriteCert(code){
+async function removeFavoriteCert(code){
+  if(!await uiConfirm('관심 자격증에서 뺄까요?',{title:'관심 자격증 해제',ok:'빼기',danger:true}))return;
   state.favoriteCerts=(state.favoriteCerts||[]).filter(x=>x.code!==code);persistState();renderMy();
 }
 function favoriteCertHTML(){
   return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" onclick="removeFavoriteCert(this.dataset.code)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
+}
+function certRoundsHTML(data){
+  return `<div class="section-title">실제 시험일정</div><div class="stack">${(
+    data.rounds||[]).map(round=>`
+    <div class="card">
+      <h3>${esc(round.round)}</h3>
+      ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
+    </div>`).join('')
+  }</div>`;
 }
 function initCertSearch(){
   const year=document.getElementById('certYear');
@@ -1006,17 +2817,61 @@ function initCertSearch(){
   }
   const input=document.getElementById('certSearchInput');
   if(!input.value) input.value=certQueryName();
+  // A schedule already looked up (or saved on this phone) is shown first, without asking the server again.
+  const want=certNameKey(input.value);
+  const known=[lastCertLookup&&{data:lastCertLookup.data,fetchedAt:lastCertLookup.fetchedAt},state.certSchedule&&{data:state.certSchedule,fetchedAt:state.certSchedule.fetchedAt}]
+    .find(x=>{const got=x&&certNameKey(x.data?.qualification?.name);return want&&got&&(want===got||got.includes(want)||want.includes(got));});
+  if(known){
+    const status=document.getElementById('liveCertStatus'),box=document.getElementById('liveCertResults');
+    const when=known.fetchedAt?String(known.fetchedAt).slice(0,10):'';
+    if(known.data.year&&[...year.options].some(o=>o.value===String(known.data.year))) year.value=String(known.data.year);
+    status.innerHTML=`<strong>📦 저장된 일정${when?` · 조회일 ${esc(when)}`:''}</strong><p class="meta">${esc(known.data.qualification.name)} · 종목코드 ${esc(known.data.qualification.code||'')}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">최신 일정 다시 조회</button>`;
+    box.innerHTML=known.data.items?.length?certRoundsHTML(known.data):'';
+    document.getElementById('certSearchMatches').innerHTML='';
+    return;
+  }
   if(input.value) searchCertNames();
 }
+const SLOW_CONNECTION_MESSAGE='연결이 느려요. 다시 시도해 주세요.';
+// Gives up after 15 seconds; a manual cancel (the optional signal) still works and is told apart by its AbortError name.
+function withTimeout(signal){
+  const timeout=AbortSignal.timeout(15000);
+  return signal?AbortSignal.any([signal,timeout]):timeout;
+}
+
+/* Browsers give English errors like "Failed to fetch" / "Load failed" when offline; show plain Korean instead. */
+function isNetworkError(e){return ['TypeError','AbortError','TimeoutError'].includes(e?.name);}
+function friendlyErrorMessage(e,fallback){
+  if(e?.name==='TimeoutError')return SLOW_CONNECTION_MESSAGE;
+  if(isNetworkError(e))return '인터넷 연결을 확인하고 다시 시도해 주세요.';
+  return /[가-힣]/.test(e?.message||'')?e.message:fallback;
+}
 async function fetchJson(url,signal){
-  const r=await fetch(url,{signal});
+  let r;
+  try{r=await fetch(url,{signal:withTimeout(signal)});}
+  catch(e){
+    if(e.name==='TimeoutError')throw new Error(SLOW_CONNECTION_MESSAGE);
+    if(e.name==='AbortError')throw e;
+    throw new Error('인터넷 연결을 확인하고 다시 시도해 주세요.');
+  }
   let data;
-  try{data=await r.json();}catch{throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');}
-  if(!r.ok) throw new Error(data.message||'정보를 불러오지 못했어요.');
+  try{data=await r.json();}catch(e){
+    if(e.name==='TimeoutError')throw new Error(SLOW_CONNECTION_MESSAGE);
+    if(e.name==='AbortError')throw e;
+    throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  if(!r.ok){const err=new Error(data.message||'정보를 불러오지 못했어요.');err.serverStatus=r.status;throw err;}
   return data;
 }
 let certSearchTimer, certSearchController, certScheduleController;
 let certSearchVersion=0, certScheduleVersion=0;
+// Cancels any running certificate search/schedule request and clears the search box (used when the goal changes).
+function resetCertSearch(){
+  ++certSearchVersion;++certScheduleVersion;
+  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
+  const input=document.getElementById('certSearchInput');
+  if(input){input.value='';input.dataset.code='';}
+}
 async function searchCertNames(){
   const input=document.getElementById('certSearchInput');
   const matches=document.getElementById('certSearchMatches');
@@ -1040,7 +2895,7 @@ async function searchCertNames(){
       matches.innerHTML=data.items?.length?data.items.map(x=>`
         <button type="button" class="btn ghost" style="display:block;width:100%;text-align:left;margin-top:6px" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="chooseCert(this)">${esc(x.name)} <span class="meta">· ${esc(x.code)}</span></button>`).join(''):
         '<p class="meta">검색 결과가 없어요. 정확한 자격증 이름을 입력해 확인할 수도 있어요.</p>';
-    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(e.message)}</p>`;}
+    }catch(e){if(version===certSearchVersion&&e.name!=='AbortError') matches.innerHTML=`<p class="meta">${esc(friendlyErrorMessage(e,'종목을 검색하지 못했어요. 잠시 후 다시 시도해 주세요.'))}</p><button type="button" class="btn secondary" onclick="searchCertNames()">다시 시도</button>`;}
   },350);
 }
 function chooseCert(button){
@@ -1073,45 +2928,37 @@ async function loadLiveCertSchedule(){
   try{
     const data=await fetchJson(`/.netlify/functions/qnet-schedule?name=${encodeURIComponent(name)}&year=${year}${code?`&code=${encodeURIComponent(code)}`:''}`,certScheduleController.signal);
     if(version!==certScheduleVersion) return;
-    state.certSchedule={...data,fetchedAt:new Date().toISOString()};
-    persistState();
+    lastCertLookup={data,year,fetchedAt:new Date().toISOString()};
+    if(isGoalCertSchedule(data,year)){
+      const {items:_items,...savedData}=data; // only `rounds` is saved; the flat list is rebuilt from it
+      state.certSchedule={...savedData,fetchedAt:lastCertLookup.fetchedAt};
+      persistState();
+    }
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
-      box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
+      box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">${esc(data.message||'시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.')}</p><p class="meta">다른 연도를 골라 다시 확인해 보세요.</p></div>`;
       return;
     }
-    box.innerHTML=`<div class="section-title">실제 시험일정</div><div class="stack">${(
-      data.rounds||[]).map(round=>`
-      <div class="card">
-        <h3>${esc(round.round)}</h3>
-        ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
-      </div>`).join('')
-    }</div>`;
+    box.innerHTML=certRoundsHTML(data);
   }catch(e){
     if(version!==certScheduleVersion||e.name==='AbortError') return;
-    status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(e.message)}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
+    status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(friendlyErrorMessage(e,'잠시 후 다시 시도해 주세요.'))}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
   }
 }
 
-function syncJobDetail(){
-  const title=document.querySelector('#jobDetail h2');
-  if(title){
-    const company=state.selectedCompany || (state.parsedGoal?.raw ? '추천 회사' : '관심 회사');
-    const job=state.selectedJob || (state.parsedGoal?.intent==='이직' ? '이직 후보 직무' : '관심 직무');
-    title.textContent=`💼 ${company} · ${job} 채용 예시`;
-  }
-  const prepareGoal=document.querySelector('#prepare .card p');
-  if(prepareGoal) prepareGoal.textContent=`${state.selectedCompany||'관심 회사'} ${state.selectedJob||'관심 직무'} 지원`;
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
+// Offline support and installable app: the service worker only runs on https or localhost.
+if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
+  watchAppUpdates(navigator.serviceWorker);
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(registration=>{swRegistration=registration;}).catch(()=>{});});
 }
-
-const _go=go;
-go=function(id){
-  if(['jobDetail','prepare'].includes(id)) id='jobHub';
-  _go(id);
-};
-
-if(state.mainGoal) go('home');
+focusRestore();
+if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
+else if(state.mainGoal)go('home');
 else renderHome();
+if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
+handleSharedLink();
+if(startupNotice)setTimeout(()=>toast(startupNotice,startupNoticeMs),600);
 </script>
 </body>
 </html>

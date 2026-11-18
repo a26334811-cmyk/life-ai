@@ -1,0 +1,284 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const root=path.join(__dirname,'..');
+const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const manifest=JSON.parse(read('manifest.json'));
+const html=read('index.html');
+
+function pngSize(file){
+  const buf=fs.readFileSync(path.join(root,file));
+  assert.equal(buf.slice(1,4).toString('ascii'),'PNG',file+' is a PNG');
+  return [buf.readUInt32BE(16),buf.readUInt32BE(20)];
+}
+
+test('manifest has installable icons whose real sizes match what it declares',()=>{
+  assert.equal(manifest.short_name,'life-ai');
+  assert.equal(manifest.display,'standalone');
+  assert.ok(manifest.icons.some(i=>i.purpose==='maskable'),'maskable icon');
+  for(const icon of manifest.icons){
+    const [w,h]=icon.sizes.split('x').map(Number);
+    assert.deepEqual(pngSize(icon.src),[w,h],icon.src);
+  }
+  assert.ok(manifest.icons.some(i=>i.sizes==='192x192')&&manifest.icons.some(i=>i.sizes==='512x512'));
+  assert.deepEqual(pngSize('icons/apple-touch-icon.png'),[180,180]);
+});
+
+test('theme color is the same in the page and the manifest',()=>{
+  const meta=html.match(/<meta name="theme-color" content="([^"]+)"/)[1];
+  assert.equal(meta,manifest.theme_color);
+});
+
+test('page links the manifest, icons and registers the service worker only on https/localhost',()=>{
+  assert.match(html,/<link rel="manifest" href="manifest\.json"/);
+  assert.match(html,/rel="apple-touch-icon" href="icons\/apple-touch-icon\.png"/);
+  assert.match(html,/navigator\.serviceWorker\.register\('sw\.js'\)/);
+  assert.match(html,/location\.protocol==='https:'\|\|location\.hostname==='localhost'/);
+});
+
+// arg: a list of URLs whose saving fails, or a replacement fetch function
+function loadWorker(arg){
+  const failing=Array.isArray(arg)?arg:[];
+  const fetchImpl=typeof arg==='function'?arg:undefined;
+  const handlers={};
+  const timers=[];
+  const cache=new Map();
+  const added=[];
+  const save=async url=>{if(failing.includes(url))throw new Error('network '+url);added.push(url);cache.set(url,{url});};
+  const deleted=[];
+  const state={claimed:false};
+  const self={location:{origin:'https://app.example'},addEventListener:(type,fn)=>{handlers[type]=fn;},clients:{claim:async()=>{state.claimed=true;},matchAll:async()=>self.__clients,openWindow:async url=>{self.__opened=url;}},skipWaiting:async()=>{}};
+  const caches={
+    open:async()=>({add:save,addAll:async urls=>{for(const url of urls)if(failing.includes(url))throw new Error('network '+url);for(const url of urls)await save(url);},put:async(req,res)=>{cache.set(req.url,res);}}),
+    match:async(req)=>{const key=typeof req==='string'?req:req.url;return cache.get(key)||cache.get(key.replace('https://app.example/',''))||null;},
+    keys:async()=>['old-cache',(read('sw.js').match(/const CACHE\s*=\s*'([^']+)'/)||[])[1]],
+    delete:async name=>{deleted.push(name);return true;}
+  };
+  const context={self,caches,URL,Response:{error:()=>'ERR'},fetch:fetchImpl||(async()=>{throw new Error('offline');}),
+    setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},
+    clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}};
+  vm.createContext(context);
+  vm.runInContext(read('sw.js'),context);
+  const fire=()=>timers.filter(t=>t.live).forEach(t=>{t.live=false;t.fn();});
+  return {handlers,cache,added,deleted,state,self,context,timers,fire};
+}
+
+test('service worker activation deletes only old caches and takes over open pages',async()=>{
+  const sw=loadWorker();
+  let finished;
+  sw.handlers.activate({waitUntil:p=>{finished=p;}});
+  await finished;
+  assert.deepEqual(sw.deleted,['old-cache']);
+  assert.equal(sw.state.claimed,true);
+});
+
+test('service worker caches every file it lists and those files exist',async()=>{
+  const sw=loadWorker();
+  let finished;
+  sw.handlers.install({waitUntil:p=>{finished=p;}});
+  await finished;
+  assert.ok(sw.added.length>=6);
+  for(const url of sw.added){
+    if(url==='./')continue;
+    assert.ok(fs.existsSync(path.join(root,url)),url+' exists');
+  }
+  assert.ok(sw.added.includes('logic.js'),'logic.js is needed offline');
+  assert.ok(sw.added.includes('manifest.json'));
+  for(const icon of manifest.icons)assert.ok(sw.added.includes(icon.src),icon.src+' (declared in the manifest) is kept for offline use');
+});
+
+test('install fails (so it is retried) when a core file cannot be saved, but not when only an icon fails',async()=>{
+  for(const core of ['index.html','logic.js','manifest.json']){
+    const sw=loadWorker([core]);
+    let finished;
+    sw.handlers.install({waitUntil:p=>{finished=p;}});
+    await assert.rejects(finished,new RegExp(core.replace('.','\\.')),core+' failing must fail the install');
+  }
+  const sw=loadWorker(['icons/icon-512.png','icons/icon-maskable-512.png']);
+  let finished;
+  sw.handlers.install({waitUntil:p=>{finished=p;}});
+  await finished;
+  assert.ok(sw.added.includes('index.html')&&sw.added.includes('logic.js'));
+  assert.ok(!sw.added.includes('icons/icon-512.png'));
+});
+
+test('service worker ignores live data requests and other origins',()=>{
+  const sw=loadWorker();
+  const call=url=>{let handled=false;sw.handlers.fetch({request:{method:'GET',url,mode:'cors'},respondWith:()=>{handled=true;},waitUntil(){}});return handled;};
+  assert.equal(call('https://app.example/.netlify/functions/qnet-schedule?name=x'),false);
+  assert.equal(call('https://other.example/index.html'),false);
+  assert.equal(call('https://app.example/index.html'),true);
+  let postHandled=false;
+  sw.handlers.fetch({request:{method:'POST',url:'https://app.example/index.html'},respondWith:()=>{postHandled=true;}});
+  assert.equal(postHandled,false);
+});
+
+test('service worker never stores addresses with a query (shared job links) and drops the old cache',async()=>{
+  const sw=loadWorker();
+  const stored=[];
+  sw.context.caches.open=async()=>({put:async(req)=>{stored.push(req.url);}});
+  sw.context.fetch=async()=>({ok:true,type:'basic',clone(){return this;}});
+  const call=async url=>{let p;sw.handlers.fetch({request:{method:'GET',url,mode:'navigate'},waitUntil:()=>{},respondWith:x=>{p=x;}});await p;await new Promise(r=>setImmediate(r));};
+  await call('https://app.example/index.html?title=a&url=https%3A%2F%2Fjob.example%2F1');
+  assert.deepEqual(stored,[]);
+  await call('https://app.example/index.html');
+  assert.deepEqual(stored,['https://app.example/index.html']);
+  const deleted=[];
+  sw.context.caches.keys=async()=>['life-ai-shell-v1','life-ai-shell-v2'];
+  sw.context.caches.delete=async k=>{deleted.push(k);return true;};
+  let wait;
+  sw.handlers.activate({waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.deepEqual(deleted,['life-ai-shell-v1']);
+});
+
+test('service worker opens the cached app when offline',async()=>{
+  const sw=loadWorker();
+  sw.cache.set('index.html',{marker:'cached-index'});
+  let response;
+  sw.handlers.fetch({request:{method:'GET',url:'https://app.example/some/page',mode:'navigate'},respondWith:p=>{response=p;},waitUntil(){}});
+  assert.deepEqual(await response,{marker:'cached-index'});
+});
+
+const swEvent=(url,mode='cors')=>{const e={request:{method:'GET',url,mode},waitUntil(){}};e.respondWith=p=>{e.response=p;};return e;};
+const okPage=(text)=>({ok:true,type:'basic',text,clone(){return {text};}});
+
+test('service worker shows the saved copy after 3 seconds on a weak signal, and still refreshes the cache in the background',async()=>{
+  let finish;
+  const sw=loadWorker(()=>new Promise(resolve=>{finish=resolve;}));
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.equal(sw.timers[0].ms,3000);
+  let shown;e.response.then(r=>{shown=r;});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(shown,undefined,'still waiting for the network before the time limit');
+  sw.fire();
+  assert.deepEqual(await e.response,{marker:'old-copy'});
+  finish(okPage('new-copy'));
+  await new Promise(r=>setImmediate(r));
+  assert.equal(sw.cache.get('https://app.example/index.html').text,'new-copy','the late download is saved for next time');
+});
+
+test('service worker uses the network answer when it arrives in time',async()=>{
+  const sw=loadWorker(async()=>okPage('fresh'));
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.equal((await e.response).text,'fresh');
+  assert.equal(sw.timers.filter(t=>t.live).length,0,'timer is cleared');
+});
+
+test('service worker keeps waiting for the network when it is slow but nothing is saved',async()=>{
+  let finish;
+  const sw=loadWorker(()=>new Promise(resolve=>{finish=resolve;}));
+  const e=swEvent('https://app.example/other.png');
+  sw.handlers.fetch(e);
+  sw.fire();
+  finish(okPage('late'));
+  assert.equal((await e.response).text,'late');
+});
+
+test('service worker falls back to the saved copy immediately when the network fails',async()=>{
+  const sw=loadWorker(async()=>{throw new Error('offline');});
+  sw.cache.set('https://app.example/index.html',{marker:'old-copy'});
+  const e=swEvent('https://app.example/index.html');
+  sw.handlers.fetch(e);
+  assert.deepEqual(await e.response,{marker:'old-copy'});
+  const none=swEvent('https://app.example/missing.png');
+  sw.handlers.fetch(none);
+  assert.equal(await none.response,'ERR');
+});
+
+test('when the server answers with an error the saved copy is used; the error is shown only when nothing is saved',async()=>{
+  const serve=async(status,url,mode,saved)=>{
+    const bad={ok:false,status,type:'basic',marker:'server-error-'+status};
+    const sw=loadWorker(async()=>bad);
+    for(const [key,value] of Object.entries(saved||{}))sw.cache.set(key,value);
+    let response;
+    sw.handlers.fetch({request:{method:'GET',url,mode},waitUntil(){},respondWith:p=>{response=p;}});
+    return response;
+  };
+  assert.deepEqual(await serve(503,'https://app.example/logic.js','no-cors',{'https://app.example/logic.js':{marker:'cached-logic'}}),{marker:'cached-logic'});
+  assert.deepEqual(await serve(404,'https://app.example/logic.js','no-cors',{'https://app.example/logic.js':{marker:'cached-logic'}}),{marker:'cached-logic'});
+  assert.deepEqual(await serve(502,'https://app.example/','navigate',{'index.html':{marker:'cached-index'}}),{marker:'cached-index'});
+  assert.equal((await serve(503,'https://app.example/logic.js','no-cors',{})).marker,'server-error-503','no saved copy: the error response is passed through');
+  // a healthy answer is still returned as is and saved
+  const sw=loadWorker(async()=>({ok:true,status:200,type:'basic',clone(){return this;},marker:'fresh'}));
+  let response;
+  sw.handlers.fetch({request:{method:'GET',url:'https://app.example/logic.js',mode:'no-cors'},waitUntil(){},respondWith:p=>{response=p;}});
+  assert.equal((await response).marker,'fresh');
+});
+
+test('tapping the notification focuses an open window or opens the calendar',async()=>{
+  const sw=loadWorker();
+  let focused=false,closed=false,wait;
+  sw.self.__clients=[{focus:async()=>{focused=true;}}];
+  sw.handlers.notificationclick({notification:{close:()=>{closed=true;}},waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.ok(closed&&focused);
+  const none=loadWorker();none.self.__clients=[];
+  none.handlers.notificationclick({notification:{close(){}},waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.equal(none.self.__opened,'./index.html?screen=calendar');
+});
+
+test('manifest lets the phone Share sheet send a link to the app (GET with title, text, url)',()=>{
+  const target=manifest.share_target;
+  assert.ok(target,'share_target');
+  assert.equal(target.method,'GET');
+  assert.equal(target.action,'./index.html');
+  assert.deepEqual(target.params,{title:'title',text:'text',url:'url'});
+  assert.match(html,/function handleSharedLink\(\)/);
+});
+
+test('small buttons on home, the planner tabs, habit delete and the backup reminder are at least 44px tall',()=>{
+  const css=html.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m=>({selector:m[1].trim(),body:m[2]}));
+  const last=(selector,prop)=>rules.filter(r=>r.selector.split(',').map(s=>s.trim()).includes(selector))
+    .map(r=>r.body.match(new RegExp('(?:^|;)\\s*'+prop+':(\\d+)px'))).filter(Boolean).map(m=>Number(m[1])).pop();
+  for(const selector of ['.dashboard-panel .btn','.planner-tabbar button','.habit-row .habit-remove','.backup-nudge .btn']){
+    assert.ok(last(selector,'min-height')>=44,selector+' has min-height of at least 44px (last rule wins)');
+  }
+  assert.ok(last('.habit-row .habit-remove','min-width')>=44);
+  assert.ok(last('.backup-nudge .btn','min-width')>=44);
+  assert.ok(last('.habit-row','gap')>=16,'habit delete is spaced away from the habit name');
+});
+
+test('share target declares its encoding so Chrome reports no manifest warnings',()=>{
+  assert.equal(manifest.share_target.enctype,'application/x-www-form-urlencoded');
+});
+
+test('certificate screen (real Q-Net data) has no DEMO tag, while the example policy screen keeps it',()=>{
+  const section=id=>html.match(new RegExp('<section id="'+id+'" class="screen">[\\s\\S]*?</section>'))[0];
+  assert.doesNotMatch(section('cert'),/DEMO/);
+  assert.match(section('policy'),/DEMO/);
+});
+
+test('README and the PR draft say the company name can be a marked guess from the page author',()=>{
+  for(const f of ['README.txt','docs/통합-PR-정리안.md']){
+    assert.match(read(f),/작성자[^\n]*추정/,f+' mentions the author-based company guess');
+  }
+  assert.match(html,/info\.companyInferred/,'the app still marks guessed company names');
+});
+
+test('bottom menu bar has an opaque background and no blur effect',()=>{
+  const rules=[...html.matchAll(/\.bottomnav\{([^}]*)\}/g)].map(m=>m[1]);
+  assert.ok(rules.length>0);
+  for(const body of rules){
+    assert.doesNotMatch(body,/backdrop-filter:\s*blur/);
+    assert.doesNotMatch(body,/background:\s*rgba/);
+  }
+});
+
+test('netlify.toml sends basic security headers for every page',()=>{
+  const block=read('netlify.toml').split('[[headers]]').find(b=>b.includes('for = "/*"'));
+  assert.ok(block,'a headers block for /*');
+  assert.match(block,/X-Content-Type-Options = "nosniff"/);
+  assert.match(block,/Referrer-Policy = "strict-origin-when-cross-origin"/);
+  const csp=block.match(/Content-Security-Policy = "([^"]+)"/)[1];
+  for(const rule of ["frame-ancestors 'none'","object-src 'none'","base-uri 'self'","connect-src 'self'"]) assert.ok(csp.includes(rule),rule);
+  assert.ok(!/script-src|default-src/.test(csp),'inline scripts must keep working');
+});
