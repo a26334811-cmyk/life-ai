@@ -32,6 +32,29 @@ test('집중 기록 정리 안내는 6초 이상 보여 준다',()=>{
   assert.ok(i>=0);
   assert.ok(a.toastMinMs[i]>=6000);
 });
+/* ---------- '오늘' 탭의 남은 습관 (#173) ---------- */
+test('오늘 탭에 아직 안 한 습관만 체크박스로 보이고, 체크하면 기존 habitToggle로 저장된다',()=>{
+  const a=createApp();
+  a.run("state.habits=[{id:'h1',name:'공부 30분',checks:[]},{id:'h2',name:'스트레칭',checks:[koreaToday()]}]");
+  const html=a.run('todayHabitsHTML()');
+  assert.match(html,/오늘 남은 습관 1개/);
+  assert.match(html,/공부 30분/);
+  assert.doesNotMatch(html,/스트레칭/);
+  assert.match(html,/data-id=\"h1\" onchange=\"habitToggle\(this\.dataset\.id,'2026-05-10'\)/);
+  assert.match(a.run('plannerFocusHTML()+todayHabitsHTML()'),/habitToggle/);
+  a.run("habitToggle('h1',koreaToday())");
+  assert.ok(a.saved().habits[0].checks.includes(a.run('koreaToday()')));
+  assert.match(a.run('todayHabitsHTML()'),/모두 해냈어요/);
+  assert.doesNotMatch(a.run('todayHabitsHTML()'),/checkbox/);
+});
+test('습관이 하나도 없으면 오늘 탭에 습관 카드를 만들지 않는다',()=>{
+  const a=createApp();
+  assert.equal(a.run('todayHabitsHTML()'),'');
+});
+test('오늘 탭 화면에 남은 습관 카드가 들어간다',()=>{
+  assert.match(require('./helpers/app-harness.js').script,/data-tab="today"[\s\S]*?plannerFocusHTML\(\)\}[\s\S]*?\$\{todayHabitsHTML\(\)\}\s*\$\{focusPanelHTML\(\)/);
+});
+
 /* ---------- 알림 설정은 켜져 있는데 브라우저에서 막힌 경우 (#171) ---------- */
 const savedNotifyOn=()=>{
   const a=createApp();
