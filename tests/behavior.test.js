@@ -344,6 +344,14 @@ test('resetting goal progress cancels a pending certificate search and clears th
   assert.equal(a.run('state.certSchedule'),null);
 });
 
+test('the storage names are unchanged and written only through the constants',()=>{
+  const a=createApp();
+  assert.equal(a.run('STORAGE_KEY'),'lifeAIPrototypeV5');
+  assert.equal(a.run('DAMAGED_KEY'),'lifeAIPrototypeV5.damaged');
+  const html=require('node:fs').readFileSync(require('node:path').join(__dirname,'..','index.html'),'utf8');
+  assert.equal(html.split('lifeAIPrototypeV5').length-1,1,'the key text must appear only in the constant');
+});
+
 test('koreaToday follows the clock and uses the shared Korea date rule',()=>{
   const a=createApp(undefined,{now:Date.parse('2026-05-10T14:59:00Z')});
   assert.equal(a.run('koreaToday()'),'2026-05-10');

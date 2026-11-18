@@ -611,6 +611,8 @@ h3{font-size:16px;line-height:1.4}
 <script src="logic.js"></script>
 <script>
 
+const STORAGE_KEY='lifeAIPrototypeV5';
+const DAMAGED_KEY=STORAGE_KEY+'.damaged';
 const WEEKDAYS_SHORT=['일','월','화','수','목','금','토'];
 const WEEKDAYS_LONG=WEEKDAYS_SHORT.map(d=>d+'요일');
 // Day of the week (0 = Sunday) for a 'YYYY-MM-DD' date.
@@ -637,7 +639,7 @@ const state = {
 let savedState;
 let startupNotice='';
 /* Damaged originals are kept under a dated name and never overwrite an earlier one. Returns true only if the original is really stored. */
-const DAMAGED_PREFIX='lifeAIPrototypeV5.damaged';
+const DAMAGED_PREFIX=DAMAGED_KEY;
 function archiveDamagedState(raw){
   try{
     if(localStorage.getItem(DAMAGED_PREFIX)===raw) return true;
@@ -676,7 +678,7 @@ function downloadDamagedState(){
   }catch(e){toast('원본 파일을 만들지 못했어요.');}
 }
 let startupNoticeMs=0;
-try { savedState=localStorage.getItem('lifeAIPrototypeV5'); } catch(e) {}
+try { savedState=localStorage.getItem(STORAGE_KEY); } catch(e) {}
 if(savedState){
   let parsedSaved=null;
   try { parsedSaved=JSON.parse(savedState); } catch(e) {}
@@ -706,7 +708,7 @@ let lifeAIRestoring=false;
 function persistState(){
   if(lifeAIRestoring)return false;
   try {
-    localStorage.setItem('lifeAIPrototypeV5', JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     lifeAISaveWarningShown=false;
     const banner=document.getElementById('saveFailBanner');
     if(banner)banner.hidden=true;
@@ -726,7 +728,7 @@ function persistState(){
    overwrite them on its next save, so it re-reads everything from storage instead of keeping stale data. */
 let lifeAIReloadingForStorage=false;
 function onStateStorageEvent(event){
-  if(!event||(event.key!==null&&event.key!=='lifeAIPrototypeV5'))return;
+  if(!event||(event.key!==null&&event.key!==STORAGE_KEY))return;
   if(event.key!==null&&event.newValue===event.oldValue)return;
   if(lifeAIReloadingForStorage)return;
   lifeAIReloadingForStorage=true;
@@ -953,26 +955,26 @@ async function importLifeAIBackup(input){
     if(!await uiConfirm('현재 저장된 목표·일정·지원 기록을 백업 파일의 내용으로 교체할까요?\n기존 데이터는 덮어써집니다.',{title:'백업 복원',ok:'복원하기',danger:true}))return;
     const safe=result.state;
     delete safe.focusRun; // also for older backup files made while a timer was running
-    const snapshot=localStorage.getItem('lifeAIPrototypeV5');
+    const snapshot=localStorage.getItem(STORAGE_KEY);
     // Keep the data being replaced under a second name so a wrong restore can still be undone.
     let keptBefore=false;
-    if(snapshot!==null){try{localStorage.setItem('lifeAIPrototypeV5.beforeRestore',snapshot);keptBefore=true;}catch(keepError){}}
+    if(snapshot!==null){try{localStorage.setItem(STORAGE_KEY+'.beforeRestore',snapshot);keptBefore=true;}catch(keepError){}}
     try{
-      localStorage.setItem('lifeAIPrototypeV5',JSON.stringify(safe));
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(safe));
     }catch(error){
-      try{localStorage.removeItem('lifeAIPrototypeV5.beforeRestore');}catch(removeError){}
-      try{if(snapshot!==null)localStorage.setItem('lifeAIPrototypeV5',snapshot);}catch(rollbackError){}
+      try{localStorage.removeItem(STORAGE_KEY+'.beforeRestore');}catch(removeError){}
+      try{if(snapshot!==null)localStorage.setItem(STORAGE_KEY,snapshot);}catch(rollbackError){}
       throw backupError('복원 데이터를 저장하지 못했어요. 기존 기록을 유지하고 저장 공간을 확인해 주세요.');
     }
     lifeAIRestoring=true;
-    await uiAlert('복원이 완료됐어요. '+(keptBefore?'복원 전 기록은 이 기기에 따로 보관했어요(lifeAIPrototypeV5.beforeRestore). 잘못 복원했다면 이 보관본으로 되돌릴 수 있어요. 다시 복원하면 보관본은 새 내용으로 바뀌어요.':'복원 전 기록은 따로 보관하지 못했어요.')+'\n앱을 새로고침합니다.',{title:'복원 완료'});
+    await uiAlert('복원이 완료됐어요. '+(keptBefore?'복원 전 기록은 이 기기에 따로 보관했어요('+STORAGE_KEY+'.beforeRestore). 잘못 복원했다면 이 보관본으로 되돌릴 수 있어요. 다시 복원하면 보관본은 새 내용으로 바뀌어요.':'복원 전 기록은 따로 보관하지 못했어요.')+'\n앱을 새로고침합니다.',{title:'복원 완료'});
     location.reload();
   }catch(e){toast(e&&e.friendly?e.message:'백업 파일을 읽지 못했어요. 다시 시도해 주세요.');}
 }
 
 async function resetPrototype(){
   if(!await uiConfirm('입력한 목표와 진행 상태를 모두 지우고 처음부터 시작할까요?\n보관해 둔 손상 원본도 함께 지워져요.\n지우기 전에 백업해 두면 나중에 복원할 수 있어요.',{title:'처음부터 다시 시작',ok:'모두 지우기',danger:true})) return;
-  try { localStorage.removeItem('lifeAIPrototypeV5'); } catch(e) {}
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
   try { for(const x of damagedArchives()) localStorage.removeItem(x.key); } catch(e) {}
   location.reload();
 }
