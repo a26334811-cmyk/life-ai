@@ -1337,3 +1337,14 @@ test('habit delete is kept when cancelled and removed when confirmed',async()=>{
   await b.run(`habitRemove('${id}')`);
   assert.equal(b.run('habitEntries().length'),0);assert.equal(b.saved().habits.length,0);
 });
+
+/* ---------- 조회일은 한국 날짜로 보여준다 (#99) ---------- */
+test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
+  const a=createApp();
+  const html=fetchedAt=>a.context.certCalendarHTML({qualification:{name:'전기기사'},year:2026,fetchedAt,items:[{type:'필기시험',startDate:'2099-01-01',endDate:'2099-01-01'}]});
+  // 2026-11-17 23:30 UTC = 2026-11-18 08:30 KST
+  assert.match(html('2026-11-17T23:30:00.000Z'),/조회일 2026\D*11\D*18/);
+  assert.doesNotMatch(html('2026-11-17T23:30:00.000Z'),/조회일 2026\D*11\D*17/);
+  // a broken value must not crash the card
+  assert.match(html('not-a-date'),/조회일/);
+});
