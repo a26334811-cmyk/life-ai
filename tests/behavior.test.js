@@ -1348,6 +1348,19 @@ test('a text-only watch company in saved data does not block adding a company',(
   assert.ok(a.saved().watchCompanies.every(c=>c.id));
 });
 
+/* ---------- 새 버전 백업 파일은 따로 안내한다 (#110) ---------- */
+test('a backup made by a newer version gets its own message, other bad files keep the old one',async()=>{
+  const pick=(a,data)=>a.run('importLifeAIBackup')({files:[{size:100,text:async()=>JSON.stringify(data)}]});
+  const a=createApp();
+  const cur=a.run('LIFE_AI_BACKUP_VERSION');
+  await pick(a,{format:'life-ai-backup',version:cur+1,state:{}});
+  assert.match(a.toasts.at(-1),/더 새로운 버전/);
+  await pick(a,{format:'other',version:cur+1,state:{}});
+  assert.match(a.toasts.at(-1),/올바른 life-ai 백업 파일이 아니에요/);
+  await pick(a,{format:'life-ai-backup',version:cur,state:{}});
+  assert.doesNotMatch(a.toasts.at(-1),/더 새로운 버전/);
+});
+
 /* ---------- 새 버전 기록의 버전 표시를 낮추지 않는다 (#109) ---------- */
 test('opening data saved by a newer version keeps its schemaVersion when saving',()=>{
   const newer=a=>a.run('LifeLogic.STATE_SCHEMA_VERSION')+1;

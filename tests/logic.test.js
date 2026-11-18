@@ -166,7 +166,7 @@ test('readBackup checks file text, format, version and state in one place',()=>{
   fail('',unreadable);
   fail('null',notBackup);fail('[]',notBackup);fail('"text"',notBackup);
   fail(file({format:'other'}),notBackup);
-  fail(file({version:2}),notBackup);
+  assert.match(L.readBackup(file({version:2})).message,/더 새로운 버전에서 만든 백업/,'a newer backup version gets its own message');
   fail(file({state:null}),notBackup);
   fail(file({state:[1,2]}),notBackup);
   fail(file({state:{...state,completedTasks:undefined}}),badShape);

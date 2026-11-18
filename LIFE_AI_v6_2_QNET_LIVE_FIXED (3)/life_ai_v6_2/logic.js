@@ -261,6 +261,9 @@
   function readBackup(text) {
     let backup;
     try { backup = JSON.parse(text); } catch (e) { return { ok: false, message: '백업 파일을 읽지 못했어요. 앱에서 만든 life-ai-backup-날짜.json 파일을 골라 주세요.' }; }
+    if (isPlain(backup) && backup.format === BACKUP_FORMAT && Number.isFinite(backup.version) && backup.version > BACKUP_VERSION) {
+      return { ok: false, message: '더 새로운 버전에서 만든 백업이에요. 앱을 새로 고침한 뒤 다시 시도해 주세요.' };
+    }
     if (!isPlain(backup) || backup.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || !isPlain(backup.state)) {
       return { ok: false, message: '올바른 life-ai 백업 파일이 아니에요.' };
     }
