@@ -273,7 +273,11 @@
       const deadline = Number(run.deadline);
       if (!Number.isFinite(deadline) || deadline <= 0) return { status: 'idle' };
       const left = deadline - now;
-      if (left > 0) return { ...base, status: 'running', deadline, remaining: Math.ceil(left / 1000) };
+      if (left > 0) {
+        // never longer than the timer length (e.g. the phone clock was set back); keep the deadline in step with it
+        const remaining = Math.min(minutes * 60, Math.ceil(left / 1000));
+        return { ...base, status: 'running', deadline: remaining < Math.ceil(left / 1000) ? now + remaining * 1000 : deadline, remaining };
+      }
       return { ...base, status: 'finished', deadline, finishedAt: new Date(deadline).toISOString(), date: koreaDate(deadline) };
     }
     return { status: 'idle' };

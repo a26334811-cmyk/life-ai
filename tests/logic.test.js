@@ -195,6 +195,15 @@ test('resumeFocus restores running, paused and finished timers',()=>{
   assert.equal(finished.finishedAt,new Date(now-5000).toISOString());
 });
 
+test('resumeFocus never returns more remaining time than the timer length',()=>{
+  const now=Date.parse('2026-05-10T03:00:00Z');
+  const r=L.resumeFocus({status:'running',deadline:now+90*60*1000,minutes:25},now);
+  assert.equal(r.status,'running');assert.equal(r.remaining,1500);
+  assert.equal(r.deadline,now+1500*1000,'deadline matches the capped remaining time');
+  const ok=L.resumeFocus({status:'running',deadline:now+600000,minutes:25},now);
+  assert.equal(ok.remaining,600);assert.equal(ok.deadline,now+600000,'normal case is unchanged');
+});
+
 test('resumeFocus ignores damaged data',()=>{
   const now=Date.now();
   for(const bad of [null,undefined,'x',[],{},{status:'running'},{status:'running',deadline:'abc',minutes:25},{status:'running',deadline:now+1000,minutes:7},{status:'paused',remaining:'x',minutes:25},{status:'other',minutes:25}]){
