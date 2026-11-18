@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {createHandler,parsePage,isPrivateIp,assertPublicUrl,decodeBytes}=require('../netlify/functions/link-preview.js');
+const {createHandler,parsePage,isPrivateIp,assertPublicUrl,decodeBytes,guardedLookup,createSafeFetch}=require('../netlify/functions/link-preview.js');
 
 const SAME_ORIGIN={'sec-fetch-site':'same-origin'};
 const publicLookup=async()=>[{address:'93.184.216.34',family:4}];
@@ -221,4 +221,41 @@ test('a job board name is never taken as the employer',()=>{
 test('a company stated by JobPosting data is used as written and not marked inferred',()=>{
   const r=parsePage(JSON_LD,'https://example.com/job/1');
   assert.equal(r.company,'삼천리');assert.equal(r.companyInferred,false);
+});
+
+test('DNS rebinding: the real connection re-checks the address and refuses a private answer',async()=>{
+  // first answer (for the pre-check) is public, the second (for the connection) is 127.0.0.1
+  let calls=0;
+  const rebinding=async()=>{calls++;return [{address:calls===1?'93.184.216.34':'127.0.0.1',family:4}];};
+  const handler=createHandler({lookupImpl:rebinding}); // no fetchImpl: uses the guarded real connection
+  const res=await handler({queryStringParameters:{url:'https://rebind.example.com/job'},headers:SAME_ORIGIN});
+  const body=JSON.parse(res.body);
+  assert.equal(body.ok,false);
+  assert.ok(res.statusCode>=400);
+  assert.equal(calls,2,'connection must do its own lookup');
+});
+
+test('guardedLookup only returns checked public addresses (both callback styles)',async()=>{
+  const ask=(lookup,options)=>new Promise(resolve=>guardedLookup(lookup)('h.example.com',options,(err,a,f)=>resolve({err,a,f})));
+  const pub=async()=>[{address:'93.184.216.34',family:4}];
+  const priv=async()=>[{address:'93.184.216.34',family:4},{address:'10.0.0.8',family:4}];
+  const single=await ask(pub,{});
+  assert.equal(single.err,null);assert.equal(single.a,'93.184.216.34');assert.equal(single.f,4);
+  const all=await ask(pub,{all:true});
+  assert.deepEqual(all.a,[{address:'93.184.216.34',family:4}]);
+  assert.equal((await ask(priv,{})).err.code,'EBLOCKED');
+  assert.equal((await ask(async()=>[{address:'::1',family:6}],{all:true})).err.code,'EBLOCKED');
+  assert.ok((await ask(async()=>{throw new Error('ENOTFOUND');},{})).err);
+});
+
+test('the safe fetch never reaches a local server even when the name points at it',async()=>{
+  const http=require('node:http');
+  let hits=0;
+  const server=http.createServer((req,res)=>{hits++;res.end('secret');});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  try{
+    const safeFetch=createSafeFetch(async()=>[{address:'127.0.0.1',family:4}]);
+    await assert.rejects(()=>safeFetch('http://rebind.example.com:'+server.address().port+'/'));
+    assert.equal(hits,0);
+  }finally{server.close();}
 });

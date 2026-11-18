@@ -3,11 +3,14 @@
    - only http/https on the default ports, never localhost or private/internal addresses (checked again after every redirect)
    - at most 3 redirects, 7 s per request, only the first 1.5 MB of HTML is read (the rest is dropped), HTML content types only
    - one page per call, nothing is stored
-   Known limit: the host name is checked and then fetched, so a hostile DNS server that changes its answer between the two
-   steps (DNS rebinding) is not fully covered. The function holds no secrets besides its own environment, and the reply
-   contains only a short summary, never the page. */
+   DNS rebinding: the host name is checked first for a friendly error, but the real connection (safeFetch) uses its own
+   lookup that rejects private addresses and hands the SAME checked address to the socket, so a DNS server cannot show a
+   public address to the check and a private one to the connection. The reply contains only a short summary, never the page. */
 const dns = require('node:dns').promises;
 const net = require('node:net');
+const http = require('node:http');
+const https = require('node:https');
+const { Readable } = require('node:stream');
 
 const MAX_BYTES = 1536 * 1024;
 const MAX_REDIRECTS = 3;
@@ -82,6 +85,58 @@ async function assertPublicUrl(raw, lookup) {
   try { addresses = await lookup(host, { all: true }); } catch (e) { throw userError('링크 주소를 찾지 못했어요.'); }
   if (!addresses.length || addresses.some(entry => isPrivateIp(entry.address))) throw userError('이 링크는 읽을 수 없어요.');
   return url;
+}
+
+/* ---------- connection that only uses checked addresses ---------- */
+/* Used by http/https.request as the "lookup" option: resolves the name, refuses private addresses, and returns the
+   public addresses that were just checked, so the socket connects to exactly what was verified. */
+function guardedLookup(lookup) {
+  return (hostname, options, callback) => {
+    if (typeof options === 'function') { callback = options; options = {}; }
+    options = options || {};
+    Promise.resolve().then(() => lookup(hostname, { all: true })).then(list => {
+      if (!list || !list.length || list.some(entry => isPrivateIp(entry.address))) {
+        const blocked = new Error('blocked private address');
+        blocked.code = 'EBLOCKED';
+        return callback(blocked);
+      }
+      const entries = list.map(entry => ({ address: entry.address, family: entry.family || net.isIP(entry.address) }));
+      if (options.all) callback(null, entries);
+      else callback(null, entries[0].address, entries[0].family);
+    }, error => callback(error));
+  };
+}
+
+/* fetch-like function (GET only) that connects through guardedLookup. Returns a Response. */
+function createSafeFetch(lookup) {
+  const guarded = guardedLookup(lookup);
+  return function safeFetch(href, options) {
+    options = options || {};
+    return new Promise((resolve, reject) => {
+      const url = new URL(href);
+      const client = url.protocol === 'https:' ? https : http;
+      const request = client.request({
+        protocol: url.protocol,
+        hostname: url.hostname.replace(/^\[|\]$/g, ''),
+        port: url.port || undefined,
+        path: url.pathname + url.search,
+        method: 'GET',
+        headers: options.headers,
+        lookup: guarded,
+        signal: options.signal
+      }, res => {
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(res.headers)) {
+          if (name !== 'set-cookie') headers.set(name, Array.isArray(value) ? value.join(', ') : String(value));
+        }
+        const noBody = [204, 205, 304].includes(res.statusCode);
+        if (noBody) res.resume();
+        resolve(new Response(noBody ? null : Readable.toWeb(res), { status: res.statusCode, headers }));
+      });
+      request.on('error', reject);
+      request.end();
+    });
+  };
 }
 
 function userError(message, status) {
@@ -303,8 +358,8 @@ function isSameOriginRequest(event) {
 }
 
 function createHandler(deps) {
-  const fetchImpl = (deps && deps.fetchImpl) || fetch;
   const lookupImpl = (deps && deps.lookupImpl) || dns.lookup;
+  const fetchImpl = (deps && deps.fetchImpl) || createSafeFetch(lookupImpl);
   return async function handler(event) {
     if (!isSameOriginRequest(event)) return json(403, { ok: false, message: '이 앱 안에서만 쓸 수 있는 기능이에요.' });
     const raw = String((event.queryStringParameters && event.queryStringParameters.url) || '').trim();
@@ -329,4 +384,6 @@ exports.parsePage = parsePage;
 exports.isSameOriginRequest = isSameOriginRequest;
 exports.isPrivateIp = isPrivateIp;
 exports.assertPublicUrl = assertPublicUrl;
+exports.guardedLookup = guardedLookup;
+exports.createSafeFetch = createSafeFetch;
 exports.decodeBytes = decodeBytes;
