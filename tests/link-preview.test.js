@@ -33,6 +33,13 @@ test('JobPosting structured data gives title, company, deadline and region',()=>
   assert.doesNotMatch(r.description,/<p>/);
 });
 
+test('a long JobPosting description keeps a deadline that sits far down the text',()=>{
+  const body='업무 내용 설명 '.repeat(400)+'접수 마감 12월 5일';
+  const html='<script type="application/ld+json">'+JSON.stringify({'@type':'JobPosting',title:'정비',description:body})+'</script>';
+  const r=parsePage(html,'https://e.com');
+  assert.ok(r.description.length>3000);assert.match(r.description,/접수 마감 12월 5일$/);
+});
+
 test('JobPosting inside @graph and with a list type is found',()=>{
   const html='<script type="application/ld+json">{"@graph":[{"@type":"WebSite","name":"x"},{"@type":["Thing","JobPosting"],"title":"정비 신입","hiringOrganization":"한국가스공사","validThrough":"not a date"}]}</script>';
   const r=parsePage(html,'https://e.com');

@@ -266,7 +266,7 @@ function parsePage(html, finalUrl) {
       company: stated || inferred, companyInferred: Boolean(inferred),
       deadline: isoDate(job.validThrough),
       region: regionFrom(job.jobLocation),
-      description: plain(job.description, 1500) || metaDescription
+      description: plain(job.description, 10000) || metaDescription
     };
   }
   const inferred = inferCompany(html, nodes, metaTitle, siteName);
