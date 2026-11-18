@@ -118,7 +118,7 @@ test('backup import validates nested records and warns when saving fails',()=>{
 });
 
 test('focus timer starts with the saved duration after reopening the app',()=>{
-  assert.match(html,/let focusRemaining=\(LifeLogic\.FOCUS_MINUTES\.includes\(Number\(state\.focusSettings\?\.minutes\)\)/);
+  assert.match(html,/let focusRemaining=\(LifeLogic\.isFocusMinutes\(state\.focusSettings\?\.minutes\)/);
   assert.doesNotMatch(html,/let focusRemaining=25\*60/);
 });
 

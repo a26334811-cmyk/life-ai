@@ -1683,7 +1683,7 @@ function plannerPostpone(id){
 function plannerEscapeAttr(s){return esc(String(s||''));}
 let focusTickTimer=null,focusEndTimer=null;
 let focusDeadline=0;
-let focusRemaining=(LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings?.minutes))?Number(state.focusSettings.minutes):25)*60;
+let focusRemaining=(LifeLogic.isFocusMinutes(state.focusSettings?.minutes)?Number(state.focusSettings.minutes):25)*60;
 let focusRunning=false;
 let focusAudioContext=null;
 /* Minutes of the session that just ended. It stays on the timer card until the next start/reset/change,
@@ -1692,7 +1692,7 @@ let focusDoneMinutes=0;
 function focusDoneText(){return focusDoneMinutes?'✅ '+focusDoneMinutes+'분 집중을 마쳤어요':'';}
 function focusSettings(){
   if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
-  if(!LifeLogic.FOCUS_MINUTES.includes(Number(state.focusSettings.minutes)))state.focusSettings.minutes=25;
+  if(!LifeLogic.isFocusMinutes(state.focusSettings.minutes))state.focusSettings.minutes=25;
   if(!['vibrate','sound','flash','silent'].includes(state.focusSettings.alarm))state.focusSettings.alarm='vibrate';
   state.focusSettings.category=LifeLogic.focusCategoryName(state.focusSettings.category);
   return state.focusSettings;
@@ -1817,6 +1817,12 @@ async function focusReset(){
 }
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(focusRunning){focusTick();focusWakeAcquire();}refreshIfNewDay();checkForAppUpdate();});
 async function focusChangeMinutes(value){
+  if(value==='custom'){
+    const typed=await uiPrompt('집중할 시간을 분 단위로 입력해 주세요. (1~180분)',String(focusSettings().minutes),{title:'집중 시간 직접 입력',maxLength:3});
+    if(typed===null||typed===undefined){renderCalendar();return;}
+    value=String(typed).trim();
+    if(!LifeLogic.isFocusMinutes(value)){toast('1~180 사이의 숫자(분)를 입력해 주세요.');renderCalendar();return;}
+  }
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
   focusStopTimer();
@@ -2087,7 +2093,7 @@ function focusPanelHTML(){
     </div>
     <p class="meta" id="focusTodaySummary">오늘 집중 ${todaySum.minutes}분 · 세션 ${todaySum.sessions}번</p>
     <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
-      ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
+      ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}${LifeLogic.FOCUS_MINUTES.includes(Number(cfg.minutes))?'':`<option value="${Number(cfg.minutes)}" selected>${Number(cfg.minutes)}분 (직접 입력)</option>`}<option value="custom">직접 입력 (1~180분)</option>
     </select></label>
     </div><details class="focus-more"><summary>알림 및 사용 안내</summary><div class="focus-options focus-alarm-options"><label>완료 알림<select onchange="focusChangeAlarm(this.value)">
       ${[['vibrate','📳 진동 (기본)'],['sound','🔊 소리'],['flash','✨ 화면 깜빡임'],['silent','🔕 무음']].map(([value,label])=>`<option value="${value}" ${cfg.alarm===value?'selected':''}>${label}</option>`).join('')}

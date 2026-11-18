@@ -1481,6 +1481,34 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   assert.match(html('not-a-date'),/조회일/);
 });
 
+/* ---------- #181: custom focus length ---------- */
+test('a custom focus length (e.g. 90 minutes) can be chosen, survives reload and the timer is restored',async()=>{
+  const a=createApp(undefined,{answer:'90'});
+  assert.match(a.run('focusPanelHTML()'),/직접 입력 \(1~180분\)/);
+  await a.run('focusChangeMinutes("custom")');
+  assert.equal(a.run('focusSettings().minutes'),90);
+  assert.equal(a.run('focusRemaining'),90*60);
+  assert.match(a.run('focusPanelHTML()'),/<option value="90" selected>90분 \(직접 입력\)<\/option>/);
+  a.run('focusStartPause()');
+  assert.equal(a.saved().focusRun.minutes,90);
+  const b=createApp(JSON.stringify(a.saved()),{now:a.clock.now+10*60*1000});
+  assert.equal(b.run('focusRunning'),true,'running custom timer is not dropped on reload');
+  assert.equal(b.run('focusSettings().minutes'),90);
+  assert.equal(b.run('focusRemaining'),80*60);
+});
+
+test('an invalid custom focus length is refused and the old length stays',async()=>{
+  for(const answer of ['0','181','abc','2.5','']){
+    const a=createApp(undefined,{answer});
+    await a.run('focusChangeMinutes("custom")');
+    assert.equal(a.run('focusSettings().minutes'),25,answer);
+    assert.ok(a.toasts.length>0,answer);
+  }
+  const cancelled=createApp(undefined,{answer:null});
+  await cancelled.run('focusChangeMinutes("custom")');
+  assert.equal(cancelled.run('focusSettings().minutes'),25);
+});
+
 /* ---------- #180: interview time ---------- */
 test('interview time is saved, validated, kept after reload and shown in upcoming interviews',()=>{
   const a=createApp();

@@ -5,6 +5,7 @@
   'use strict';
 
   const FOCUS_MINUTES = [5, 10, 15, 25, 30, 45, 50, 60];
+  const FOCUS_MAX_MINUTES = 180;
   const FOCUS_CATEGORIES = [
     { name: 'study', label: '📚 자격증·공부' },
     { name: 'job', label: '💼 취업 준비' },
@@ -281,12 +282,18 @@
 
   /* ---------- focus timer ---------- */
 
+  /* Any whole number of minutes from 1 to 180 is allowed (the preset list FOCUS_MINUTES is only the quick choices). */
+  function isFocusMinutes(value) {
+    const n = Number(value);
+    return value !== '' && value !== null && Number.isInteger(n) && n >= 1 && n <= FOCUS_MAX_MINUTES;
+  }
+
   /* Decides what to do with a focus timer that was saved before the page closed.
      status: idle | paused | running | finished */
   function resumeFocus(run, now) {
     if (!isPlain(run)) return { status: 'idle' };
     const minutes = Number(run.minutes);
-    if (!FOCUS_MINUTES.includes(minutes)) return { status: 'idle' };
+    if (!isFocusMinutes(minutes)) return { status: 'idle' };
     const category = focusCategoryName(run.category);
     const base = { minutes, category };
     if (run.status === 'paused') {
@@ -772,7 +779,7 @@
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
     firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline,
-    FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
+    FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,

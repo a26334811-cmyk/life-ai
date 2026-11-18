@@ -243,9 +243,19 @@ test('resumeFocus never returns more remaining time than the timer length',()=>{
   assert.equal(ok.remaining,600);assert.equal(ok.deadline,now+600000,'normal case is unchanged');
 });
 
+test('focus length accepts any whole number from 1 to 180 and a saved custom timer is restored',()=>{
+  const now=Date.now();
+  for(const ok of [1,7,40,90,180,'40'])assert.equal(L.isFocusMinutes(ok),true,String(ok));
+  for(const bad of [0,181,2.5,-1,'',null,undefined,'abc',NaN])assert.equal(L.isFocusMinutes(bad),false,String(bad));
+  const running=L.resumeFocus({status:'running',deadline:now+60000,minutes:90,category:'study'},now);
+  assert.equal(running.status,'running');assert.equal(running.minutes,90);
+  const paused=L.resumeFocus({status:'paused',remaining:3000,minutes:40},now);
+  assert.equal(paused.status,'paused');assert.equal(paused.remaining,2400,'capped to the custom length');
+});
+
 test('resumeFocus ignores damaged data',()=>{
   const now=Date.now();
-  for(const bad of [null,undefined,'x',[],{},{status:'running'},{status:'running',deadline:'abc',minutes:25},{status:'running',deadline:now+1000,minutes:7},{status:'paused',remaining:'x',minutes:25},{status:'other',minutes:25}]){
+  for(const bad of [null,undefined,'x',[],{},{status:'running'},{status:'running',deadline:'abc',minutes:25},{status:'running',deadline:now+1000,minutes:0},{status:'running',deadline:now+1000,minutes:181},{status:'running',deadline:now+1000,minutes:2.5},{status:'running',deadline:now+1000,minutes:-5},{status:'running',deadline:now+1000,minutes:''},{status:'paused',remaining:'x',minutes:25},{status:'other',minutes:25}]){
     assert.equal(L.resumeFocus(bad,now).status,'idle',JSON.stringify(bad));
   }
   assert.equal(L.resumeFocus({status:'paused',remaining:99999,minutes:25},now).remaining,1500,'capped to the chosen length');
