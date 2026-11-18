@@ -2003,8 +2003,8 @@ function progressInsightsHTML(){
       ${['일','월','화','수','목','금','토'].map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
       ${heatmap}
     </div>
-    <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="img" aria-label="이번 주 요일별 집중 시간">
-      ${buckets.map(d=>`<div class="insights-bar"><div class="insights-bar-track"><div style="width:65%;height:${d.minutes?Math.max(3,Math.round(d.minutes/maxMinutes*70)):0}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
+    <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="group" aria-label="이번 주 요일별 집중 시간">
+      ${buckets.map(d=>`<div class="insights-bar" role="img" aria-label="${d.label} ${d.minutes}분"><div class="insights-bar-track"><div style="width:65%;height:${d.minutes?Math.max(3,Math.round(d.minutes/maxMinutes*70)):0}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
     </div>`}
     <details class="insights-details"><summary>집계 기준 보기</summary><p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p><p class="meta">등록일 이후 오늘까지의 습관과 완료된 집중 세션만 집계합니다. 기록이 없는 날은 실패로 간주하지 않아요.</p></details>
   </div>`;
