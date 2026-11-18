@@ -1130,3 +1130,41 @@ test('habit and schedule buttons read ids from data-id, not from inline script t
   assert.match(habits,/data-id="h-1" onclick="habitRemove\(this\.dataset\.id\)"/);
   assert.equal(/habit(Toggle|Remove)\('|planner(Toggle|Edit|Remove)\('/.test(habits+html),false);
 });
+
+/* ---------- habits ---------- */
+test('habit add rejects empty, duplicate and 61-character names',()=>{
+  const a=createApp();
+  const add=name=>{a.el('habitName').value=name;a.run('habitAdd()');};
+  add('');add('   ');assert.equal(a.run('habitEntries().length'),0);
+  add('가'.repeat(61));assert.equal(a.run('habitEntries().length'),0);
+  add('가'.repeat(60));assert.equal(a.run('habitEntries().length'),1);
+  add('운동');add('운동');
+  assert.equal(a.run('habitEntries().length'),2);
+  assert.equal(a.toasts.at(-1),'같은 이름의 습관이 있어요.');
+  assert.equal(a.saved().habits.length,2);
+});
+
+test('habit check toggles on and off for today and the streak follows',()=>{
+  const a=createApp();
+  a.el('habitName').value='운동';a.run('habitAdd()');
+  const id=a.run('habitEntries()[0].id'),today=a.run('koreaToday()'),yesterday=a.run(`plannerDateOffset('${a.run('koreaToday()')}',-1)`);
+  a.run(`habitToggle('${id}','${yesterday}')`);
+  assert.equal(a.run('habitStreak(habitEntries()[0])'),1);
+  a.run(`habitToggle('${id}','${today}')`);
+  assert.deepEqual(a.saved().habits[0].checks,[yesterday,today]);
+  assert.equal(a.run('habitStreak(habitEntries()[0])'),2);
+  a.run(`habitToggle('${id}','${today}')`);
+  assert.deepEqual(a.saved().habits[0].checks,[yesterday]);
+  assert.equal(a.run('habitStreak(habitEntries()[0])'),1);
+});
+
+test('habit delete is kept when cancelled and removed when confirmed',async()=>{
+  const a=createApp(undefined,{confirm:false});
+  a.el('habitName').value='운동';a.run('habitAdd()');
+  const id=a.run('habitEntries()[0].id');
+  await a.run(`habitRemove('${id}')`);
+  assert.equal(a.dialogs.at(-1).kind,'confirm');assert.equal(a.run('habitEntries().length'),1);
+  const b=createApp(a.storage.get('lifeAIPrototypeV5'),{confirm:true});
+  await b.run(`habitRemove('${id}')`);
+  assert.equal(b.run('habitEntries().length'),0);assert.equal(b.saved().habits.length,0);
+});
