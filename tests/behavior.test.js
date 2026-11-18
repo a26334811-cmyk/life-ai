@@ -330,6 +330,25 @@ test('editing one occurrence changes only that day',async()=>{
   assert.deepEqual(titles(a,'2026-05-06'),['운동']);
 });
 
+test('editing one occurrence with a repeat chosen saves it as one-off and says so',async()=>{
+  const a=createApp(undefined,{choice:'one'});
+  a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
+  a.run("plannerEdit('d','2026-05-05')");
+  fillForm(a,{title:'병원',date:'2026-05-05',repeat:'weekly',until:'2026-06-01'});
+  await a.run('plannerSave()');
+  const created=JSON.parse(a.run("JSON.stringify(state.plannerEntries.find(e=>e.title==='병원'))"));
+  assert.equal(created.repeat,'none');
+  assert.equal(created.until,'');
+  assert.match(a.toasts.at(-1),/반복은 적용되지 않아요/);
+  assert.deepEqual(titles(a,'2026-05-12'),['운동']);
+  const plain=createApp(undefined,{choice:'one'});
+  plain.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
+  plain.run("plannerEdit('d','2026-05-05')");
+  fillForm(plain,{title:'병원',date:'2026-05-05',repeat:'none'});
+  await plain.run('plannerSave()');
+  assert.doesNotMatch(plain.toasts.at(-1),/반복은 적용되지 않아요/);
+});
+
 test('editing all occurrences changes the series and keeps skipped days',async()=>{
   const a=createApp(undefined,{choice:'all'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily',skipDates:['2026-05-03']}]");

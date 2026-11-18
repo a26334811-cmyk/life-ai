@@ -1591,7 +1591,9 @@ async function plannerSave(){
   }
   const entries=plannerEntries();
   const old=entries.find(e=>e.id===editingId);
+  let repeatIgnored=false;
   if(old&&scope==='one'){
+    repeatIgnored=repeat!=='none'||Boolean(until);
     old.skipDates=[...new Set([...(Array.isArray(old.skipDates)?old.skipDates:[]),occurrence])].sort();
     entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
   }else{
@@ -1603,7 +1605,7 @@ async function plannerSave(){
     const index=entries.findIndex(e=>e.id===item.id);
     if(index>=0)entries[index]=item;else entries.push(item);
   }
-  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast('일정을 저장했어요.');
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast(repeatIgnored?'일정을 저장했어요. 이번 일정만 바꾸면 반복은 적용되지 않아요.':'일정을 저장했어요.');
 }
 async function plannerRemove(id,date){
   const item=plannerEntries().find(x=>x.id===id);
