@@ -62,6 +62,16 @@ test('selected code produces events and removes duplicate rounds',async()=>{
   assert.equal(data.items.length,2);
   assert.equal(data.items[0].startDate,`${thisYear}-01-01`);
 });
+test('dates that are not on the calendar are dropped from events',async()=>{
+  const item='<item><implYy>2026</implYy><description>정기 1회</description><docRegStartDt>20260230</docRegStartDt><docRegEndDt>20260305</docRegEndDt><docExamStartDt>20261345</docExamStartDt><pracExamStartDt>20260420</pracExamStartDt><pracExamEndDt>20260431</pracExamEndDt></item>';
+  const handler=setup(()=>`<response><totalCount>1</totalCount>${item}</response>`);
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  assert.equal(result.statusCode,200);
+  const data=JSON.parse(result.body);
+  assert.deepEqual(data.items.map(e=>e.type),['실기시험']);
+  assert.equal(data.items[0].startDate,'2026-04-20');
+  assert.equal(data.items[0].endDate,'2026-04-20','an impossible end date falls back to the start date');
+});
 test('invalid year and missing service key fail clearly',async()=>{
   const handler=setup(()=>{throw Error('must not fetch');});
   assert.equal((await handler({queryStringParameters:{name:'전기기사',year:'x'}})).statusCode,400);

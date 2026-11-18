@@ -13,7 +13,11 @@ function apiErrorFromXml(xml,label){
 }
 function toIsoDate(s){
   const m=String(s||'').match(/^(20\d{2})[.\/-]?(\d{2})[.\/-]?(\d{2})$/);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  if(!m) return null;
+  const iso=`${m[1]}-${m[2]}-${m[3]}`;
+  const d=new Date(iso+'T00:00:00Z');
+  // reject dates that are not on the calendar (e.g. 20260230)
+  return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===iso ? iso : null;
 }
 function scheduleEvents(block){
   const fields=[
