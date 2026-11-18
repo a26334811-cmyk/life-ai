@@ -226,3 +226,10 @@ test('certificate screen keeps the chosen item and result when you come back, an
  b.run('initCertSearch()');
  assert.match(b.el('certSearchMatches').innerHTML,/종목 검색 중/);
 });
+
+test('renaming a goal refreshes the certificate search name, region and timing but keeps the goal type',async()=>{
+ const saved={mainGoal:'정보처리기사 준비',goalType:'cert',parsedGoal:{raw:'정보처리기사 준비',type:'cert',intent:'자격 취득',region:'서울',timing:'올해 안',subject:'정보처리기사',confidence:'high'}};
+ const a=app(JSON.stringify(saved),'전기기사 준비');await a.run('editCurrentGoal()');
+ assert.equal(a.run('certQueryName()'),'전기기사');assert.equal(a.run('state.parsedGoal.region'),'');assert.equal(a.run('state.parsedGoal.timing'),'');
+ assert.equal(a.run('state.goalType'),'cert');assert.equal(a.run('state.parsedGoal.type'),'cert');
+});

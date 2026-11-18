@@ -790,8 +790,9 @@ async function editCurrentGoal(){
   const value=next.trim();
   if(!value){ toast('목표는 비워둘 수 없어요.'); return; }
   state.mainGoal=value;
-  // Renaming preserves the current goal type and progress.
-  state.parsedGoal={...state.parsedGoal,raw:value};
+  // Renaming preserves the current goal type and progress, but refreshes subject/region/timing so cert search follows the new name.
+  const reparsed=inferGoal(value);
+  state.parsedGoal={...state.parsedGoal,raw:value,subject:reparsed.subject,region:reparsed.region,timing:reparsed.timing};
   addActivity('목표를 수정했어요');
   persistState();
   renderMy();
