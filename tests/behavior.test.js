@@ -586,7 +586,7 @@ test('a link shared from the phone fills the form but only contacts the server a
   assert.equal(a.el('postingEditor').open,true);
   await a.run('fillPostingFromUrl()');
   assert.equal(urls.length,1,'the button sends the request');
-  assert.equal(a.el('postingTitle').value,'삼천리 시설관리','shared title is kept, page title only fills empty fields');
+  assert.equal(a.el('postingTitle').value,'삼천리 시설관리 신입','the real page title replaces the text that came with the share');
   assert.equal(a.el('postingCompany').value,'삼천리');
   assert.equal(a.el('postingDeadline').value,'2026-12-20');
 });

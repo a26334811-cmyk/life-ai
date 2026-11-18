@@ -2386,9 +2386,14 @@ function postingFillField(id,value){
   if(!el||!value||String(el.value||'').trim())return false;
   el.value=value;return true;
 }
+/* The text that came with a phone share is only a stand-in title: when the link gives a real title, that one wins. */
+let sharedTitleText='';
 function applyPostingInfo(info){
   const filled=[];
   const siteName=info.siteName||'';
+  const titleBox=document.getElementById('postingTitle');
+  if(sharedTitleText&&titleBox&&titleBox.value===sharedTitleText&&LifeLogic.cleanTitle(info.title,siteName))titleBox.value='';
+  sharedTitleText='';
   if(postingFillField('postingTitle',LifeLogic.cleanTitle(info.title,siteName)))filled.push('공고명');
   if(postingFillField('postingCompany',info.company))filled.push('회사명');
   if(postingFillField('postingRegion',info.region))filled.push('근무지역');
@@ -2462,6 +2467,7 @@ function handleSharedLink(){
   if(editor)editor.open=true;
   clearPostingForm();
   document.getElementById('postingUrl').value=shared.url;
+  sharedTitleText=shared.title||'';
   if(shared.title)document.getElementById('postingTitle').value=shared.title;
   toast('공유한 링크를 가져왔어요. 정보를 확인해 주세요.');
   postingSetStatus('"링크에서 정보 가져오기"를 누르면 회사명과 마감일을 찾아 볼게요.');
