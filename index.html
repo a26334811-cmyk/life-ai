@@ -2433,6 +2433,7 @@ function renderMy(){
 }
 
 const postingStages=['관심','준비 중','지원 완료','면접','합격','불합격','지원 취소'];
+const POSTING_TASKS=['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'];
 function jobCollections(){
   if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
   if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
@@ -2579,7 +2580,7 @@ function savePosting(){
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,region:value('postingRegion'),notes:value('postingNotes')};
-  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:[false,false,false,false],createdAt:new Date().toISOString()});
+  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()});
   const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
@@ -2616,7 +2617,7 @@ function postingProgressText(p){
 }
 function setPostingTask(id,index,checked){
   jobCollections();
-  const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
+  const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>=POSTING_TASKS.length)return;
   p.tasks[index]=checked;persistState();
   // 목록을 다시 그리면 펼쳐 둔 칸이 닫히므로, 카드 겉의 글자만 바꾼다.
   document.querySelectorAll('.posting-progress').forEach(el=>{if(el.dataset.id===id)el.innerHTML=postingProgressText(p);});

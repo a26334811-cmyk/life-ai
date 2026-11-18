@@ -76,6 +76,14 @@ test('saved jobs persist separately with independent stages and deadlines',()=>{
  assert.equal(b.run('state.jobPostings[1].stage'),'지원 완료');assert.equal(b.run('state.jobPostings[0].deadline'),'');
  b.run("quickGoal('전기기사 준비')");assert.equal(b.run('state.jobPostings.length'),2);
 });
+test('posting prep checklist size comes from one list for new postings, saving checks and drawing boxes',()=>{
+ const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';a.run('savePosting()');
+ const n=a.run('POSTING_TASKS.length');
+ assert.equal(a.run('state.jobPostings[0].tasks.length'),n);
+ assert.equal((a.el('savedPostings').innerHTML.match(/type="checkbox"/g)||[]).length,n);
+ a.run(`setPostingTask(state.jobPostings[0].id,${n-1},true)`);assert.equal(a.run(`state.jobPostings[0].tasks[${n-1}]`),true);
+ a.run(`setPostingTask(state.jobPostings[0].id,${n},true)`);assert.equal(a.run('state.jobPostings[0].tasks.length'),n);
+});
 test('posting validation rejects unsafe links and invalid dates',()=>{
  const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='javascript:alert(1)';a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),0);
  a.el('postingUrl').value='https://example.com';a.el('postingDeadline').value='2026-02-30';a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),0);
