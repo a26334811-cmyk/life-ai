@@ -794,8 +794,9 @@ test('month calendar cells show an event count, and the phone CSS hides the 9px 
     {id:'d',title:'하나',date:'2026-05-13'}]}));
   a.run('plannerView="month";renderCalendar()');
   const h=a.el('calendarContent').innerHTML;
-  assert.ok(h.includes('aria-label="일정 3개">●3<'),'3 events on the 12th, even though only 2 titles fit');
-  assert.ok(h.includes('aria-label="일정 1개">●1<'));
+  assert.ok(h.includes('aria-hidden="true">●3<'),'3 events on the 12th, even though only 2 titles fit');
+  assert.ok(h.includes('aria-hidden="true">●1<'));
+  assert.ok(h.includes('일정 3개')&&h.includes('일정 1개'),'the day button itself says how many events (read by screen readers)');
   assert.equal((h.match(/class="dot-count"/g)||[]).length,2,'days without events get no count');
   const {html}=require('./helpers/app-harness.js');
   const phone=html.match(/@media\(max-width:520px\)\{[^\n]*planner-day[^\n]*/)[0];

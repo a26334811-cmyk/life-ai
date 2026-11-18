@@ -248,6 +248,16 @@ test('Home still draws when saved certSchedule rounds are malformed',()=>{
  assert.doesNotThrow(()=>a.run('state.certSchedule.rounds=[null,{round:"x"},{round:"y",events:[null]}];renderHome()'));
 });
 
+test('calendar day buttons announce date, weekday, event count, today and selection',()=>{
+ const a=app();
+ assert.equal(a.run("plannerDayLabel('2026-11-18',2,true)"),'11월 18일 수요일, 일정 2개, 오늘');
+ assert.equal(a.run("plannerDayLabel('2026-11-19',0,false)"),'11월 19일 목요일, 일정 없음');
+ a.run('renderCalendar()');
+ const html=a.el('calendarContent').innerHTML;
+ assert.match(html,/aria-label="\d+월 \d+일 [가-힣]요일, 일정 (없음|\d+개)(, 오늘)?" aria-pressed="(true|false)"/);
+ assert.match(html,/aria-pressed="true"/);assert.doesNotMatch(html,/일정 보기"/);
+});
+
 test('goal type is not guessed from a lone 기사 or 회사',()=>{
  const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
  for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);

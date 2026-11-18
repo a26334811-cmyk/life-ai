@@ -1533,6 +1533,12 @@ function plannerNavigate(days){
   } else plannerSelected=plannerDateOffset(plannerSelected,days);
   renderCalendar();
 }
+/* Screen-reader label for a calendar day button: date, weekday, number of events and whether it is today. */
+function plannerDayLabel(date,count,isToday){
+  const d=new Date(date+'T12:00:00Z');
+  const week=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][d.getUTCDay()];
+  return `${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${week}, ${count?`일정 ${count}개`:'일정 없음'}${isToday?', 오늘':''}`;
+}
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
 function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
 let plannerFormOpen=false;
@@ -2269,7 +2275,7 @@ function renderCalendar(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]}의 일정</p>`
         :`<div class="planner-grid">${['일','월','화','수','목','금','토'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>`<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${date} 일정 보기"><strong>${Number(date.slice(8))}</strong>${plannerForDate(date).slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${plannerForDate(date).length?`<span class="dot-count" aria-label="일정 ${plannerForDate(date).length}개">●${plannerForDate(date).length}</span>`:''}</button>`).join('')}
+        ${dates.map(date=>{const dayEvents=plannerForDate(date);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
         </div>`}
 
     </div>
