@@ -45,8 +45,10 @@ function createApp(saved, opts = {}) {
     return elements.get(id);
   };
   const notifications = [];
+  const listeners = {};
   const context = {
-    document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '' },
+    document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '',
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } },
     localStorage: {
       get length() { return storage.size; },
       key: i => [...storage.keys()][i] ?? null,
@@ -133,6 +135,7 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
   return {
     run: code => vm.runInContext(code, context),
     el, storage, clock, timers, delays, toasts, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
+    fire(type) { (listeners[type] || []).forEach(fn => fn()); },
     // ids of timers that are still waiting (not cleared, not yet run)
     pending() { return timers.map((fn, i) => (fn ? i + 1 : 0)).filter(Boolean); },
     tick() {

@@ -91,6 +91,21 @@ test('a timer that ends does not redraw the planner, so typed text survives; onl
   assert.match(a.el('focusHistoryCard').outerHTML,/50분/);
 });
 
+test('an app kept open across midnight redraws the open screen when it becomes visible and checks habits on the new day',()=>{
+  const a=createApp();
+  a.run("state.habits=[{id:'h1',name:'공부',createdAt:'2026-05-01',checks:[]}];renderCalendar=()=>{globalThis.drawn=(globalThis.drawn||0)+1;}");
+  a.context.document.querySelector=()=>({id:'calendar'});
+  a.fire('visibilitychange');
+  assert.equal(a.run('globalThis.drawn||0'),0,'same day: nothing is redrawn');
+  a.clock.now=Date.parse('2026-05-11T01:00:00Z'); // 10:00 KST on the next day; the app was drawn on 2026-05-10
+  a.fire('visibilitychange');
+  assert.equal(a.run('globalThis.drawn'),1,'new day: the open screen is drawn again');
+  a.fire('visibilitychange');
+  assert.equal(a.run('globalThis.drawn'),1,'only once per new day');
+  a.run("habitToggle('h1')");
+  assert.equal(a.run('JSON.stringify(state.habits[0].checks)'),'["2026-05-11"]','the check is recorded on the day it is tapped');
+});
+
 test('reset and duration change clear the saved timer; cancelled dialog keeps it',async()=>{
   const a=createApp(undefined,{confirm:false});
   a.run('focusStartPause()');

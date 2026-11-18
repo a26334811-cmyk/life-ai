@@ -1058,6 +1058,7 @@ function go(id,mode){
   recordScreenHistory(id,mode);
   if(id==='cert'&&currentScreen&&currentScreen!=='cert')certReturnTo=currentScreen;
   currentScreen=id;
+  renderedDay=koreaToday();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const nav = document.getElementById('bottomnav');
@@ -1500,6 +1501,17 @@ async function toggleTask(i){
   renderTasks();
 }
 function koreaToday(){return LifeLogic.koreaDate(Date.now());}
+/* The date the current screen was drawn for. An installed app is often resumed, not reopened, so when it
+   becomes visible on a new day the screen is drawn again (otherwise "오늘" and the habit checks stay on yesterday). */
+let renderedDay=koreaToday();
+function refreshIfNewDay(){
+  const today=koreaToday();
+  if(today===renderedDay)return;
+  renderedDay=today;
+  const id=document.querySelector('.screen.active')?.id;
+  const draw={home:renderHome,calendar:renderCalendar,my:renderMy,jobHub:renderJobHub}[id];
+  if(draw)draw();
+}
 function certCalendarHTML(schedule){
   const scheduleItems=LifeLogic.scheduleItems(schedule);
   if(!scheduleItems.length) return `<div class="card"><h3>자격증 일정</h3><p class="meta">종목을 검색해 시험일정을 불러오세요.</p><button class="btn secondary" onclick="go('cert')">시험일정 검색</button></div>`;
@@ -1771,7 +1783,7 @@ async function focusReset(){
   focusRemaining=Number(focusSettings().minutes)*60;
   delete state.focusRun;persistState();focusUpdateUI();
 }
-if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&focusRunning){focusTick();focusWakeAcquire();}});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(focusRunning){focusTick();focusWakeAcquire();}refreshIfNewDay();});
 async function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
@@ -2058,6 +2070,7 @@ function habitSetCheck(id,date){
   return true;
 }
 function habitToggle(id,date){
+  date=date||koreaToday(); // read when tapped, not when the screen was drawn
   if(!habitSetCheck(id,date))return;
   persistState();renderCalendar();
 }
