@@ -44,7 +44,7 @@ test('saved jobs persist separately with independent stages and deadlines',()=>{
  a.run("setPostingTask(state.jobPostings[1].id,0,true);setPostingStage(state.jobPostings[1].id,'지원 완료')");
  const b=app(a.storage.get('lifeAIPrototypeV5'));
  assert.equal(b.run('state.jobPostings.length'),2);assert.equal(b.run('state.jobPostings[1].tasks[0]'),true);assert.equal(b.run('state.jobPostings[0].tasks[0]'),false);
- assert.doesNotMatch(b.run('jobCalendarHTML()'),/삼천리/);assert.match(b.run('jobCalendarHTML()'),/마감일 미정/);
+ assert.equal(b.run('state.jobPostings[1].stage'),'지원 완료');assert.equal(b.run('state.jobPostings[0].deadline'),'');
  b.run("quickGoal('전기기사 준비')");assert.equal(b.run('state.jobPostings.length'),2);
 });
 test('posting validation rejects unsafe links and invalid dates',()=>{
@@ -105,7 +105,12 @@ test('deadline today is shown as today, not D-1',()=>{
 });
 test('interview date survives reload and appears in calendar',()=>{
  const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs';a.run('savePosting();setInterviewDate(state.jobPostings[0].id,"2099-03-04")');
- const b=app(a.storage.get('lifeAIPrototypeV5'));assert.match(b.run('jobCalendarHTML()'),/다가오는 면접/);assert.match(b.run('jobCalendarHTML()'),/2099.03.04/);
+ const b=app(a.storage.get('lifeAIPrototypeV5'));
+ const day=JSON.parse(b.run("JSON.stringify(plannerForDate('2099-03-04'))"));
+ assert.equal(day.length,1);assert.match(day[0].title,/삼천리 · 시설관리 면접/);
+ assert.equal(JSON.parse(b.run("JSON.stringify(plannerForDate('2099-03-05'))")).length,0);
+ b.run("state.jobPostings[0].stage='불합격'");
+ assert.equal(JSON.parse(b.run("JSON.stringify(plannerForDate('2099-03-04'))")).length,0,'finished postings do not show interviews');
 });
 
 test('date fields: blank deadline and interview date are allowed, wrong dates are rejected, planner date is required',async()=>{

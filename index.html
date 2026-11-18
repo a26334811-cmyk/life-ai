@@ -2492,15 +2492,6 @@ function setInterviewDate(id,value){
   posting.interviewDate=value;
   if(persistState())toast('저장했어요.');
 }
-function jobCalendarHTML(){
-  jobCollections();if(!state.jobPostings.length)return '<div class="card"><p>저장한 취업 공고가 없어요.</p><button class="btn secondary" onclick="go(\'jobHub\')">공고 저장하기</button></div>';
-  const today=koreaToday(),active=state.jobPostings.filter(x=>['관심','준비 중'].includes(x.stage));
-  const future=active.filter(x=>x.deadline&&x.deadline>=today).sort((a,b)=>a.deadline.localeCompare(b.deadline));
-  const past=active.filter(x=>x.deadline&&x.deadline<today),unknown=active.filter(x=>!x.deadline);
-  const rows=list=>list.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${p.deadline?esc(fmtDate(p.deadline))+' · '+esc(daysUntil(p.deadline)):'마감일 미정 · 공식 공고 확인 필요'}</p>`).join('');
-  const interviews=state.jobPostings.filter(x=>x.interviewDate&&x.interviewDate>=today&&!['합격','불합격','지원 취소'].includes(x.stage)).sort((a,b)=>a.interviewDate.localeCompare(b.interviewDate));
-  return `<div class="card">${interviews.length?'<h3>다가오는 면접</h3>'+interviews.map(p=>`<p><strong>${esc(p.company)} · ${esc(p.title)}</strong><br>${esc(fmtDate(p.interviewDate))}</p>`).join(''):''}<h3>취업 지원 마감</h3>${future.length?rows(future):'<p class="meta">다가오는 지원 마감이 없어요.</p>'}${unknown.length?`<h3>마감일 확인 필요</h3>${rows(unknown)}`:''}${past.length?`<details><summary>마감된 공고 ${past.length}개</summary>${rows(past)}</details>`:''}<p class="meta">지원 완료·면접·결과를 기록한 공고는 지원 마감 목록에서 제외해요.</p><button class="btn secondary" onclick="go('jobHub')">공고 관리</button></div>`;
-}
 /* Display order only (stored order is not changed): open + nearest deadline, open + no deadline,
    applied/finished, then open postings whose deadline has passed. */
 function postingsForDisplay(){
