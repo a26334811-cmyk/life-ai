@@ -1099,9 +1099,13 @@ function uiAsk(config){
     box.className='ui-modal-box';
     box.setAttribute('role',config.alert?'alertdialog':'dialog');
     box.setAttribute('aria-modal','true');
-    box.setAttribute('aria-label',config.title||'확인');
-    if(config.title){const h=document.createElement('h3');h.textContent=config.title;box.appendChild(h);}
-    const p=document.createElement('p');p.textContent=config.message||'';box.appendChild(p);
+    // The title names the dialog and the message is its description, so screen readers read what is being asked.
+    if(config.title){
+      const h=document.createElement('h3');h.id='uiModalTitle';h.textContent=config.title;box.appendChild(h);
+      box.setAttribute('aria-labelledby','uiModalTitle');
+    } else box.setAttribute('aria-label','확인');
+    const p=document.createElement('p');p.id='uiModalMessage';p.textContent=config.message||'';box.appendChild(p);
+    box.setAttribute('aria-describedby','uiModalMessage');
     let input=null;
     if(config.input){input=document.createElement('input');input.type='text';input.maxLength=config.maxLength||200;input.value=config.defaultValue||'';input.setAttribute('aria-label',config.message||'입력');box.appendChild(input);}
     const actions=document.createElement('div');actions.className='ui-modal-actions';

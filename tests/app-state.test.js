@@ -258,6 +258,32 @@ test('calendar day buttons announce date, weekday, event count, today and select
  assert.match(html,/aria-pressed="true"/);assert.doesNotMatch(html,/일정 보기"/);
 });
 
+const fakeDialogDom=a=>{
+ const made=[];
+ const mk=tag=>{const e={tag,attrs:{},children:[],listeners:{},id:'',textContent:'',className:'',
+  setAttribute(k,v){this.attrs[k]=v;},appendChild(c){this.children.push(c);return c;},addEventListener(t,f){this.listeners[t]=f;},
+  remove(){},focus(){a.context.document.activeElement=this;}};made.push(e);return e;};
+ const d=a.context.document;
+ d.createElement=mk;d.addEventListener=()=>{};d.removeEventListener=()=>{};d.activeElement=null;d.body={appendChild(){}};
+ return made;
+};
+test('dialogs link the title (labelledby) and the message (describedby)',async()=>{
+ const a=app();const made=fakeDialogDom(a);
+ a.run("uiAsk({title:'백업 복원',message:'정말 복원할까요?',cancelValue:false,buttons:[{label:'취소',value:false},{label:'확인',value:true}]})");
+ await new Promise(r=>setImmediate(r));
+ const box=made.find(e=>e.attrs.role==='dialog');
+ const h=made.find(e=>e.tag==='h3'),p=made.find(e=>e.tag==='p');
+ assert.equal(box.attrs['aria-labelledby'],h.id);assert.equal(box.attrs['aria-describedby'],p.id);
+ assert.ok(h.id&&p.id&&h.id!==p.id);assert.equal(box.attrs['aria-label'],undefined);
+});
+test('a dialog without a title is still named and described',async()=>{
+ const a=app();const made=fakeDialogDom(a);
+ a.run("uiAsk({message:'이 일정을 삭제할까요?',cancelValue:false,buttons:[{label:'확인',value:true}]})");
+ await new Promise(r=>setImmediate(r));
+ const box=made.find(e=>e.attrs.role==='dialog');
+ assert.equal(box.attrs['aria-label'],'확인');assert.equal(box.attrs['aria-describedby'],made.find(e=>e.tag==='p').id);
+});
+
 test('goal type is not guessed from a lone 기사 or 회사',()=>{
  const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
  for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);
