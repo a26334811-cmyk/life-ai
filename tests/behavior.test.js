@@ -1481,6 +1481,26 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   assert.match(html('not-a-date'),/조회일/);
 });
 
+/* ---------- #179: always-open postings ---------- */
+test('an always-open posting is saved without a deadline and is not listed as needing a deadline check',()=>{
+  const a=createApp();
+  a.el('postingCompany').value='삼천리';a.el('postingTitle').value='상시 시설관리';a.el('postingUrl').value='https://example.com/jobs/always';
+  a.el('postingDeadline').value='2099-01-01';a.el('postingAlways').checked=true;
+  a.run('savePosting()');
+  const p=a.saved().jobPostings[0];
+  assert.equal(p.alwaysOpen,true);assert.equal(p.deadline,'','deadline is cleared when always-open is checked');
+  assert.match(a.el('savedPostings').innerHTML,/상시채용/);
+  // a posting with no deadline and not marked always-open still asks for a check
+  a.el('postingAlways').checked=false;
+  a.el('postingCompany').value='다른 회사';a.el('postingTitle').value='정비';a.el('postingUrl').value='https://example.com/jobs/unknown';a.el('postingDeadline').value='';
+  a.run('savePosting()');
+  assert.equal(a.saved().jobPostings.find(x=>x.url==='https://example.com/jobs/unknown').alwaysOpen,false,'not marked always-open');
+  // editing loads the checkbox state back
+  a.el('postingForm').scrollIntoView=()=>{};
+  a.run('editPosting(state.jobPostings.find(x=>x.alwaysOpen).id)');
+  assert.equal(a.el('postingAlways').checked,true);
+});
+
 /* ---------- #172: planner screen description matches its real tabs ---------- */
 test('planner screen description names the real tabs and no longer says 7-day report',()=>{
   const {html}=require('./helpers/app-harness.js');
