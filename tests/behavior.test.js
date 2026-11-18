@@ -708,6 +708,47 @@ test('MY shows when the last backup was made',()=>{
   assert.ok(b.el('myContent').innerHTML.includes('마지막 백업:</strong> 아직 없음'));
 });
 
+/* A fake fetch whose answers are released by hand, so a test can finish the second request before the first. */
+function manualFetch(){
+  const pending=[];
+  const fetchImpl=url=>new Promise(resolve=>pending.push({url,release:body=>resolve({ok:true,json:async()=>body})}));
+  return {fetchImpl,pending};
+}
+const settle=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('a slow, older Work24 answer does not overwrite the newer search result',async()=>{
+  const {fetchImpl,pending}=manualFetch();
+  const a=createApp(JSON.stringify({mainGoal:'삼천리 정비 취업'}),{fetch:fetchImpl});
+  a.run('loadLiveJobs()');
+  a.run("state.mainGoal='포스코 설비 취업';loadLiveJobs()");
+  assert.equal(pending.length,2);
+  pending[1].release({source:'고용24',items:[{company:'포스코',title:'새 검색 결과',closeDt:'2099-01-01'}]});
+  await settle();
+  pending[0].release({source:'고용24',items:[{company:'삼천리',title:'늦게 온 이전 결과',closeDt:'2099-01-01'}]});
+  await settle();
+  const shown=a.el('liveJobResults').innerHTML;
+  assert.ok(shown.includes('새 검색 결과'),'the newer result is on screen');
+  assert.ok(!shown.includes('늦게 온 이전 결과'),'the late older answer is dropped');
+});
+
+test('a slow, older Q-Net schedule answer does not replace the schedule of the chosen certificate',async()=>{
+  const {fetchImpl,pending}=manualFetch();
+  const a=createApp(JSON.stringify({mainGoal:'위험물산업기사 준비',goalType:'cert',parsedGoal:{subject:'위험물산업기사'}}),{fetch:fetchImpl});
+  a.el('certSearchInput').value='전기기사';
+  a.run('loadLiveCertSchedule()');
+  a.el('certSearchInput').value='위험물산업기사';
+  a.run('loadLiveCertSchedule()');
+  assert.equal(pending.length,2);
+  const answer=name=>({qualification:{name,code:'1'},items:[{label:'시험'}],rounds:[{round:'1회',events:[{label:name+' 시험',startDate:'2026-05-01'}]}]});
+  pending[1].release(answer('위험물산업기사'));
+  await settle();
+  pending[0].release(answer('전기기사'));
+  await settle();
+  assert.equal(a.run('state.certSchedule.qualification.name'),'위험물산업기사','saved schedule is the newer one');
+  assert.ok(a.el('liveCertResults').innerHTML.includes('위험물산업기사 시험'));
+  assert.ok(!a.el('liveCertResults').innerHTML.includes('전기기사 시험'),'the late older answer is not drawn');
+});
+
 test('pasting into the posting text box searches automatically',()=>{
   const {html}=require('./helpers/app-harness.js');
   assert.ok(html.includes('id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)"'));
