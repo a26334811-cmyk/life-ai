@@ -1063,6 +1063,9 @@ let certReturnTo='home';
 /* Screens of the "make a goal" flow. Leaving them while the goal slot is still empty means the new goal was dropped. */
 const GOAL_FLOW_SCREENS=['start','name','goalChoice','companyChoice','company','job','jobOnly','certStart','policyStart','customGoal','profile','goalCreated'];
 function go(id,mode){
+  // Old screens that now open the job hub instead.
+  const redirects={jobDetail:'jobHub',prepare:'jobHub'};
+  id=redirects[id]||id;
   if(!GOAL_FLOW_SCREENS.includes(id)&&LifeLogic.restoreParkedGoal(state)){persistState();resetGoalScreenState();}
   recordScreenHistory(id,mode);
   if(id==='cert'&&currentScreen&&currentScreen!=='cert')certReturnTo=currentScreen;

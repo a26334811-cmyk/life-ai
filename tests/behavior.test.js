@@ -329,6 +329,18 @@ test('calendar views show weekday names in Sunday-first order and the right week
   assert.equal(a.run("weekdayOf('2026-05-09')"),6);
 });
 
+test('go() sends the old job screens to the job hub',()=>{
+  const a=createApp();
+  a.run("globalThis.__hub=0;renderJobHub=()=>{globalThis.__hub++;}");
+  a.run("go('jobDetail')");
+  a.run("go('prepare')");
+  assert.equal(a.run('globalThis.__hub'),2);
+  a.run("go('jobHub')");
+  assert.equal(a.run('globalThis.__hub'),3);
+  a.run("go('home')");
+  assert.equal(a.run('globalThis.__hub'),3);
+});
+
 test('editing one occurrence changes only that day',async()=>{
   const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
