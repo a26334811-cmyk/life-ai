@@ -24,6 +24,23 @@ test('집중 기록 정리 안내는 6초 이상 보여 준다',()=>{
   assert.ok(i>=0);
   assert.ok(a.toastMinMs[i]>=6000);
 });
+/* ---------- 기회 카드의 '둘러보기' 버튼 (#166) ---------- */
+test('기회 카드에는 개발용 문구만 띄우는 버튼이 없고, 버튼은 실제 화면으로 간다',()=>{
+  for(const [type,goal] of [['cert','위험물산업기사 준비'],['policy','청년 지원'],['other','영어 공부']]){
+    const a=createApp();
+    a.run(`state.goalType='${type}';state.mainGoal='${goal}'`);
+    const html=a.run('opportunityCards()');
+    assert.doesNotMatch(html,/둘러보기|DEMO|프로토타입|테스트 전|데이터 연결/);
+    assert.doesNotMatch(html,/onclick="toast\(/);
+    assert.match(html,/준비 중이에요|go\('/);
+  }
+  const cert=createApp();
+  cert.run("state.goalType='cert';state.mainGoal='위험물산업기사 준비'");
+  assert.match(cert.run('opportunityCards()'),/go\('jobHub'\)/);
+  const policy=createApp();
+  policy.run("state.goalType='policy';state.mainGoal='청년 지원'");
+  assert.match(policy.run('opportunityCards()'),/준비 중이에요/);
+});
 test('기록 손상 시작 안내는 6초 이상 보여 준다',()=>{
   const a=createApp('not json at all');
   assert.match(a.run('startupNotice'),/읽지 못해/);
