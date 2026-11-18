@@ -40,6 +40,15 @@ test('a long JobPosting description keeps a deadline that sits far down the text
   assert.ok(r.description.length>3000);assert.match(r.description,/접수 마감 12월 5일$/);
 });
 
+test('deadline written in UTC (Z) or with an offset becomes the Korean date; no zone keeps the written date',()=>{
+  const dl=v=>parsePage(`<script type="application/ld+json">{"@type":"JobPosting","title":"정비","validThrough":"${v}"}</script>`,'https://e.com').deadline;
+  assert.equal(dl('2026-11-22T23:59:59Z'),'2026-11-23','23:59 UTC is already the next morning in Korea');
+  assert.equal(dl('2026-11-22T23:59:59+09:00'),'2026-11-22','a Korean-time value keeps its date');
+  assert.equal(dl('2026-11-22T10:00:00-05:00'),'2026-11-23');
+  assert.equal(dl('2026-11-22T23:59:59'),'2026-11-22','no zone: the first 10 characters are used');
+  assert.equal(dl('2026-11-22'),'2026-11-22');
+});
+
 test('JobPosting inside @graph and with a list type is found',()=>{
   const html='<script type="application/ld+json">{"@graph":[{"@type":"WebSite","name":"x"},{"@type":["Thing","JobPosting"],"title":"정비 신입","hiringOrganization":"한국가스공사","validThrough":"not a date"}]}</script>';
   const r=parsePage(html,'https://e.com');

@@ -217,10 +217,18 @@ function text(value) {
   return '';
 }
 function isoDate(value) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  const str = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
   if (!m) return '';
   const date = new Date(m[0] + 'T00:00:00Z');
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === m[0] ? m[0] : '';
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== m[0]) return '';
+  /* A time with a zone mark (Z or +hh:mm) is an exact moment, so convert it to the Korean date (UTC+9).
+     A value without a zone keeps its written date. */
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}(:?\d{2})?)$/i.test(str)) {
+    const moment = new Date(str.replace(' ', 'T').replace(/\s+/g, '').replace(/([+-]\d{2})$/, '$1:00').replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
+    if (Number.isFinite(moment.getTime())) return new Date(moment.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+  return m[0];
 }
 function regionFrom(location) {
   const first = Array.isArray(location) ? location[0] : location;
