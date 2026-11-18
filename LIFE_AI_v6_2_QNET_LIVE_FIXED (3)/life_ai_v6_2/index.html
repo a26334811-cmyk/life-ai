@@ -1594,7 +1594,7 @@ async function plannerSave(){
   let repeatIgnored=false;
   if(old&&scope==='one'){
     repeatIgnored=repeat!=='none'||Boolean(until);
-    old.skipDates=[...new Set([...(Array.isArray(old.skipDates)?old.skipDates:[]),occurrence])].sort();
+    LifeLogic.skipOccurrence(old,occurrence);
     entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
   }else{
     // The form shows the day the user tapped; if they left it unchanged, the series keeps its own start date.
@@ -1618,7 +1618,7 @@ async function plannerRemove(id,date){
     if(scope===null)return;
     const target=plannerEntries().find(x=>x.id===id);
     if(!target)return;
-    if(scope==='one')target.skipDates=[...new Set([...(Array.isArray(target.skipDates)?target.skipDates:[]),occurrence])].sort();
+    if(scope==='one')LifeLogic.skipOccurrence(target,occurrence);
     else state.plannerEntries=plannerEntries().filter(x=>x.id!==id);
   }else{
     if(!await uiConfirm('이 일정을 삭제할까요?',{title:'일정 삭제',ok:'삭제',danger:true}))return;

@@ -48,6 +48,16 @@ test('done is tracked per date for repeating items and globally for one-off item
   assert.equal(L.isDone(once,'2026-05-09'),true);
 });
 
+test('skipOccurrence adds a date once and keeps the list sorted',()=>{
+  const item={date:'2026-05-01',repeat:'daily'};
+  L.skipOccurrence(item,'2026-05-05');
+  L.skipOccurrence(item,'2026-05-03');
+  L.skipOccurrence(item,'2026-05-05');
+  assert.deepEqual(item.skipDates,['2026-05-03','2026-05-05']);
+  assert.equal(L.occurs(item,'2026-05-05'),false);
+  assert.equal(L.occurs(item,'2026-05-04'),true);
+});
+
 test('habit streak counts back from today or yesterday',()=>{
   assert.equal(L.habitStreak(['2026-05-10','2026-05-09','2026-05-08'],'2026-05-10'),3);
   assert.equal(L.habitStreak(['2026-05-09','2026-05-08'],'2026-05-10'),2,'today not yet checked');

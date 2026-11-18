@@ -119,6 +119,13 @@
     return item.done;
   }
 
+  // Adds one date to the item's skipDates (created if missing, no duplicates, sorted).
+  function skipOccurrence(item, date) {
+    if (!item) return [];
+    item.skipDates = [...new Set([...(Array.isArray(item.skipDates) ? item.skipDates : []), date])].sort();
+    return item.skipDates;
+  }
+
   function habitStreak(checks, today) {
     const set = new Set(Array.isArray(checks) ? checks : []);
     let date = today;
@@ -767,7 +774,7 @@
     firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
-    occurs, isRepeating, isDone, toggleDone, habitStreak,
+    occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,
     resumeFocus, backupNudge, hasUserData, recordCount
