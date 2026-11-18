@@ -106,6 +106,27 @@ test('an app kept open across midnight redraws the open screen when it becomes v
   assert.equal(a.run('JSON.stringify(state.habits[0].checks)'),'["2026-05-11"]','the check is recorded on the day it is tapped');
 });
 
+test('an open app asks the service worker for a new version when it becomes visible and offers a reload button',()=>{
+  const a=createApp();
+  let updates=0;
+  a.run('swRegistration=null');
+  a.fire('visibilitychange'); // no registration yet: must not fail
+  a.context.__reg={update:()=>{updates++;return Promise.resolve();}};
+  a.run('swRegistration=__reg');
+  a.fire('visibilitychange');
+  assert.equal(updates,1);
+  a.context.document.hidden=true;
+  a.fire('visibilitychange');
+  assert.equal(updates,1,'hidden: no check');
+  // an app that already had a service worker shows the button when a new one takes over; the first install does not
+  const makeContainer=controller=>{const handlers={};return {controller,addEventListener:(t,f)=>{handlers[t]=f;},fire:()=>handlers.controllerchange()};};
+  const fresh=makeContainer(null);a.context.__c=fresh;a.run('watchAppUpdates(__c)');fresh.fire();
+  assert.equal(a.el('updateBanner').hidden,undefined,'first install: no banner');
+  const updated=makeContainer({});a.context.__c=updated;a.run('watchAppUpdates(__c)');updated.fire();
+  assert.equal(a.el('updateBanner').hidden,false,'new version: banner shown');
+  assert.match(require('./helpers/app-harness.js').html,/id="updateBanner"[^>]*hidden[^>]*>새 버전이 있어요\. 눌러서 새로고침/);
+});
+
 test('reset and duration change clear the saved timer; cancelled dialog keeps it',async()=>{
   const a=createApp(undefined,{confirm:false});
   a.run('focusStartPause()');

@@ -104,6 +104,8 @@
     .save-fail-banner{position:fixed;top:0;left:0;right:0;z-index:55;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#b3261e;color:#fff;font-size:14px;font-weight:700}
     .save-fail-banner[hidden]{display:none}
     .save-fail-banner button{border:0;border-radius:10px;padding:8px 12px;background:#fff;color:#b3261e;font-weight:800;cursor:pointer}
+    .update-banner{position:fixed;left:50%;bottom:calc(196px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(390px,calc(100% - 36px));min-height:48px;border:0;border-radius:14px;background:#1763db;color:#fff;font:inherit;font-size:14px;font-weight:700;padding:12px 16px;cursor:pointer;z-index:31;box-shadow:0 6px 18px rgba(23,99,219,.3)}
+    .update-banner[hidden]{display:none}
     .ui-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,32,48,.45)}
     .ui-modal-box{width:min(420px,100%);background:#fff;border-radius:20px;padding:22px 20px 16px;box-shadow:0 18px 50px rgba(15,32,48,.28)}
     .ui-modal-box h3{margin:0 0 8px;font-size:17px}
@@ -604,6 +606,7 @@ h3{font-size:16px;line-height:1.4}
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="saveFailBanner" class="save-fail-banner" role="alert" hidden><span>기록을 저장하지 못했어요. 지금 닫으면 방금 입력한 내용이 사라질 수 있어요.</span><button type="button" onclick="exportLifeAIBackup()">지금 백업</button></div>
+<button type="button" id="updateBanner" class="update-banner" hidden onclick="location.reload()">새 버전이 있어요. 눌러서 새로고침</button>
 
 <script src="logic.js"></script>
 <script>
@@ -1503,6 +1506,18 @@ async function toggleTask(i){
 function koreaToday(){return LifeLogic.koreaDate(Date.now());}
 /* The date the current screen was drawn for. An installed app is often resumed, not reopened, so when it
    becomes visible on a new day the screen is drawn again (otherwise "오늘" and the habit checks stay on yesterday). */
+let swRegistration=null;
+/* A new service worker does not change a screen that is already open. Check for a new version whenever the app
+   becomes visible, and offer a reload button (no automatic reload, so typed text is never lost). */
+function checkForAppUpdate(){
+  try{const pending=swRegistration&&swRegistration.update&&swRegistration.update();if(pending&&pending.catch)pending.catch(()=>{});}catch(e){}
+}
+function showUpdateBanner(){const banner=document.getElementById('updateBanner');if(banner)banner.hidden=false;}
+function watchAppUpdates(container){
+  if(!container||typeof container.addEventListener!=='function')return;
+  const hadController=Boolean(container.controller); // the very first install also changes the controller; that is not an update
+  container.addEventListener('controllerchange',()=>{if(hadController)showUpdateBanner();});
+}
 let renderedDay=koreaToday();
 function refreshIfNewDay(){
   const today=koreaToday();
@@ -1783,7 +1798,7 @@ async function focusReset(){
   focusRemaining=Number(focusSettings().minutes)*60;
   delete state.focusRun;persistState();focusUpdateUI();
 }
-if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(focusRunning){focusTick();focusWakeAcquire();}refreshIfNewDay();});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(focusRunning){focusTick();focusWakeAcquire();}refreshIfNewDay();checkForAppUpdate();});
 async function focusChangeMinutes(value){
   const previous=Number(focusSettings().minutes);
   if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
@@ -2824,7 +2839,8 @@ async function loadLiveCertSchedule(){
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
 // Offline support and installable app: the service worker only runs on https or localhost.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+  watchAppUpdates(navigator.serviceWorker);
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(registration=>{swRegistration=registration;}).catch(()=>{});});
 }
 focusRestore();
 if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
