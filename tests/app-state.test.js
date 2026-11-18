@@ -284,6 +284,17 @@ test('a dialog without a title is still named and described',async()=>{
  assert.equal(box.attrs['aria-label'],'확인');assert.equal(box.attrs['aria-describedby'],made.find(e=>e.tag==='p').id);
 });
 
+test('go() moves focus to the new screen heading and never throws when focus is unavailable',()=>{
+ const a=app();
+ const calls=[];
+ a.el('my').querySelector=sel=>({setAttribute:(k,v)=>calls.push([k,v,sel]),focus:o=>calls.push(['focus',o])});
+ a.run("go('my')");
+ assert.deepEqual(calls.map(c=>c[0]),['tabindex','focus']);assert.equal(calls[0][1],'-1');assert.equal(calls[1][1].preventScroll,true);
+ a.el('my').querySelector=()=>{throw new Error('no dom');};
+ assert.doesNotThrow(()=>a.run("go('my')"));
+ a.el('my').querySelector=()=>null;
+ assert.doesNotThrow(()=>a.run("go('my')"));});
+
 test('goal type is not guessed from a lone 기사 or 회사',()=>{
  const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
  for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);

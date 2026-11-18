@@ -1075,6 +1075,11 @@ function go(id,mode){
   if(id==='liveJobs'){const k=document.getElementById('liveJobKeyword');if(k)k.value=defaultLiveJobKeyword();}
   if(id==='opportunities') filterOpportunities('all');
   if(id==='policy') renderIncomeState();
+  // Move keyboard/screen-reader focus to the new screen's heading so the change is announced and Tab continues from there.
+  try{
+    const heading=document.getElementById(id).querySelector('h1,h2');
+    if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
+  }catch(e){}
   requestAnimationFrame(() => {
     window.scrollTo(0,0);
     document.documentElement.scrollTop=0;
