@@ -964,8 +964,10 @@ async function resetPrototype(){
 function inferGoal(text){
   const t=(text||'').trim();
   const out={raw:t, type:'custom', intent:'목표 실행', region:'', timing:'', subject:'', confidence:'low'};
-  if(/취업|이직|입사|회사/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
-  if(/자격증|기사|기능사|기능장|기술사|컴활|컴퓨터활용|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
+  // '회사' alone (e.g. '회사 끝나고 운동하기') is not a job goal; '기사' alone (e.g. '뉴스 기사 읽기', '택시기사') is not a cert goal.
+  const certGisa=/[가-힣A-Za-z0-9]기사(?:를|을|는|은|도)?(?:\s*(?:자격|준비|취득|합격|시험|필기|실기|공부|따기|도전|올해|이번|\d+개월)|[^가-힣]|$)/.test(t.replace(/(택시|운전|버스|화물|신문|뉴스|인터넷|기자)\s*기사/g,' '));
+  if(/취업|이직|입사|회사\s*(?:지원|합격|들어가)/.test(t)){ out.type='job'; out.intent=/이직/.test(t)?'이직':'취업'; out.confidence='high'; }
+  if(certGisa||/자격증|기능사|기능장|기술사|컴활|컴퓨터활용|토익/.test(t)){ out.type='cert'; out.intent='자격 취득'; out.confidence='high'; }
   if(/지원금|지원사업|혜택|보조금|정책/.test(t)){ out.type='policy'; out.intent='지원 찾기'; out.confidence='high'; }
   const regions=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주','광양','포항'];
   out.region=regions.find(r=>t.includes(r))||'';

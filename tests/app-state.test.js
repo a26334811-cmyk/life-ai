@@ -227,6 +227,13 @@ test('certificate screen keeps the chosen item and result when you come back, an
  assert.match(b.el('certSearchMatches').innerHTML,/종목 검색 중/);
 });
 
+test('goal type is not guessed from a lone 기사 or 회사',()=>{
+ const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
+ for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);
+ for(const t of ['전기기사 준비','전기기사 올해 취득','위험물산업기사','정보처리기사를 따기','기사 자격증 따기']) assert.equal(type(t),'cert',t);
+ for(const t of ['회사 취업 준비','삼천리 입사','회사 지원하기','이직 준비']) assert.equal(type(t),'job',t);
+});
+
 test('renaming a goal refreshes the certificate search name, region and timing but keeps the goal type',async()=>{
  const saved={mainGoal:'정보처리기사 준비',goalType:'cert',parsedGoal:{raw:'정보처리기사 준비',type:'cert',intent:'자격 취득',region:'서울',timing:'올해 안',subject:'정보처리기사',confidence:'high'}};
  const a=app(JSON.stringify(saved),'전기기사 준비');await a.run('editCurrentGoal()');
