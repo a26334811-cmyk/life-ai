@@ -255,6 +255,12 @@ test('extractDeadline year-less dates pick the closest year around new year',()=
   assert.equal(L.extractDeadline('마감 12월 28일','2026-11-17').date,'2026-12-28');
 });
 
+test('extractDeadline reads "2월 29일" in both leap and non-leap years',()=>{
+  assert.equal(L.extractDeadline('서류 접수 마감 2월 29일까지','2027-12-10')?.date,'2028-02-29','non-leap year: next leap year');
+  assert.equal(L.extractDeadline('서류 접수 마감 2월 29일까지','2028-01-10')?.date,'2028-02-29','leap year: this year');
+  assert.equal(L.extractDeadline('서류 접수 마감 2월 30일까지','2027-12-10'),null,'a date that never exists is still ignored');
+});
+
 test('extractDeadline stays quiet when there is no clear deadline',()=>{
   const today='2026-11-16';
   for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
