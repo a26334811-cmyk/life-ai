@@ -297,12 +297,13 @@ test('two-digit-year forms and look-alike numbers',()=>{
   assert.equal(L.extractDeadline('마감 2026.11.22',today)?.date,'2026-11-22','four-digit form still works');
 });
 
-test('sanitizeState drops job postings without a task list or text id/company/title',()=>{
+test('sanitizeState keeps a posting that has no task list yet (the app fills it in) and drops ones with a wrong task list or non-text id/company/title',()=>{
   const good={id:'p1',company:'삼천리',title:'시설',tasks:[false,false,false,false]};
-  const {state,dropped}=L.sanitizeState({jobPostings:[good,{id:'p2',company:'a',title:'b'},{id:'p3',company:'a',title:'b',tasks:'no'},{id:5,company:'a',title:'b',tasks:[]},{id:'p4',company:null,title:'b',tasks:[]},{id:'p5',company:'a',tasks:[]}]});
+  const {state,dropped}=L.sanitizeState({jobPostings:[good,{id:'p3',company:'a',title:'b',tasks:'no'},{id:5,company:'a',title:'b',tasks:[]},{id:'p4',company:null,title:'b',tasks:[]},{id:'p5',company:'a',tasks:[]}]});
   assert.deepEqual(state.jobPostings,[good]);
   assert.ok(dropped.includes('jobPostings'));
-  assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:[{id:'p2',company:'a',title:'b'}]}),false);
+  assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:[{id:'p2',company:'a',title:'b'}]}),true,'an old backup without task lists is still accepted');
+  assert.equal(L.sanitizeState({jobPostings:[{id:'p2',company:'a',title:'b'}]}).state.jobPostings.length,1);
 });
 
 test('weekStart gives the Sunday of the week, also across month and year ends',()=>{

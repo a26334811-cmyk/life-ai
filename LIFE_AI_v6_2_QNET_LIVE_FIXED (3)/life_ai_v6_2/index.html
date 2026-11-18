@@ -2333,6 +2333,7 @@ const postingStages=['관심','준비 중','지원 완료','면접','합격','�
 function jobCollections(){
   if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
   if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
+  state.jobPostings.forEach(p=>{if(p&&!Array.isArray(p.tasks))p.tasks=[false,false,false,false];});
 }
 function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
@@ -2483,6 +2484,7 @@ function postingStageLine(p){
   return `<p class="meta">${esc(p.stage)} · ${n<=0?'오늘 바꿨어요':n+'일째'}</p>`;
 }
 function setPostingTask(id,index,checked){
+  jobCollections();
   const p=state.jobPostings.find(x=>x.id===id);if(!p||index<0||index>3)return;
   p.tasks[index]=checked;persistState();
 }

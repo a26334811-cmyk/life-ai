@@ -129,6 +129,15 @@ test('date fields: blank deadline and interview date are allowed, wrong dates ar
  form('병원','2026-05-12');await p.run('plannerSave()');assert.equal(count(),1);
  assert.equal(p.run('typeof validDeadline'),'undefined');
 });
+test('saved posting without a checklist (old backup) still renders and can be checked',()=>{
+ const saved={mainGoal:'전기기사 준비',goalType:'cert',jobPostings:[{id:'x1',company:'백업회사',title:'정비',url:'https://example.com/j',stage:'관심'}]};
+ const a=app(JSON.stringify(saved));
+ a.run('renderJobHub()');
+ assert.match(a.el('savedPostings').innerHTML,/백업회사/);
+ a.run("setPostingTask('x1',1,true)");
+ assert.equal(a.run('state.jobPostings[0].tasks[1]'),true);assert.equal(a.run('state.jobPostings[0].tasks.length'),4);
+});
+
 test('renaming preserves checklist and saved qualification schedule',async()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');

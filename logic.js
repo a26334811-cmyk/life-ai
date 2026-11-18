@@ -147,7 +147,7 @@
     habits: item => isPlain(item) && validId(item.id) && isText(item.name, 200) && Array.isArray(item.checks),
     plannerEntries: item => isPlain(item) && validId(item.id) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
-    jobPostings: item => isPlain(item) && Array.isArray(item.tasks) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
+    jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
     taskNames: item => isText(item, 100) && item.trim() !== '',
     watchCompanies: item => isPlain(item) || typeof item === 'string',
     favoriteCerts: item => isPlain(item) || typeof item === 'string'
