@@ -170,6 +170,12 @@
       out.watchCompanies = out.watchCompanies.map(item =>
         typeof item === 'string' ? { id: newRecordId(), name: item.trim(), url: '' } : item);
     }
+    // records without an id are shown but cannot be checked, edited or deleted: give them one instead of dropping them
+    for (const key of ['habits', 'plannerEntries', 'watchCompanies']) {
+      if (!Array.isArray(out[key])) continue;
+      out[key] = out[key].map(item =>
+        isPlain(item) && (item.id === undefined || item.id === null || item.id === '') ? Object.assign({}, item, { id: newRecordId() }) : item);
+    }
     out.schemaVersion = STATE_SCHEMA_VERSION;
     return out;
   }

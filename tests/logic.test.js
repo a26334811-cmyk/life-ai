@@ -204,6 +204,20 @@ test('migrateState turns text-only watch companies into records',()=>{
   assert.equal(L.sanitizeState(out).dropped.length,0);
 });
 
+test('migrateState gives an id to habits, planner entries and watch companies that have none',()=>{
+  const out=L.migrateState({schemaVersion:2,
+    habits:[{name:'운동',checks:[]},{id:'h1',name:'독서',checks:[]}],
+    plannerEntries:[{title:'면접',date:'2026-12-01'},{id:'p1',title:'시험',date:'2026-12-02'}],
+    watchCompanies:[{name:'삼천리',url:''}]});
+  assert.ok(out.habits[0].id);assert.equal(out.habits[1].id,'h1');
+  assert.ok(out.plannerEntries[0].id);assert.equal(out.plannerEntries[1].id,'p1');
+  assert.ok(out.watchCompanies[0].id);
+  assert.equal(out.habits[0].name,'운동','record is kept, not dropped');
+  const ids=[out.habits[0].id,out.plannerEntries[0].id,out.watchCompanies[0].id];
+  assert.equal(new Set(ids).size,3,'new ids are different from each other');
+  assert.equal(L.sanitizeState(out).dropped.length,0);
+});
+
 test('resumeFocus never returns more remaining time than the timer length',()=>{
   const now=Date.parse('2026-05-10T03:00:00Z');
   const r=L.resumeFocus({status:'running',deadline:now+90*60*1000,minutes:25},now);
