@@ -239,3 +239,24 @@ test('a repeating item that ended, normal-priority items and finished one-time i
     {id:'p',title:'지난 일정',date:'2026-05-01',priority:'high'}]);
   assert.deepEqual(upcoming(a),[['한 번 일정','2026-05-20']]);
 });
+
+/* ---------- #113 keyboard use of the planner tabs ---------- */
+test('arrow keys, Home and End pick the next planner tab; other keys do nothing',()=>{
+  const a=createApp();
+  const go=(tab,key)=>a.run(`plannerTabTarget(${JSON.stringify(tab)},${JSON.stringify(key)})`);
+  assert.equal(go('today','ArrowRight'),'calendar');
+  assert.equal(go('stats','ArrowRight'),'today');
+  assert.equal(go('today','ArrowLeft'),'stats');
+  assert.equal(go('habits','Home'),'today');
+  assert.equal(go('habits','End'),'stats');
+  assert.equal(go('habits','a'),null);
+  assert.equal(go('nope','ArrowRight'),null);
+});
+
+test('planner tabs and panels are linked by id, aria-controls and aria-labelledby, and only the chosen tab is tabbable',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.match(html,/id="plannerTab-\$\{tab\}"[^`]*aria-controls="plannerPanel-\$\{tab\}"[^`]*tabindex="\$\{plannerActiveTab===tab\?0:-1\}"[^`]*onkeydown="plannerTabKey\(event,'\$\{tab\}'\)"/);
+  for(const tab of ['today','calendar','habits','stats']){
+    assert.match(html,new RegExp(`id="plannerPanel-${tab}" data-tab="${tab}" role="tabpanel" aria-labelledby="plannerTab-${tab}"`));
+  }
+});

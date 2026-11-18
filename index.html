@@ -2122,6 +2122,24 @@ function plannerFocusHTML(){
 }
 let plannerActiveTab='today';
 const PLANNER_TABS=['today','calendar','habits','stats'];
+const PLANNER_TAB_LABELS=[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']];
+/* Arrow keys, Home and End move between the tabs. Returns the tab to go to, or null for any other key. */
+function plannerTabTarget(current,key){
+  const names=PLANNER_TABS,i=names.indexOf(current);
+  if(i<0)return null;
+  if(key==='ArrowRight')return names[(i+1)%names.length];
+  if(key==='ArrowLeft')return names[(i+names.length-1)%names.length];
+  if(key==='Home')return names[0];
+  if(key==='End')return names[names.length-1];
+  return null;
+}
+function plannerTabKey(event,tab){
+  const target=plannerTabTarget(tab,event.key);
+  if(!target)return;
+  event.preventDefault();
+  plannerSwitchTab(target);
+  document.getElementById('plannerTab-'+target)?.focus();
+}
 /* slide: 'next' | 'prev' when the tab was changed by a swipe, so the new tab slides in from that side. */
 function plannerSwitchTab(tab,slide){
   if(!PLANNER_TABS.includes(tab))return;
@@ -2210,22 +2228,22 @@ function renderCalendar(){
   const upcoming=plannerUpcomingPriority();
   c.innerHTML=`
     <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
-      ${[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']].map(([tab,label])=>`<button type="button" role="tab" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" onclick="plannerSwitchTab('${tab}')">${label}</button>`).join('')}
+      ${PLANNER_TAB_LABELS.map(([tab,label])=>`<button type="button" role="tab" id="plannerTab-${tab}" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" aria-controls="plannerPanel-${tab}" tabindex="${plannerActiveTab===tab?0:-1}" onclick="plannerSwitchTab('${tab}')" onkeydown="plannerTabKey(event,'${tab}')">${label}</button>`).join('')}
     </div>
-    <section class="planner-tabpanel" data-tab="today" role="tabpanel" ${plannerActiveTab==='today'?'':'hidden'}>
+    <section class="planner-tabpanel" id="plannerPanel-today" data-tab="today" role="tabpanel" aria-labelledby="plannerTab-today" ${plannerActiveTab==='today'?'':'hidden'}>
       ${recoveryPanelHTML()}
       ${plannerFocusHTML()}
       ${plannerOverdueHTML()}
       ${focusPanelHTML()}
     </section>
-    <section class="planner-tabpanel" data-tab="habits" role="tabpanel" ${plannerActiveTab==='habits'?'':'hidden'}>
+    <section class="planner-tabpanel" id="plannerPanel-habits" data-tab="habits" role="tabpanel" aria-labelledby="plannerTab-habits" ${plannerActiveTab==='habits'?'':'hidden'}>
       ${habitPanelHTML()}
     </section>
-    <section class="planner-tabpanel" data-tab="stats" role="tabpanel" ${plannerActiveTab==='stats'?'':'hidden'}>
+    <section class="planner-tabpanel" id="plannerPanel-stats" data-tab="stats" role="tabpanel" aria-labelledby="plannerTab-stats" ${plannerActiveTab==='stats'?'':'hidden'}>
       ${progressInsightsHTML()}
       ${focusHistoryHTML()}
     </section>
-    <section class="planner-tabpanel" data-tab="calendar" role="tabpanel" ${plannerActiveTab==='calendar'?'':'hidden'}>
+    <section class="planner-tabpanel" id="plannerPanel-calendar" data-tab="calendar" role="tabpanel" aria-labelledby="plannerTab-calendar" ${plannerActiveTab==='calendar'?'':'hidden'}>
     ${plannerSearchHTML()}
     <div class="card">
       <div class="planner-toolbar">

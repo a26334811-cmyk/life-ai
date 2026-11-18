@@ -82,7 +82,7 @@ test('tapping a tab button still works, and a screen redraw keeps the tab chosen
   assert.equal(tabOf(a), 'stats');
   a.run('renderCalendar()');
   assert.equal(tabOf(a), 'stats');
-  assert.match(a.el('calendarContent').innerHTML, /data-tab="stats" role="tabpanel" >/);
+  assert.match(a.el('calendarContent').innerHTML, /data-tab="stats" role="tabpanel" aria-labelledby="plannerTab-stats" >/);
 });
 
 test('the swipe hint is shown only the first time the schedule screen opens', () => {
