@@ -2,6 +2,14 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createApp}=require('./helpers/app-harness.js');
 
+/* ---------- README에 중첩 폴더 배포 규칙 (#169) ---------- */
+test('README에 중첩 폴더가 실제 배포본이라는 규칙과 동기화 명령이 적혀 있다',()=>{
+  const readme=require('node:fs').readFileSync(require('node:path').join(__dirname,'..','README.txt'),'utf8');
+  assert.match(readme,/중첩 폴더/);
+  assert.match(readme,/지우면 안 됩니다/);
+  assert.match(readme,/node scripts\/sync-nested\.js/);
+  assert.match(readme,/직접 고치지 않습니다/);
+});
 /* ---------- 안내 문구(토스트) 표시 시간 (#165) ---------- */
 test('토스트 표시 시간은 글자 수에 비례하고 최대 8초, 중요 안내는 최소 시간을 지킨다',()=>{
   const a=createApp();
