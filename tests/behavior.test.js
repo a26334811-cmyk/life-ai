@@ -329,6 +329,14 @@ test('calendar views show weekday names in Sunday-first order and the right week
   assert.equal(a.run("weekdayOf('2026-05-09')"),6);
 });
 
+test('koreaToday follows the clock and uses the shared Korea date rule',()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-05-10T14:59:00Z')});
+  assert.equal(a.run('koreaToday()'),'2026-05-10');
+  a.clock.now=Date.parse('2026-05-10T15:01:00Z');
+  assert.equal(a.run('koreaToday()'),'2026-05-11');
+  assert.equal(a.run('koreaToday()'),a.run('LifeLogic.koreaDate(Date.now())'));
+});
+
 test('go() sends the old job screens to the job hub',()=>{
   const a=createApp();
   a.run("globalThis.__hub=0;renderJobHub=()=>{globalThis.__hub++;}");
