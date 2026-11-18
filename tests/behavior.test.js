@@ -329,6 +329,21 @@ test('calendar views show weekday names in Sunday-first order and the right week
   assert.equal(a.run("weekdayOf('2026-05-09')"),6);
 });
 
+test('resetting goal progress cancels a pending certificate search and clears the box',()=>{
+  const a=createApp();
+  const versions=()=>a.run('[certSearchVersion,certScheduleVersion]').join(',');
+  a.el('certSearchInput').value='전기기사';a.el('certSearchInput').dataset.code='1150';
+  a.run("certSearchController=new AbortController();certScheduleController=new AbortController();globalThis.__s=certSearchController.signal;globalThis.__c=certScheduleController.signal;");
+  const before=versions();
+  a.run("state.certSchedule={items:[]};resetGoalProgress()");
+  assert.notEqual(versions(),before);
+  assert.equal(a.run('__s.aborted'),true);
+  assert.equal(a.run('__c.aborted'),true);
+  assert.equal(a.el('certSearchInput').value,'');
+  assert.equal(a.el('certSearchInput').dataset.code,'');
+  assert.equal(a.run('state.certSchedule'),null);
+});
+
 test('koreaToday follows the clock and uses the shared Korea date rule',()=>{
   const a=createApp(undefined,{now:Date.parse('2026-05-10T14:59:00Z')});
   assert.equal(a.run('koreaToday()'),'2026-05-10');

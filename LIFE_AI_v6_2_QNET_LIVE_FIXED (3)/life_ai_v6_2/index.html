@@ -756,11 +756,8 @@ function applyNewGoal(rawText,extra={}){
 }
 /* Clears what the certificate screen shows (running searches, typed name) so it does not carry over to another goal. */
 function resetGoalScreenState(){
-  ++certSearchVersion;++certScheduleVersion;
-  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
+  resetCertSearch();
   lastCertLookup=null;
-  const input=document.getElementById('certSearchInput');
-  if(input){input.value='';input.dataset.code='';}
   for(const id of ['liveCertStatus','liveCertResults','certSearchMatches']){const box=document.getElementById(id);if(box)box.innerHTML='';}
 }
 /* Called when a goal is being created: the goal slot starts empty and gets a new id. */
@@ -2850,6 +2847,13 @@ async function fetchJson(url,signal){
 }
 let certSearchTimer, certSearchController, certScheduleController;
 let certSearchVersion=0, certScheduleVersion=0;
+// Cancels any running certificate search/schedule request and clears the search box (used when the goal changes).
+function resetCertSearch(){
+  ++certSearchVersion;++certScheduleVersion;
+  clearTimeout(certSearchTimer);certSearchController?.abort();certScheduleController?.abort();
+  const input=document.getElementById('certSearchInput');
+  if(input){input.value='';input.dataset.code='';}
+}
 async function searchCertNames(){
   const input=document.getElementById('certSearchInput');
   const matches=document.getElementById('certSearchMatches');
