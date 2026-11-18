@@ -32,6 +32,19 @@ test('집중 기록 정리 안내는 6초 이상 보여 준다',()=>{
   assert.ok(i>=0);
   assert.ok(a.toastMinMs[i]>=6000);
 });
+/* ---------- 달력의 채용 마감 줄에서 공고로 이동 (#176) ---------- */
+test('달력의 채용 마감 줄에는 공고 id가 담기고 공고 보기 버튼이 있다',()=>{
+  const a=createApp();
+  a.run("state.jobPostings=[{id:'p1',company:'삼천리',title:'시설관리',deadline:'2026-05-12',url:'https://example.com/1',stage:'관심',tasks:[false,false,false,false]}]");
+  assert.equal(a.run("plannerForDate('2026-05-12')[0].postingId"),'p1');
+  a.run("plannerSelected='2026-05-12';plannerEntries().push({id:'e1',title:'개인 일정',date:'2026-05-12',repeat:'none'});renderCalendar()");
+  const html=a.el('calendarContent').innerHTML;
+  assert.match(html,/삼천리 · 시설관리 마감/);
+  assert.equal(html.split("go('jobHub')").length-1,1,'공고 보기 버튼은 마감 줄에만');
+  assert.match(html,/공고 보기/);
+  assert.match(html,/data-id=\"e1\" onclick=\"plannerEdit\(this\.dataset\.id/);
+});
+
 /* ---------- 타이머 카드의 오늘 집중 시간 (#175) ---------- */
 test('타이머 카드에 오늘 집중 분·세션 수가 보이고 세션이 끝나면 갱신된다',()=>{
   const a=createApp();
