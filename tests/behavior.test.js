@@ -1131,6 +1131,36 @@ test('habit and schedule buttons read ids from data-id, not from inline script t
   assert.equal(/habit(Toggle|Remove)\('|planner(Toggle|Edit|Remove)\('/.test(habits+html),false);
 });
 
+/* ---------- server answers: friendly Korean errors ---------- */
+test('job and exam lookups show Korean messages for HTML answers and a lost connection',async()=>{
+  const html=async()=>({ok:false,status:502,json:async()=>{throw new SyntaxError("Unexpected token '<'");}});
+  const offline=async()=>{throw new TypeError('Failed to fetch');};
+  for(const [fetch,expected] of [[html,/서버 응답을 읽지 못했어요/],[offline,/인터넷 연결을 확인하고 다시 시도해 주세요/]]){
+    const jobs=createApp(JSON.stringify({mainGoal:'정비 취업',goalType:'job'}),{fetch});
+    await jobs.run('loadLiveJobs()');
+    assert.match(jobs.el('liveJobStatus').innerHTML,expected);assert.doesNotMatch(jobs.el('liveJobStatus').innerHTML,/Unexpected|Failed to fetch/);
+    const exam=createApp(undefined,{fetch});
+    exam.el('certSearchInput').value='전기기사';
+    await exam.run('loadLiveCertSchedule()');
+    assert.match(exam.el('liveCertStatus').innerHTML,expected);assert.doesNotMatch(exam.el('liveCertStatus').innerHTML,/Unexpected|Failed to fetch/);
+  }
+});
+
+test('job lookup still shows results and the server message for failures',async()=>{
+  const ok=createApp(JSON.stringify({mainGoal:'정비 취업',goalType:'job'}),{fetch:async()=>({ok:true,json:async()=>({source:'고용24',items:[{company:'삼천리',title:'설비정비',url:'https://example.org/1'}]})})});
+  await ok.run('loadLiveJobs()');
+  assert.match(ok.el('liveJobResults').innerHTML,/설비정비/);
+  const bad=createApp(JSON.stringify({mainGoal:'정비 취업',goalType:'job'}),{fetch:async()=>({ok:false,status:503,json:async()=>({message:'고용24 인증키가 아직 설정되지 않았어요.'})})});
+  await bad.run('loadLiveJobs()');
+  assert.match(bad.el('liveJobStatus').innerHTML,/인증키가 아직/);
+});
+
+test('fetchJson lets a cancelled request stay silent instead of showing the connection message',async()=>{
+  const a=createApp(undefined,{fetch:async()=>{const e=new Error('aborted');e.name='AbortError';throw e;}});
+  const name=await a.run("fetchJson('/x').then(()=>'', e=>e.name)");
+  assert.equal(name,'AbortError');
+});
+
 /* ---------- habits ---------- */
 test('habit add rejects empty, duplicate and 61-character names',()=>{
   const a=createApp();

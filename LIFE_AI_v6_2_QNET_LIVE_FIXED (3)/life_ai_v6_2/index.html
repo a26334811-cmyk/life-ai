@@ -2587,10 +2587,8 @@ async function loadLiveJobs(){
   status.innerHTML=`<strong>⏳ 고용24에서 찾는 중…</strong><p class="meta">검색어: ${esc(keyword)}</p>`;
   box.innerHTML='';
   try{
-    const r=await fetch(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,{signal:withTimeout(liveJobsController.signal)});
-    const data=await r.json();
+    const data=await fetchJson(`/.netlify/functions/work24-jobs?keyword=${encodeURIComponent(keyword)}`,liveJobsController.signal);
     if(version!==liveJobsRequestVersion) return;
-    if(!r.ok){const err=new Error(data.message||'채용정보를 불러오지 못했어요.');err.serverStatus=r.status;throw err;}
     if(!data.items?.length){
       status.innerHTML=`<strong>검색 결과가 없어요.</strong><p class="meta">고용24에 현재 등록된 공고 중 목표와 일치하는 결과를 찾지 못했어요.</p><p class="meta">검색어: ${esc(keyword)}</p><p class="meta">위 검색어 칸을 회사명이나 직무로 고쳐서 다시 조회해 보세요.</p><button class="btn secondary" onclick="loadLiveJobs()">다시 확인</button>`;
       return;
@@ -2724,16 +2722,21 @@ function friendlyErrorMessage(e,fallback){
   return /[가-힣]/.test(e?.message||'')?e.message:fallback;
 }
 async function fetchJson(url,signal){
-  try{
-    const r=await fetch(url,{signal:withTimeout(signal)});
-    let data;
-    try{data=await r.json();}catch(e){if(e.name==='TimeoutError'||e.name==='AbortError')throw e;throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');}
-    if(!r.ok) throw new Error(data.message||'정보를 불러오지 못했어요.');
-    return data;
-  }catch(e){
+  let r;
+  try{r=await fetch(url,{signal:withTimeout(signal)});}
+  catch(e){
     if(e.name==='TimeoutError')throw new Error(SLOW_CONNECTION_MESSAGE);
-    throw e;
+    if(e.name==='AbortError')throw e;
+    throw new Error('인터넷 연결을 확인하고 다시 시도해 주세요.');
   }
+  let data;
+  try{data=await r.json();}catch(e){
+    if(e.name==='TimeoutError')throw new Error(SLOW_CONNECTION_MESSAGE);
+    if(e.name==='AbortError')throw e;
+    throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  if(!r.ok){const err=new Error(data.message||'정보를 불러오지 못했어요.');err.serverStatus=r.status;throw err;}
+  return data;
 }
 let certSearchTimer, certSearchController, certScheduleController;
 let certSearchVersion=0, certScheduleVersion=0;
