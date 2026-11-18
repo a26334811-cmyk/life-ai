@@ -2081,6 +2081,16 @@ function plannerOverdueHTML(){
     ${list.map(e=>`<div class="planner-item"><div><strong>${esc(e.title)}</strong><p class="meta">${esc(e.date)} · ${esc(e.time||'종일')}</p></div><div><button class="btn ghost" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerToggle(this.dataset.id,'${esc(e.date)}')">✓ 완료</button><button class="btn ghost" onclick="plannerGoToDate('${esc(e.date)}')">날짜로 이동</button></div></div>`).join('')}
   </div>`;
 }
+/* Next occurrence of each high-priority item that is still open. Repeating items are looked up over the next 31 days
+   (skipped dates and per-date done flags are respected); a one-time item keeps its own date. */
+function plannerUpcomingPriority(){
+  const today=koreaToday();
+  const span=Array.from({length:31},(_,i)=>plannerDateOffset(today,i));
+  return plannerEntries().filter(e=>e&&e.priority==='high').map(e=>{
+    const date=LifeLogic.isRepeating(e)?span.find(d=>LifeLogic.occurs(e,d)&&!LifeLogic.isDone(e,d)):(e.date>=today&&!LifeLogic.isDone(e,e.date)?e.date:null);
+    return date?{...e,date}:null;
+  }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+}
 /* life-ai principle: encourage progress while allowing rest without judgment. */
 function recoveryMode(){return state.recoveryMode==='rest'?'rest':state.recoveryMode==='gentle'?'gentle':'normal';}
 function recoverySetMode(mode){
@@ -2197,7 +2207,7 @@ function renderCalendar(){
   const existing=plannerEntries().find(e=>e.id===plannerEditing);
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+['일','월','화','수','목','금','토'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]+')':plannerSelected;
   const dayList=plannerForDate(plannerSelected);
-  const upcoming=plannerEntries().filter(e=>!LifeLogic.isDone(e,e.date)&&e.priority==='high'&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+  const upcoming=plannerUpcomingPriority();
   c.innerHTML=`
     <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
       ${[['today','오늘·집중'],['calendar','캘린더'],['habits','습관'],['stats','통계']].map(([tab,label])=>`<button type="button" role="tab" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" onclick="plannerSwitchTab('${tab}')">${label}</button>`).join('')}

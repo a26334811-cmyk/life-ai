@@ -201,3 +201,41 @@ test('renaming a habit is refused for empty, too long or duplicate names, and ca
   await c.run("habitRename('h1')");
   assert.equal(c.saved().habits[0].name,'운동','same own name is a no-op');
 });
+
+
+// default fake clock: 2026-05-10 (Korea time)
+const upcoming=a=>JSON.parse(a.run('JSON.stringify(plannerUpcomingPriority().map(e=>[e.title,e.date]))'));
+const withEntries=entries=>createApp(JSON.stringify({mainGoal:'x',schemaVersion:2,plannerEntries:entries}));
+
+/* ---------- #93 upcoming priority card for repeating items ---------- */
+test('a high-priority daily item started in the past still shows with its next date',()=>{
+  const a=withEntries([{id:'d',title:'매일 공부',date:'2026-05-01',repeat:'daily',priority:'high'}]);
+  assert.deepEqual(upcoming(a),[['매일 공부','2026-05-10']]);
+});
+
+test('a repeating item moves to the next day once today is ticked',()=>{
+  const a=withEntries([{id:'d',title:'매일 공부',date:'2026-05-01',repeat:'daily',priority:'high',doneDates:['2026-05-10']}]);
+  assert.deepEqual(upcoming(a),[['매일 공부','2026-05-11']]);
+});
+
+test('a weekly item shows its next weekly date, and a skipped first date is not listed',()=>{
+  const a=withEntries([{id:'w',title:'주간 복습',date:'2026-05-04',repeat:'weekly',priority:'high'}]);
+  assert.deepEqual(upcoming(a),[['주간 복습','2026-05-11']]);
+  const b=withEntries([{id:'s',title:'단축',date:'2026-05-10',repeat:'daily',priority:'high',skipDates:['2026-05-10']}]);
+  assert.deepEqual(upcoming(b),[['단축','2026-05-11']]);
+});
+
+test('a monthly item shows on its next monthly date',()=>{
+  const a=withEntries([{id:'m',title:'월말 정리',date:'2026-01-31',repeat:'monthly',priority:'high'}]);
+  assert.deepEqual(upcoming(a),[['월말 정리','2026-05-31']]);
+});
+
+test('a repeating item that ended, normal-priority items and finished one-time items are left out',()=>{
+  const a=withEntries([
+    {id:'e',title:'끝난 반복',date:'2026-04-01',repeat:'daily',until:'2026-05-01',priority:'high'},
+    {id:'n',title:'보통',date:'2026-05-12',priority:'normal'},
+    {id:'f',title:'끝낸 일',date:'2026-05-12',priority:'high',done:true},
+    {id:'o',title:'한 번 일정',date:'2026-05-20',priority:'high'},
+    {id:'p',title:'지난 일정',date:'2026-05-01',priority:'high'}]);
+  assert.deepEqual(upcoming(a),[['한 번 일정','2026-05-20']]);
+});
