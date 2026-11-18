@@ -1481,6 +1481,19 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   assert.match(html('not-a-date'),/조회일/);
 });
 
+/* ---------- #172: planner screen description matches its real tabs ---------- */
+test('planner screen description names the real tabs and no longer says 7-day report',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  const intro=/<div id="calendarContent">/.test(html)&&/<p class="meta">([^<]*)<\/p><div id="calendarContent"><\/div>/.exec(html);
+  assert.ok(intro,'intro line above calendarContent exists');
+  assert.ok(!html.includes('7일 리포트'));
+  // every tab in the tab bar must be covered by a keyword in the intro sentence, so renaming a tab forces this line to be updated
+  const tabs=[...html.matchAll(/\['(today|calendar|habits|stats)','([^']+)'\]/g)].map(m=>m[1]);
+  assert.deepEqual(tabs,['today','calendar','habits','stats']);
+  for(const word of ['캘린더','일정 추가','집중 타이머','습관','주간·월간 통계'])assert.ok(intro[1].includes(word),word);
+  for(const label of [...html.matchAll(/\['(?:today|calendar|habits|stats)','([^']+)'\]/g)].map(m=>m[1]))assert.ok(['오늘·집중','캘린더','습관','통계'].includes(label),'tab label changed: update the intro line and this test: '+label);
+});
+
 /* ---------- #170: rule-based goal sorting is not called "AI" ---------- */
 test('goal sorting screens do not claim an AI understood the goal',()=>{
   const {html}=require('./helpers/app-harness.js');
