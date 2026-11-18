@@ -176,7 +176,7 @@
       out[key] = out[key].map(item =>
         isPlain(item) && (item.id === undefined || item.id === null || item.id === '') ? Object.assign({}, item, { id: newRecordId() }) : item);
     }
-    out.schemaVersion = STATE_SCHEMA_VERSION;
+    out.schemaVersion = Math.max(version, STATE_SCHEMA_VERSION); // never lower a version written by a newer app
     return out;
   }
 

@@ -1348,6 +1348,18 @@ test('a text-only watch company in saved data does not block adding a company',(
   assert.ok(a.saved().watchCompanies.every(c=>c.id));
 });
 
+/* ---------- 새 버전 기록의 버전 표시를 낮추지 않는다 (#109) ---------- */
+test('opening data saved by a newer version keeps its schemaVersion when saving',()=>{
+  const newer=a=>a.run('LifeLogic.STATE_SCHEMA_VERSION')+1;
+  const probe=createApp();
+  const v=newer(probe);
+  const a=createApp(JSON.stringify({schemaVersion:v,mainGoal:'전기기사'}));
+  a.run('persistState()');
+  assert.equal(a.saved().schemaVersion,v);
+  const b=createApp();b.run('persistState()');
+  assert.equal(b.saved().schemaVersion,b.run('LifeLogic.STATE_SCHEMA_VERSION'));
+});
+
 /* ---------- 조회일은 한국 날짜로 보여준다 (#99) ---------- */
 test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   const a=createApp();

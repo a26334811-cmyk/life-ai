@@ -692,7 +692,7 @@ if(savedState){
     startupNoticeMs=6000;
   }
 }
-state.schemaVersion=LifeLogic.STATE_SCHEMA_VERSION;
+state.schemaVersion=Math.max(Number(state.schemaVersion)||0,LifeLogic.STATE_SCHEMA_VERSION);
 // A new goal was started (the old one put aside) and never finished: bring the put-aside goal back.
 LifeLogic.restoreParkedGoal(state);
 let lifeAISaveWarningShown=false;

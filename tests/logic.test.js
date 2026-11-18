@@ -218,6 +218,12 @@ test('migrateState gives an id to habits, planner entries and watch companies th
   assert.equal(L.sanitizeState(out).dropped.length,0);
 });
 
+test('migrateState does not lower the version of data saved by a newer app',()=>{
+  assert.equal(L.migrateState({schemaVersion:L.STATE_SCHEMA_VERSION+1}).schemaVersion,L.STATE_SCHEMA_VERSION+1);
+  assert.equal(L.migrateState({schemaVersion:1}).schemaVersion,L.STATE_SCHEMA_VERSION);
+  assert.equal(L.migrateState({}).schemaVersion,L.STATE_SCHEMA_VERSION);
+});
+
 test('resumeFocus never returns more remaining time than the timer length',()=>{
   const now=Date.parse('2026-05-10T03:00:00Z');
   const r=L.resumeFocus({status:'running',deadline:now+90*60*1000,minutes:25},now);
