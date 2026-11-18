@@ -138,6 +138,19 @@ test('saved posting without a checklist (old backup) still renders and can be ch
  assert.equal(a.run('state.jobPostings[0].tasks[1]'),true);assert.equal(a.run('state.jobPostings[0].tasks.length'),4);
 });
 
+test('applied or rejected postings leave the calendar and the 7-day agenda',()=>{
+ const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';
+ a.el('postingDeadline').value=a.run('plannerDateOffset(koreaToday(),2)');a.run('savePosting()');
+ const date=a.run('state.jobPostings[0].deadline');
+ const inDay=()=>a.run(`JSON.stringify(plannerForDate('${date}'))`),inAgenda=()=>a.run('JSON.stringify(plannerAgenda())');
+ assert.match(inDay(),/삼천리/);assert.match(inAgenda(),/삼천리/);
+ for(const stage of ['지원 완료','불합격','지원 취소']){
+  a.run(`setPostingStage(state.jobPostings[0].id,'${stage}')`);
+  assert.doesNotMatch(inDay(),/삼천리/,stage);assert.doesNotMatch(inAgenda(),/삼천리/,stage);
+ }
+ a.run("setPostingStage(state.jobPostings[0].id,'준비 중')");assert.match(inAgenda(),/삼천리/);
+});
+
 test('renaming preserves checklist and saved qualification schedule',async()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');
