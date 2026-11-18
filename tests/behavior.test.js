@@ -678,6 +678,30 @@ test('unreadable links, blocked sites and no network give friendly messages and 
   assert.match(status(empty),/먼저 올바른 공고 링크/);
 });
 
+test('a code error while reading a link is not shown as an internet problem',async()=>{
+  const a=createApp(undefined,{fetch:async()=>({ok:true,json:async()=>null})});
+  a.el('postingUrl').value='https://example.com/x';
+  await a.run('fillPostingFromUrl()');
+  assert.doesNotMatch(status(a),/인터넷/);
+  assert.match(status(a),/링크를 읽지 못했어요/);
+  assert.equal(a.el('postingFetch').disabled,false);
+});
+
+test('reading a link works in browsers without AbortSignal.timeout and aborts a hung request',async()=>{
+  let signal;
+  const a=createApp(undefined,{fetch:async(url,opts)=>{signal=opts.signal;return {ok:true,json:async()=>({ok:true,title:'안전관리',deadline:'2026-12-05'})};}});
+  a.run('AbortSignal={}');
+  a.el('postingUrl').value='https://example.com/x';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingDeadline').value,'2026-12-05');
+  assert.ok(signal&&typeof signal.aborted==='boolean');
+  const hung=createApp(undefined,{fetch:(url,opts)=>new Promise((resolve,reject)=>{opts.signal.addEventListener('abort',()=>reject(Object.assign(new Error('aborted'),{name:'AbortError'})));})});
+  hung.run('setTimeout=(fn)=>{Promise.resolve().then(fn);return 1;}');
+  hung.el('postingUrl').value='https://example.com/x';
+  await hung.run('fillPostingFromUrl()');
+  assert.match(status(hung),/인터넷 연결을 확인/);
+});
+
 test('pasting the posting text finds the deadline and the link',()=>{
   const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z')});
   a.el('postingPaste').value='도시가스 시설관리 신입\n접수기간 2026.11.10(월) ~ 2026.11.30(일) 18:00\n자세히 https://example.com/job/7';

@@ -2492,6 +2492,13 @@ function applyPostingInfo(info){
   if(!document.getElementById('postingCompany')?.value&&siteName)message+=' ('+siteName+' 페이지라서 회사명은 직접 입력해 주세요.)';
   return {found:true,message:(message+note+' 내용을 확인해 주세요.').trim(),deadlinePast};
 }
+// AbortSignal.timeout is missing in older browsers, so the timeout is built from AbortController.
+async function fetchWithTimeout(url,ms){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),ms);
+  try{return await fetch(url,{signal:controller.signal});}
+  finally{clearTimeout(timer);}
+}
 async function fillPostingFromUrl(){
   const url=LifeLogic.cleanPostingUrl(document.getElementById('postingUrl')?.value||'');
   if(!url){postingSetStatus('먼저 올바른 공고 링크를 입력해 주세요.');return;}
@@ -2500,10 +2507,17 @@ async function fillPostingFromUrl(){
   if(button)button.disabled=true;
   postingSetStatus('링크를 읽는 중이에요…');
   try{
-    const response=await fetch('/.netlify/functions/link-preview?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(15000)});
+    let response;
+    try{response=await fetchWithTimeout('/.netlify/functions/link-preview?url='+encodeURIComponent(url),15000);}
+    catch(networkError){
+      // Only a failed request (no network, timeout) is shown as an internet problem; other errors are code problems.
+      if(version!==postingFetchVersion)return;
+      postingSetStatus('지금은 링크를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+      return;
+    }
     const data=await response.json().catch(()=>({}));
     if(version!==postingFetchVersion)return;
-    if(!response.ok||!data.ok)throw new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');
+    if(!response.ok||!data.ok){const failure=new Error(data.message||'이 링크는 읽지 못했어요. 직접 입력해 주세요.');failure.friendly=true;throw failure;}
     const applied=applyPostingInfo(data);
     let message=applied.message;
     // A deadline that was found but is already past is explained in the message; do not also say "not found".
@@ -2516,7 +2530,7 @@ async function fillPostingFromUrl(){
     postingSetStatus(message);
   }catch(e){
     if(version!==postingFetchVersion)return;
-    postingSetStatus(e.name==='TypeError'||e.name==='AbortError'||e.name==='TimeoutError'?'지금은 링크를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.':(e.message||'링크를 읽지 못했어요. 직접 입력해 주세요.'));
+    postingSetStatus(e.friendly&&e.message?e.message:'링크를 읽지 못했어요. 직접 입력해 주세요.');
   }finally{
     if(version===postingFetchVersion&&button)button.disabled=false;
   }
