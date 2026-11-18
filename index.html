@@ -2443,7 +2443,8 @@ function addWatchCompany(){
   if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
   const saved=persistState();renderJobHub();if(saved)toast('관심 회사를 저장했어요.');
 }
-function removeWatchCompany(id){
+async function removeWatchCompany(id){
+  if(!await uiConfirm('관심 회사에서 뺄까요?',{title:'관심 회사 해제',ok:'빼기',danger:true}))return;
   state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
 }
 function clearPostingForm(){
@@ -2751,7 +2752,8 @@ function saveFavoriteCert(){
 function openFavoriteCert(button){
   go('cert');chooseCert(button);
 }
-function removeFavoriteCert(code){
+async function removeFavoriteCert(code){
+  if(!await uiConfirm('관심 자격증에서 뺄까요?',{title:'관심 자격증 해제',ok:'빼기',danger:true}))return;
   state.favoriteCerts=(state.favoriteCerts||[]).filter(x=>x.code!==code);persistState();renderMy();
 }
 function favoriteCertHTML(){
