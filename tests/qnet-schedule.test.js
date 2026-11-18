@@ -10,8 +10,13 @@ function setup(responder){
     if(out&&typeof out==='object') return {ok:out.status>=200&&out.status<300,status:out.status,text:async()=>out.body};
     return {ok:true,status:200,text:async()=>out};
   };
-  return require(path).handler;
+  const raw=require(path).handler;
+  // Calls look like they come from the app's own page unless a test passes its own headers.
+  const handler=event=>raw({headers:{host:'app.example',referer:'https://app.example/index.html'},...event});
+  handler.raw=raw;
+  return handler;
 }
+const thisYear=String(new Date().getFullYear());
 const qual=(code,name)=>`<item><jmcd>${code}</jmcd><jmfldnm>${name}</jmfldnm><qualgbcd>T</qualgbcd></item>`;
 test('search reads all pages and normalizes spaces',async()=>{
   const pages=[];
@@ -48,14 +53,14 @@ test('upstream repeating page is reported as incomplete',async()=>{
   assert.equal(result.statusCode,502);
 });
 test('selected code produces events and removes duplicate rounds',async()=>{
-  const item='<item><implYy>2026</implYy><description>정기 1회</description><docRegStartDt>20260101</docRegStartDt><docRegEndDt>20260105</docRegEndDt><docExamStartDt>20260201</docExamStartDt></item>';
+  const item=`<item><implYy>${thisYear}</implYy><description>정기 1회</description><docRegStartDt>${thisYear}0101</docRegStartDt><docRegEndDt>${thisYear}0105</docRegEndDt><docExamStartDt>${thisYear}0201</docExamStartDt></item>`;
   const handler=setup(()=>`<response><totalCount>2</totalCount>${item}${item}</response>`);
-  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:thisYear}});
   assert.equal(result.statusCode,200);
   const data=JSON.parse(result.body);
   assert.equal(data.rounds.length,1);
   assert.equal(data.items.length,2);
-  assert.equal(data.items[0].startDate,'2026-01-01');
+  assert.equal(data.items[0].startDate,`${thisYear}-01-01`);
 });
 test('invalid year and missing service key fail clearly',async()=>{
   const handler=setup(()=>{throw Error('must not fetch');});
@@ -91,7 +96,7 @@ test('Q-Net qualification endpoint rejects HTML error pages',async()=>{
 });
 test('Q-Net schedule endpoint rejects HTML error pages',async()=>{
   const handler=setup(()=>'<html><body>Gateway unavailable</body></html>');
-  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:thisYear}});
   assert.equal(result.statusCode,502);
   const body=JSON.parse(result.body);
   assert.equal(body.message,'지금은 Q-Net에서 일정을 가져오지 못했어요. 잠시 뒤 다시 시도하거나 Q-Net 사이트에서 확인해 주세요.');
@@ -102,14 +107,14 @@ test('Q-Net HTTP errors and network failures also get the short screen message',
   process.env.DATA_GO_KR_SERVICE_KEY='test';
   global.fetch=async()=>({ok:false,status:500,text:async()=>'boom'});
   let handler=require(path).handler;
-  let body=JSON.parse((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
+  let body=JSON.parse((await handler({headers:{host:'app.example',referer:'https://app.example/'},queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
   assert.match(body.message,/잠시 뒤 다시 시도/);
   assert.doesNotMatch(body.message,/500/);
   assert.match(body.detail,/500/);
   delete require.cache[path];
   global.fetch=async()=>{throw new TypeError('fetch failed');};
   handler=require(path).handler;
-  body=JSON.parse((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
+  body=JSON.parse((await handler({headers:{host:'app.example',referer:'https://app.example/'},queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}})).body);
   assert.match(body.message,/잠시 뒤 다시 시도/);
   assert.doesNotMatch(body.message,/fetch failed/);
 });
@@ -233,4 +238,24 @@ test('after page 1 the remaining qualification pages are requested at the same t
   assert.equal(requested[0],1,'page 1 first');
   assert.deepEqual([...requested].sort(),[1,2,3]);
   assert.equal(maxInFlight,2,'pages 2 and 3 were in flight together');
+});
+
+test('calls that do not come from the same site are refused before the key is used',async()=>{
+  let fetched=0;
+  const handler=setup(()=>{fetched++;return `<response><totalCount>1</totalCount>${qual('1150','전기기사')}</response>`;});
+  const query={queryStringParameters:{mode:'search',q:'전기'}};
+  assert.equal((await handler.raw(query)).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example'}})).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',origin:'https://evil.example'}})).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',referer:'https://app.example.evil.com/'}})).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',origin:'null'}})).statusCode,403);
+  assert.equal(fetched,0);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',origin:'https://app.example'}})).statusCode,200);
+});
+
+test('only last year, this year and next year are accepted',async()=>{
+  const handler=setup(()=>'<response><totalCount>0</totalCount></response>');
+  const year=Number(thisYear);
+  for(const y of [year-1,year,year+1]) assert.notEqual((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:String(y)}})).statusCode,400);
+  for(const y of [year-2,year+2,2000,2099]) assert.equal((await handler({queryStringParameters:{name:'전기기사',code:'1150',year:String(y)}})).statusCode,400);
 });

@@ -14,7 +14,16 @@ function errorBody(e){
   }
   return {message:e.message||WORK24_FAIL};
 }
+/* Only pages of this same site may call this function: Origin or Referer must have the same host as the request. */
+function fromOwnSite(event){
+  const headers = event.headers || {};
+  const host = String(headers.host || '').toLowerCase();
+  const source = headers.origin || headers.referer;
+  if(!host || !source) return false;
+  try{ return new URL(source).host.toLowerCase() === host; }catch{ return false; }
+}
 exports.handler = async (event) => {
+  if(!fromOwnSite(event)) return {statusCode:403,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'이 앱 화면에서만 사용할 수 있어요.'})};
   const key = process.env.WORK24_AUTH_KEY;
   if(!key) return {statusCode:503,headers:{'content-type':'application/json'},body:JSON.stringify({message:'고용24 인증키가 아직 설정되지 않았어요.'})};
   const keyword = (event.queryStringParameters?.keyword||'').trim();

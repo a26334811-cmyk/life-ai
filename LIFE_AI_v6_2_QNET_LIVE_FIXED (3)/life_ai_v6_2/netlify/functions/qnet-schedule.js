@@ -153,13 +153,27 @@ async function fetchOfficialSchedule(key, qual, year){
   }
   return {url:base,rounds:[...grouped.values()]};
 }
+/* Only pages of this same site may call this function: Origin or Referer must have the same host as the request. */
+function fromOwnSite(event){
+  const headers=event.headers||{};
+  const host=String(headers.host||'').toLowerCase();
+  const source=headers.origin||headers.referer;
+  if(!host||!source) return false;
+  try{ return new URL(source).host.toLowerCase()===host; }catch{ return false; }
+}
+// The year picker offers last year, this year and next year (Korea time).
+function allowedYears(){
+  const current=Number(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric'}).format(new Date()));
+  return [current-1,current,current+1];
+}
 exports.handler=async(event)=>{
+  if(!fromOwnSite(event)) return {statusCode:403,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'이 앱 화면에서만 사용할 수 있어요.'})};
   const rawKey=process.env.DATA_GO_KR_SERVICE_KEY;
   if(!rawKey) return {statusCode:503,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'공공데이터포털 인증키가 아직 설정되지 않았어요.'})};
   const key=normalizeServiceKey(rawKey);
   const name=(event.queryStringParameters?.name||'').trim();
-  const year=String(event.queryStringParameters?.year||new Date().getFullYear());
-  if(!/^20\d{2}$/.test(year)) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'시행년도를 올바르게 선택해 주세요.'})};
+  const year=String(event.queryStringParameters?.year||allowedYears()[1]);
+  if(!/^20\d{2}$/.test(year)||!allowedYears().includes(Number(year))) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'시행년도를 올바르게 선택해 주세요.'})};
   if(name.length>50) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:'자격증 이름은 50자 이하로 입력해 주세요.'})};
   if(event.queryStringParameters?.mode==='search'){
     const query=(event.queryStringParameters?.q||'').trim();

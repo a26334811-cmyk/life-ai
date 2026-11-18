@@ -5,7 +5,11 @@ function setup(xml,status=200){
   delete require.cache[path];
   process.env.WORK24_AUTH_KEY='test-key';
   global.fetch=async()=>({ok:status>=200&&status<300,status,text:async()=>xml});
-  return require(path).handler;
+  const raw=require(path).handler;
+  // Calls look like they come from the app's own page unless a test passes its own headers.
+  const handler=event=>raw({headers:{host:'app.example',referer:'https://app.example/index.html'},...event});
+  handler.raw=raw;
+  return handler;
 }
 test('parses jobs and blocks unsafe URLs',async()=>{
   const handler=setup('<wantedRoot><wanted><title>설비정비</title><company>A</company><wantedInfoUrl>javascript:alert(1)</wantedInfoUrl></wanted><wanted attr="x"><title>생산</title><wantedInfoUrl>https://example.org/job</wantedInfoUrl></wanted></wantedRoot>');
@@ -27,6 +31,17 @@ test('rejects invalid keyword before requesting upstream',async()=>{
   const handler=setup('<wantedRoot/>');
   assert.equal((await handler({queryStringParameters:{keyword:' '}})).statusCode,400);
   assert.equal((await handler({queryStringParameters:{keyword:'a'.repeat(101)}})).statusCode,400);
+});
+test('calls that do not come from the same site are refused without requesting upstream',async()=>{
+  let fetched=0;
+  const handler=setup('<wantedRoot/>');
+  global.fetch=async()=>{fetched++;return {ok:true,status:200,text:async()=>'<wantedRoot/>'};};
+  const query={queryStringParameters:{keyword:'설비'}};
+  assert.equal((await handler.raw(query)).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',origin:'https://evil.example'}})).statusCode,403);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',referer:'https://evil.example/app.example'}})).statusCode,403);
+  assert.equal(fetched,0);
+  assert.equal((await handler.raw({...query,headers:{host:'app.example',origin:'https://app.example'}})).statusCode,200);
 });
 test('HTML upstream error is reported as failure',async()=>{
   const handler=setup('<html><body>Service unavailable</body></html>');
