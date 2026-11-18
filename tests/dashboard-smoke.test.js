@@ -124,7 +124,8 @@ test('focus timer starts with the saved duration after reopening the app',()=>{
 test('home summary is rounded and compact with details available on demand',()=>{
   assert.match(html,/class="soft-overview"/);
   assert.match(html,/class="soft-overview-row"/);
-  assert.match(html,/자세한 현황 보기/);
+  assert.doesNotMatch(html,/자세한 현황 보기/);
+  assert.doesNotMatch(html,/<div class="dashboard-stats">/);
   assert.match(html,/\.soft-overview\{[^}]*border-radius:26px/);
   assert.match(html,/aria-label="시험 일정 보기"/);
 });

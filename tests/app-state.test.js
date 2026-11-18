@@ -188,11 +188,11 @@ test('home next exam keeps an application period that already started but has no
   {label:'필기시험',startDate:'2026-06-01',endDate:'2026-06-01'}]);
  assert.match(html,/1회 · 필기원서접수/);
  assert.doesNotMatch(html,/지난 시험/);
- assert.doesNotMatch(html,/미등록/);
+ assert.doesNotMatch(html,/다가오는 시험 확인/);
 });
 test('home next exam shows nothing once every period has ended',()=>{
  const html=homeWith([{label:'필기원서접수',startDate:'2026-05-01',endDate:'2026-05-09'}]);
- assert.match(html,/미등록/);
+ assert.match(html,/다가오는 시험 확인/);
 });
 
 // #5: looking up another certificate (or an old year) must not replace the goal's saved schedule.
