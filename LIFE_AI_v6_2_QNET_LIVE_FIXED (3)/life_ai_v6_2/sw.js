@@ -51,7 +51,14 @@ self.addEventListener('fetch', event => {
   event.waitUntil(network.catch(() => {}));
   event.respondWith(first.then(result => {
     clearTimeout(timer);
-    if (result.response) return result.response;
+    if (result.response) {
+      const answer = result.response;
+      if (answer.ok) return answer;
+      // The server answered with an error (502, 503, 404...). Prefer the saved copy; show the error only when there is none.
+      return caches.match(request, { ignoreSearch: true }).then(hit =>
+        hit || (answer.status >= 500 && request.mode === 'navigate' ? caches.match('index.html') : null)
+      ).then(hit => hit || answer);
+    }
     return saved().then(hit => hit || (result.slow ? network.catch(() => Response.error()) : Response.error()));
   }));
 });

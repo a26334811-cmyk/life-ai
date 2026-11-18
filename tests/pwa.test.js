@@ -181,6 +181,26 @@ test('service worker falls back to the saved copy immediately when the network f
   assert.equal(await none.response,'ERR');
 });
 
+test('when the server answers with an error the saved copy is used; the error is shown only when nothing is saved',async()=>{
+  const serve=async(status,url,mode,saved)=>{
+    const bad={ok:false,status,type:'basic',marker:'server-error-'+status};
+    const sw=loadWorker(async()=>bad);
+    for(const [key,value] of Object.entries(saved||{}))sw.cache.set(key,value);
+    let response;
+    sw.handlers.fetch({request:{method:'GET',url,mode},waitUntil(){},respondWith:p=>{response=p;}});
+    return response;
+  };
+  assert.deepEqual(await serve(503,'https://app.example/logic.js','no-cors',{'https://app.example/logic.js':{marker:'cached-logic'}}),{marker:'cached-logic'});
+  assert.deepEqual(await serve(404,'https://app.example/logic.js','no-cors',{'https://app.example/logic.js':{marker:'cached-logic'}}),{marker:'cached-logic'});
+  assert.deepEqual(await serve(502,'https://app.example/','navigate',{'index.html':{marker:'cached-index'}}),{marker:'cached-index'});
+  assert.equal((await serve(503,'https://app.example/logic.js','no-cors',{})).marker,'server-error-503','no saved copy: the error response is passed through');
+  // a healthy answer is still returned as is and saved
+  const sw=loadWorker(async()=>({ok:true,status:200,type:'basic',clone(){return this;},marker:'fresh'}));
+  let response;
+  sw.handlers.fetch({request:{method:'GET',url:'https://app.example/logic.js',mode:'no-cors'},waitUntil(){},respondWith:p=>{response=p;}});
+  assert.equal((await response).marker,'fresh');
+});
+
 test('tapping the notification focuses an open window or opens the calendar',async()=>{
   const sw=loadWorker();
   let focused=false,closed=false,wait;
