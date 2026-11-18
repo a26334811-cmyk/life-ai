@@ -2437,7 +2437,7 @@ const POSTING_TASKS=['모집조건 확인','이력서 준비','자기소개서 �
 function jobCollections(){
   if(!Array.isArray(state.watchCompanies)) state.watchCompanies=[];
   if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
-  state.jobPostings.forEach(p=>{if(p&&!Array.isArray(p.tasks))p.tasks=[false,false,false,false];});
+  state.jobPostings.forEach(p=>{if(p&&!Array.isArray(p.tasks))p.tasks=POSTING_TASKS.map(()=>false);});
 }
 function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
