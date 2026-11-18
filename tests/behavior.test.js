@@ -1480,3 +1480,16 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   // a broken value must not crash the card
   assert.match(html('not-a-date'),/조회일/);
 });
+
+/* ---------- #168: empty exam schedule shows the server's reason ---------- */
+test('an empty Q-Net schedule shows the server message and suggests another year',async()=>{
+  const message='해당 연도의 종목별 시험일정을 찾지 못했어요. 상시검정 종목은 별도 일정 연동이 필요할 수 있어요.';
+  const payload={qualification:{name:'지게차운전기능사',code:'7785'},items:[],rounds:[],message};
+  const a=createApp(undefined,{fetch:async()=>({ok:true,status:200,json:async()=>payload})});
+  a.el('certSearchInput').value='지게차운전기능사';
+  a.el('certYear').value='2026';
+  await a.run('loadLiveCertSchedule()');
+  const box=a.el('liveCertResults').innerHTML;
+  assert.ok(box.includes('상시검정 종목은 별도 일정 연동이 필요할 수 있어요'),box);
+  assert.ok(box.includes('다른 연도를 골라 다시 확인해 보세요'),box);
+});

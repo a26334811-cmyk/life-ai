@@ -2921,7 +2921,7 @@ async function loadLiveCertSchedule(){
     }
     status.innerHTML=`<strong>🟢 Q-Net 실제 데이터</strong><p class="meta">${esc(data.qualification?.name||name)} · 종목코드 ${esc(data.qualification?.code||'')}</p>`;
     if(!data.items?.length){
-      box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.</p></div>`;
+      box.innerHTML=`<div class="card"><strong>선택한 연도에 조회된 시험일정이 없어요.</strong><p class="meta">${esc(data.message||'시행년도 또는 종목 운영 여부를 Q-Net에서 다시 확인해주세요.')}</p><p class="meta">다른 연도를 골라 다시 확인해 보세요.</p></div>`;
       return;
     }
     box.innerHTML=certRoundsHTML(data);
