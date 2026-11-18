@@ -39,6 +39,17 @@ test('certificate checklist persists after reload without job submission semanti
  const b=app(a.storage.get('lifeAIPrototypeV5'));b.run('renderTasks()');
  assert.equal((b.el('taskList').innerHTML.match(/checked/g)||[]).length,2);
 });
+test('picking a company and job does not change the goal until the goal is created',()=>{
+ const a=app(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
+ a.run("selectCompany('포스코');selectJob('정비')");
+ assert.equal(a.run('state.goalType'),'cert','leaving halfway keeps the old goal type');
+ assert.equal(a.run('state.mainGoal'),'전기기사 준비');
+ assert.equal(a.run('state.selectedCompany'),'');assert.equal(a.run('state.selectedJob'),'');
+ a.run('createGoal()');
+ assert.equal(a.run('state.goalType'),'job');
+ assert.equal(a.run('state.mainGoal'),'포스코 정비 취업');
+ assert.equal(a.run('state.selectedCompany'),'포스코');assert.equal(a.run('state.selectedJob'),'정비');
+});
 test('policy input remains editable and does not assert eligibility',()=>{
  const a=app();a.run('saveIncome()');assert.equal(a.run('state.policyIncomeAdded'),false);
  a.el('incomeSelect').value='150% 초과';a.run('saveIncome()');

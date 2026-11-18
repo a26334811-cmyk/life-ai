@@ -1176,18 +1176,21 @@ function uiAlert(message,opts={}){
 }
 function historyBack(){ go(certReturnTo||'home'); }
 
+/* 회사·직무는 '목표 만들기'를 누를 때까지 임시로만 들고 있다. 중간에 나가도 지금 목표가 바뀌지 않게 한다. */
+const pendingGoal={company:'',job:''};
 function selectCompany(name){
   const typed=(document.getElementById('companyInput')?.value||'').trim();
-  state.selectedCompany=name || typed || '관심 회사';
-  state.goalType='job';
+  pendingGoal.company=name || typed || '관심 회사';
   go('job');
 }
 function selectJob(name){
-  state.selectedJob=(name||'관심 직무').trim();
-  state.goalType='job';
+  pendingGoal.job=(name||'관심 직무').trim();
   go('profile');
 }
 function createGoal(){
+  if(pendingGoal.company) state.selectedCompany=pendingGoal.company;
+  if(pendingGoal.job) state.selectedJob=pendingGoal.job;
+  pendingGoal.company='';pendingGoal.job='';
   state.employmentStatus=document.getElementById('employmentStatus')?.value || '';
   state.career=(document.getElementById('careerInput')?.value||'').trim();
   state.education=document.getElementById('educationInput')?.value || '';
