@@ -17,6 +17,14 @@ test('backup message does not claim the file was saved',()=>{
   assert.ok(a.saved().lastBackupAt,'backup date is still recorded');
 });
 
+/* #121 the home header had a bell that looked clickable but did nothing */
+test('home header has no decorative bell',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  const header=html.match(/<div class="topbar"><div><div class="logo"[^\n]*<\/div>/)[0];
+  assert.ok(header.includes('id="hello"'));
+  assert.ok(!header.includes('🔔'));
+});
+
 /* #119 weekly bars must be readable by screen readers: no img role on the whole group, a sentence per bar */
 test('weekly focus bars give each day a readable label',()=>{
   const a=createApp(JSON.stringify({mainGoal:'x'}));
