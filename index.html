@@ -1874,7 +1874,16 @@ function focusChangeCategory(value){
 /* Browser notification when the timer ends while the tab is hidden. It works only while the page is
    still alive in the background; without a push server a fully closed app cannot ring. */
 function focusNotificationsSupported(){return typeof Notification!=='undefined';}
+/* The option was saved as on, but the browser/phone settings now block notifications: switch it off and say so once
+   (it cannot repeat, because the setting is off afterwards). Returns true when it did. */
+function focusNotifyBlockedCheck(){
+  if(!focusSettings().notify||!focusNotificationsSupported()||Notification.permission!=='denied')return false;
+  focusSettings().notify=false;persistState();
+  toast('브라우저에서 알림이 막혀 있어요. 설정에서 허용해 주세요.',6000);
+  return true;
+}
 async function focusShowNotification(){
+  if(focusNotifyBlockedCheck()){renderCalendar();return;}
   if(!focusSettings().notify||!focusNotificationsSupported()||Notification.permission!=='granted')return;
   if(typeof document.hidden!=='undefined'&&!document.hidden)return;
   const title='집중 시간이 끝났어요';
@@ -2027,6 +2036,7 @@ function focusHistoryHTML(){
   </div>`;
 }
 function focusPanelHTML(){
+  focusNotifyBlockedCheck();
   const cfg=focusSettings();
   return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
     <p class="meta">지금 할 수 있는 만큼, 차분하게 집중해요.</p>

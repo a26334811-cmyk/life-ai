@@ -32,6 +32,37 @@ test('집중 기록 정리 안내는 6초 이상 보여 준다',()=>{
   assert.ok(i>=0);
   assert.ok(a.toastMinMs[i]>=6000);
 });
+/* ---------- 알림 설정은 켜져 있는데 브라우저에서 막힌 경우 (#171) ---------- */
+const savedNotifyOn=()=>{
+  const a=createApp();
+  a.run('focusSettings().notify=true;persistState()');
+  return a.storage.get('lifeAIPrototypeV5');
+};
+test('알림이 막혀 있으면 집중 패널을 그릴 때 체크를 끄고 안내한다',()=>{
+  const a=createApp(savedNotifyOn(),{notification:{permission:'denied',requestResult:'denied'}});
+  assert.equal(a.run('focusSettings().notify'),true);
+  const html=a.run('focusPanelHTML()');
+  assert.doesNotMatch(html,/<input type="checkbox" checked/);
+  assert.equal(a.saved().focusSettings.notify,false);
+  assert.equal(a.toasts.filter(m=>/알림이 막혀 있어요/.test(m)).length,1);
+  a.run('focusPanelHTML()');
+  assert.equal(a.toasts.filter(m=>/알림이 막혀 있어요/.test(m)).length,1,'안내는 한 번만');
+});
+test('허용된 알림은 그대로 켜져 있고 안내도 없다',()=>{
+  const a=createApp(savedNotifyOn(),{notification:{permission:'granted',requestResult:'granted'}});
+  const html=a.run('focusPanelHTML()');
+  assert.match(html,/<input type="checkbox" checked/);
+  assert.equal(a.toasts.length,0);
+});
+test('타이머가 끝나는 순간 알림이 막혀 있으면 한 번만 안내한다',async()=>{
+  const a=createApp(savedNotifyOn(),{hidden:true,notification:{permission:'denied',requestResult:'denied'}});
+  await a.run('focusShowNotification()');
+  await a.run('focusShowNotification()');
+  assert.equal(a.toasts.filter(m=>/알림이 막혀 있어요/.test(m)).length,1);
+  assert.equal(a.run('focusSettings().notify'),false);
+  assert.equal(a.notifications.length,0);
+});
+
 /* ---------- 기회 카드의 '둘러보기' 버튼 (#166) ---------- */
 test('기회 카드에는 개발용 문구만 띄우는 버튼이 없고, 버튼은 실제 화면으로 간다',()=>{
   for(const [type,goal] of [['cert','위험물산업기사 준비'],['policy','청년 지원'],['other','영어 공부']]){
