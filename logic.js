@@ -632,7 +632,7 @@
       if (!p || typeof p !== 'object') continue;
       const name = [p.company, p.title].filter(Boolean).join(' · ');
       if (['관심', '준비 중'].includes(p.stage) && inWindow(p.deadline)) add('job', name, '마감', p.deadline, 'jobHub');
-      if (p.interviewDate && !['합격', '불합격', '지원 취소'].includes(p.stage) && inWindow(p.interviewDate)) add('interview', name, '면접', p.interviewDate, 'jobHub');
+      if (p.interviewDate && !['합격', '불합격', '지원 취소'].includes(p.stage) && inWindow(p.interviewDate)) add('interview', name, '면접' + (/^([01]\d|2[0-3]):[0-5]\d$/.test(p.interviewTime || '') ? ' ' + p.interviewTime : ''), p.interviewDate, 'jobHub');
     }
     for (const { schedule } of certSchedulesOf(s)) {
       for (const it of scheduleItems(schedule)) {

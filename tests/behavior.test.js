@@ -1481,6 +1481,24 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   assert.match(html('not-a-date'),/조회일/);
 });
 
+/* ---------- #180: interview time ---------- */
+test('interview time is saved, validated, kept after reload and shown in upcoming interviews',()=>{
+  const a=createApp();
+  a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/iv';
+  a.run('savePosting()');
+  a.run('setInterviewDate(state.jobPostings[0].id,"2099-03-04")');
+  a.run('setInterviewTime(state.jobPostings[0].id,"14:00")');
+  assert.equal(a.saved().jobPostings[0].interviewTime,'14:00');
+  const b=createApp(JSON.stringify(a.saved()));
+  const day=JSON.parse(b.run("JSON.stringify(plannerForDate('2099-03-04'))"));
+  assert.equal(day[0].time,'14:00','the calendar line carries the interview time');
+  assert.match(b.el('savedPostings').innerHTML||(b.run('renderJobHub()'),b.el('savedPostings').innerHTML),/type="time" value="14:00"/);
+  b.run('setInterviewTime(state.jobPostings[0].id,"25:99")');
+  assert.equal(b.run('state.jobPostings[0].interviewTime'),'14:00','invalid time is rejected');
+  b.run('setInterviewTime(state.jobPostings[0].id,"")');
+  assert.equal(JSON.parse(b.run("JSON.stringify(plannerForDate('2099-03-04'))"))[0].time,'');
+});
+
 /* ---------- #179: always-open postings ---------- */
 test('an always-open posting is saved without a deadline and is not listed as needing a deadline check',()=>{
   const a=createApp();
