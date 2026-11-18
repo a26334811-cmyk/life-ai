@@ -32,6 +32,17 @@ test('집중 기록 정리 안내는 6초 이상 보여 준다',()=>{
   assert.ok(i>=0);
   assert.ok(a.toastMinMs[i]>=6000);
 });
+/* ---------- 타이머 카드의 오늘 집중 시간 (#175) ---------- */
+test('타이머 카드에 오늘 집중 분·세션 수가 보이고 세션이 끝나면 갱신된다',()=>{
+  const a=createApp();
+  assert.match(a.run('focusPanelHTML()'),/오늘 집중 0분 · 세션 0번/);
+  a.el('calendar').classList.contains=name=>name==='active';
+  a.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'2026-05-10T01:00:00.000Z',date:koreaToday()});focusRecordCompletion({minutes:25,category:'job',completedAt:'2026-05-10T02:00:00.000Z',date:koreaToday()});focusRecordCompletion({minutes:50,category:'job',completedAt:'2026-05-09T02:00:00.000Z',date:'2026-05-09'})");
+  assert.match(a.run('focusPanelHTML()'),/오늘 집중 50분 · 세션 2번/);
+  assert.match(a.el('focusTodaySummary').textContent,/오늘 집중 50분 · 세션 2번/);
+  assert.match(a.run('focusHistoryHTML()'),/<strong>50분<\/strong><p class="meta">오늘/);
+});
+
 /* ---------- '오늘' 탭의 남은 습관 (#173) ---------- */
 test('오늘 탭에 아직 안 한 습관만 체크박스로 보이고, 체크하면 기존 habitToggle로 저장된다',()=>{
   const a=createApp();

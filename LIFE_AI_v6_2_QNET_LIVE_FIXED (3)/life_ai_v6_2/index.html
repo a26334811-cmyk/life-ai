@@ -1863,6 +1863,8 @@ function focusRecordCompletion(done){
     const report=document.getElementById('progressInsights'),records=document.getElementById('focusHistoryCard');
     if(report)report.outerHTML=progressInsightsHTML();
     if(records)records.outerHTML=focusHistoryHTML();
+    const summary=document.getElementById('focusTodaySummary');
+    if(summary){const t=focusTodaySummary();summary.textContent='오늘 집중 '+t.minutes+'분 · 세션 '+t.sessions+'번';}
   }
 }
 function focusChangeCategory(value){
@@ -2035,8 +2037,14 @@ function focusHistoryHTML(){
     </div></details>
   </div>`;
 }
+/* 오늘 날짜의 집중 기록만 합산한다 (focusHistoryHTML의 '오늘'과 같은 방식). */
+function focusTodaySummary(){
+  const today=koreaToday(),done=focusHistory().filter(x=>x.date===today);
+  return {minutes:done.reduce((n,x)=>n+Number(x.minutes||0),0),sessions:done.length};
+}
 function focusPanelHTML(){
   focusNotifyBlockedCheck();
+  const todaySum=focusTodaySummary();
   const cfg=focusSettings();
   return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
     <p class="meta">지금 할 수 있는 만큼, 차분하게 집중해요.</p>
@@ -2044,6 +2052,7 @@ function focusPanelHTML(){
       <p class="focus-done" id="focusDoneNote" role="status" aria-live="polite">${focusDoneText()}</p>
       <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
+    <p class="meta" id="focusTodaySummary">오늘 집중 ${todaySum.minutes}분 · 세션 ${todaySum.sessions}번</p>
     <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
       ${LifeLogic.FOCUS_MINUTES.map(n=>`<option value="${n}" ${Number(cfg.minutes)===n?'selected':''}>${n}분</option>`).join('')}
     </select></label>
