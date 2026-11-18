@@ -260,3 +260,28 @@ test('planner tabs and panels are linked by id, aria-controls and aria-labelledb
     assert.match(html,new RegExp(`id="plannerPanel-${tab}" data-tab="${tab}" role="tabpanel" aria-labelledby="plannerTab-${tab}"`));
   }
 });
+
+/* ---------- #114 bottom menu for screen readers ---------- */
+test('bottom menu has a name, hides its symbols, and marks the current screen with aria-current',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.match(html,/<nav id="bottomnav" class="bottomnav" aria-label="주요 메뉴">/);
+  assert.equal((html.match(/<span class="navicon" aria-hidden="true">/g)||[]).length,5);
+  assert.equal(/<span class="navicon">/.test(html),false);
+  const a=createApp();
+  a.context.__buttons=['home','my'].map(target=>({target,active:false,attrs:{},
+    classList:{add(){this.owner.active=true;},remove(){this.owner.active=false;}},
+    setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}}));
+  a.context.__buttons.forEach(b=>{b.classList.owner=b;});
+  a.run(`document.querySelectorAll=sel=>{
+    if(sel==='.bottomnav button')return __buttons;
+    const m=sel.match(/data-target="(\\w+)"/);
+    return m?__buttons.filter(b=>b.target===m[1]):[];
+  }`);
+  a.run("go('my')");
+  const [home,my]=a.context.__buttons;
+  assert.equal(my.attrs['aria-current'],'page');
+  assert.equal(home.attrs['aria-current'],undefined);
+  a.run("go('home')");
+  assert.equal(home.attrs['aria-current'],'page');
+  assert.equal(my.attrs['aria-current'],undefined);
+});
