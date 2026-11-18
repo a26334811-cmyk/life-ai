@@ -285,3 +285,11 @@ test('bottom menu has a name, hides its symbols, and marks the current screen wi
   assert.equal(home.attrs['aria-current'],'page');
   assert.equal(my.attrs['aria-current'],undefined);
 });
+
+/* ---------- #115 first-run inputs have names ---------- */
+test('first-run input fields carry an accessible name, not just a placeholder',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  for(const [id,name] of [['nickname','이름'],['companyInput','회사명'],['jobInput','직무'],['certInput','자격증'],['customGoalInput','내 목표']]){
+    assert.match(html,new RegExp(`<input id="${id}" aria-label="${name}"`));
+  }
+});
