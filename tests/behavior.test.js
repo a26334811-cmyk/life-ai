@@ -1481,6 +1481,17 @@ test('cert schedule "조회일" shows the Korean date, not the UTC date',()=>{
   assert.match(html('not-a-date'),/조회일/);
 });
 
+/* ---------- #170: rule-based goal sorting is not called "AI" ---------- */
+test('goal sorting screens do not claim an AI understood the goal',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  for(const phrase of ['AI가 목표 정리하기','AI가 목표를 정리했어요','AI가 알고 있는 정보','AI가 이해한 내용','AI가 이렇게 이해했어요'])assert.ok(!html.includes(phrase),phrase);
+  const a=createApp();
+  a.run("state.parsedGoal=inferGoal('회사 가는 길 걷기');state.mainGoal='회사 가는 길 걷기'");
+  const out=a.run('understandingHTML()');
+  assert.ok(!out.includes('AI가'),out);
+  assert.ok(out.includes('입력한 단어로 분류한 결과예요')||out.includes('우선 일반 목표'),out);
+});
+
 /* ---------- #168: empty exam schedule shows the server's reason ---------- */
 test('an empty Q-Net schedule shows the server message and suggests another year',async()=>{
   const message='해당 연도의 종목별 시험일정을 찾지 못했어요. 상시검정 종목은 별도 일정 연동이 필요할 수 있어요.';
