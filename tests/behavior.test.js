@@ -318,6 +318,17 @@ test('one-off items are removed after a plain confirmation',async()=>{
   assert.equal(b.run('state.plannerEntries.length'),1);
 });
 
+test('calendar views show weekday names in Sunday-first order and the right weekday',()=>{
+  const a=createApp();
+  a.run("plannerSelected='2026-05-05';plannerView='month';renderCalendar()");
+  assert.match(a.el('calendarContent').innerHTML,/>일<\/div><div class="planner-weekday">월<\/div><div class="planner-weekday">화<\/div>.*>토<\/div>/);
+  a.run("plannerView='day';renderCalendar()");
+  assert.match(a.el('calendarContent').innerHTML,/2026-05-05 · 화요일의 일정/);
+  assert.match(a.el('calendarContent').innerHTML,/05-05 \(화\)/);
+  assert.equal(a.run("weekdayOf('2026-05-03')"),0);
+  assert.equal(a.run("weekdayOf('2026-05-09')"),6);
+});
+
 test('editing one occurrence changes only that day',async()=>{
   const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");

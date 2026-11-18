@@ -611,6 +611,11 @@ h3{font-size:16px;line-height:1.4}
 <script src="logic.js"></script>
 <script>
 
+const WEEKDAYS_SHORT=['일','월','화','수','목','금','토'];
+const WEEKDAYS_LONG=WEEKDAYS_SHORT.map(d=>d+'요일');
+// Day of the week (0 = Sunday) for a 'YYYY-MM-DD' date.
+function weekdayOf(date){return new Date(date+'T12:00:00Z').getUTCDay();}
+
 const state = {
   nickname:'',
   goalType:null,
@@ -1559,7 +1564,7 @@ function plannerNavigate(days){
 /* Screen-reader label for a calendar day button: date, weekday, number of events and whether it is today. */
 function plannerDayLabel(date,count,isToday){
   const d=new Date(date+'T12:00:00Z');
-  const week=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][d.getUTCDay()];
+  const week=WEEKDAYS_LONG[d.getUTCDay()];
   return `${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${week}, ${count?`일정 ${count}개`:'일정 없음'}${isToday?', 오늘':''}`;
 }
 function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
@@ -1978,9 +1983,9 @@ function progressInsightsHTML(){
   const rate=totalPossible?Math.round(checked/totalPossible*100):0;
   const activeDays=days.filter(d=>d.done>0||d.minutes>0).length;
   const minutes=days.reduce((sum,d)=>sum+d.minutes,0);
-  const buckets=days.map((d,i)=>({label:['일','월','화','수','목','금','토'][i],minutes:d.minutes}));
+  const buckets=days.map((d,i)=>({label:WEEKDAYS_SHORT[i],minutes:d.minutes}));
   const maxMinutes=Math.max(25,...buckets.map(d=>d.minutes));
-  const monthOffset=new Date(start+'T12:00:00Z').getUTCDay();
+  const monthOffset=weekdayOf(start);
   const selectedDay=insightsSelectedDate&&insightsSelectedDate>=start&&insightsSelectedDate<=end?insightsSelectedDate:today;
   const selected=days.find(d=>d.date===selectedDay);
   const maxDayMinutes=Math.max(1,...days.map(d=>d.minutes));
@@ -2002,7 +2007,7 @@ function progressInsightsHTML(){
       <div><strong>${totalPossible?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
     </div>
     ${monthly?`<div class="insights-heatmap" aria-label="월간 날짜별 집중 시간">
-      ${['일','월','화','수','목','금','토'].map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
+      ${WEEKDAYS_SHORT.map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
       ${heatmap}
     </div>
     <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="group" aria-label="이번 주 요일별 집중 시간">
@@ -2318,7 +2323,7 @@ function renderCalendar(){
     dates=Array.from({length:42},(_,i)=>plannerDateOffset(start,i));
   }
   const existing=plannerEntries().find(e=>e.id===plannerEditing);
-  const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+['일','월','화','수','목','금','토'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]+')':plannerSelected;
+  const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+WEEKDAYS_SHORT[weekdayOf(plannerSelected)]+')':plannerSelected;
   const dayList=plannerForDate(plannerSelected);
   const upcoming=plannerUpcomingPriority();
   c.innerHTML=`
@@ -2356,8 +2361,8 @@ function renderCalendar(){
         </div>
       </div>
       ${plannerView==='day'
-        ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][new Date(plannerSelected+'T12:00:00Z').getUTCDay()]}의 일정</p>`
-        :`<div class="planner-grid">${['일','월','화','수','목','금','토'].map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
+        ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${WEEKDAYS_LONG[weekdayOf(plannerSelected)]}의 일정</p>`
+        :`<div class="planner-grid">${WEEKDAYS_SHORT.map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
         ${dates.map(date=>{const dayEvents=plannerForDate(date);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot">${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
         </div>`}
 

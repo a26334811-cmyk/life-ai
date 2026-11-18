@@ -56,6 +56,7 @@ test('day view hides weekday grid and weekly report starts on Sunday',()=>{
   assert.match(html,/weekStart=LifeLogic\.weekStart\(today\)/);
   assert.match(html,/LifeLogic\.periodDates\(today,monthly\?'month':'week'\)/);
   assert.equal(require('../logic.js').weekStart('2026-11-17'),'2026-11-15','the week starts on Sunday');
+  assert.match(html,/function weekdayOf\(date\)\{return new Date\(date\+'T12:00:00Z'\).getUTCDay\(\);\}/);
 });
 
 test('weekly insights is default and monthly insights has calendar month bounds',()=>{
