@@ -227,6 +227,20 @@ test('certificate screen keeps the chosen item and result when you come back, an
  assert.match(b.el('certSearchMatches').innerHTML,/종목 검색 중/);
 });
 
+test('after a backup restore, a late timer save cannot overwrite the restored data',async()=>{
+ const a=createApp(JSON.stringify({mainGoal:'옛 목표',goalType:'custom',nickname:'나'}),{search:''});
+ const backupState=JSON.parse(JSON.stringify(a.run('state')));backupState.mainGoal='복원한 목표';
+ const file={size:100,text:async()=>JSON.stringify({format:'life-ai-backup',version:1,state:backupState})};
+ a.run('var __reloaded=0;var __release;location.reload=()=>{__reloaded++};uiAlert=()=>new Promise(r=>{__release=r})');
+ const pending=a.run('importLifeAIBackup')({files:[file]});
+ for(let i=0;i<20&&a.saved().mainGoal!=='복원한 목표';i++)await new Promise(r=>setImmediate(r));
+ assert.equal(a.saved().mainGoal,'복원한 목표');
+ a.run('persistState()');// the old in-memory state must not be written while the notice is open
+ assert.equal(a.saved().mainGoal,'복원한 목표');
+ a.run('__release()');await pending;
+ assert.equal(a.run('__reloaded'),1);assert.equal(a.saved().mainGoal,'복원한 목표');
+});
+
 test('goal type is not guessed from a lone 기사 or 회사',()=>{
  const a=app();const type=t=>a.run(`inferGoal(${JSON.stringify(t)}).type`);
  for(const t of ['뉴스 기사 매일 읽기','택시기사 일 시작','회사 끝나고 운동하기']) assert.equal(type(t),'custom',t);
