@@ -74,6 +74,23 @@ test('the same finished session is not recorded twice by two tabs',()=>{
   assert.equal(a.run('focusHistory().length'),1);
 });
 
+test('a timer that ends does not redraw the planner, so typed text survives; only the record cards refresh',()=>{
+  const a=createApp();
+  a.el('calendarContent').innerHTML='typing…';
+  a.el('progressInsights').outerHTML='old-report';a.el('focusHistoryCard').outerHTML='old-records';
+  // planner screen closed: nothing is redrawn at all
+  a.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'2026-05-10T03:25:00.000Z',date:'2026-05-10'})");
+  assert.equal(a.el('calendarContent').innerHTML,'typing…');
+  assert.equal(a.el('progressInsights').outerHTML,'old-report');
+  // planner screen open: the whole planner is still left alone, the two record cards are refreshed
+  a.el('calendar').classList.contains=name=>name==='active';
+  a.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'2026-05-10T04:25:00.000Z',date:'2026-05-10'})");
+  assert.equal(a.el('calendarContent').innerHTML,'typing…');
+  assert.match(a.el('progressInsights').outerHTML,/id="progressInsights"/);
+  assert.match(a.el('focusHistoryCard').outerHTML,/id="focusHistoryCard"/);
+  assert.match(a.el('focusHistoryCard').outerHTML,/50분/);
+});
+
 test('reset and duration change clear the saved timer; cancelled dialog keeps it',async()=>{
   const a=createApp(undefined,{confirm:false});
   a.run('focusStartPause()');

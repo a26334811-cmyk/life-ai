@@ -1846,7 +1846,13 @@ function focusRecordCompletion(done){
     toast('집중 기록이 '+limit+'개를 넘어 가장 오래된 기록을 정리했어요. 백업을 권해요.');
   }
   persistState();
-  if(document.getElementById('calendarContent'))focusHistoryRefresh();
+  // Do not redraw the whole planner: that would erase a title or habit name the user is typing.
+  // Only the two record cards change, and only while the planner screen is open.
+  if(document.getElementById('calendar')?.classList.contains('active')){
+    const report=document.getElementById('progressInsights'),records=document.getElementById('focusHistoryCard');
+    if(report)report.outerHTML=progressInsightsHTML();
+    if(records)records.outerHTML=focusHistoryHTML();
+  }
 }
 function focusChangeCategory(value){
   if(LifeLogic.focusCategoryName(value)!==value)return;
@@ -1990,7 +1996,7 @@ function focusHistoryHTML(){
   const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
   const categories=Object.fromEntries(LifeLogic.FOCUS_CATEGORIES.map(c=>[c.name,c.label]));
   const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:history.filter(x=>x.category===c.name).reduce((n,x)=>n+Number(x.minutes||0),0)}));
-  return `<div class="card"><h3>📊 집중 기록</h3>
+  return `<div class="card" id="focusHistoryCard"><h3>📊 집중 기록</h3>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>
       <div><strong>${weekMin}분</strong><p class="meta">이번 주</p></div>
