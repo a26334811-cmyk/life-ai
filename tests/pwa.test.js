@@ -282,3 +282,18 @@ test('netlify.toml sends basic security headers for every page',()=>{
   for(const rule of ["frame-ancestors 'none'","object-src 'none'","base-uri 'self'","connect-src 'self'"]) assert.ok(csp.includes(rule),rule);
   assert.ok(!/script-src|default-src/.test(csp),'inline scripts must keep working');
 });
+
+test('bottom nav is opaque with no backdrop blur (blur re-renders on every scroll)',()=>{
+  const css=html.match(/<style>([\s\S]*?)<\/style>/g).join('\n');
+  const rules=[...css.matchAll(/(^|[\s}])\.bottomnav\s*\{([^}]*)\}/g)].map(m=>m[2]);
+  assert.ok(rules.length>=2,'base .bottomnav rules found');
+  for(const body of rules){
+    assert.doesNotMatch(body,/backdrop-filter\s*:\s*blur/);
+    assert.doesNotMatch(body,/background\s*:\s*rgba\(/);
+  }
+});
+
+test('installed app is not locked to portrait',()=>{
+  assert.notEqual(manifest.orientation,'portrait');
+  assert.notEqual(manifest.orientation,'portrait-primary');
+});
