@@ -2443,6 +2443,7 @@ function renderMy(){
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${esc(x)}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <div class="section-title">관심 자격증</div><div class="stack">${favoriteCertHTML()}</div>
+    <div class="install-slot">${installCardHTML()}</div>
     <div class="section-title">내 데이터 백업·복원</div>
     <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
     <div class="card"><p class="meta" id="lastBackupInfo"><strong>마지막 백업:</strong> ${state.lastBackupAt?esc(Number.isFinite(Date.parse(state.lastBackupAt))?LifeLogic.koreaDate(Date.parse(state.lastBackupAt)):state.lastBackupAt.slice(0,10)):'아직 없음'}</p><p class="meta">목표·관심 공고·자격증·일정 등 현재 브라우저에 저장된 데이터를 JSON 파일로 보관할 수 있어요. 파일에는 개인정보가 포함될 수 있으니 안전하게 보관하세요. 복원하면 현재 기록이 교체되므로, 복원 전에도 먼저 백업해 주세요.</p><p class="meta">📱↔💻 기기를 바꿔 쓰려면: 한쪽에서 <strong>다른 기기로 보내기</strong>를 눌러 카카오톡 등으로 보내고, 다른 기기에서 그 파일을 <strong>백업 파일 복원하기</strong>로 열어요. 이 앱의 기록은 각 기기에 따로 저장돼요.</p><div class="stack"><button class="btn secondary" onclick="exportLifeAIBackup()">⬇ 내 데이터 백업하기</button><button class="btn secondary" onclick="shareLifeAIBackup()">📤 다른 기기로 보내기</button><button class="btn ghost" onclick="exportDeadlineCalendar()">📅 마감일 캘린더로 내보내기</button><button class="btn ghost" onclick="openLifeAIBackup()">⬆ 백업 파일 복원하기</button><input id="lifeAIBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="importLifeAIBackup(this)" />${damagedArchives().length?'<button class="btn ghost" onclick="downloadDamagedState()">⬇ 손상된 원본 내려받기</button>':''}</div></div>
@@ -2976,6 +2977,38 @@ async function loadLiveCertSchedule(){
 }
 
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('popstate',onScreenPopState);
+
+/* 홈 화면에 앱 설치: 안드로이드 크롬은 설치 가능 신호(beforeinstallprompt)를 받아 버튼을 보여주고,
+   아이폰은 그 신호가 없어서 '공유 → 홈 화면에 추가' 안내만 보여줘요. 이미 설치해서 열었으면 숨겨요. */
+let installPrompt=null;
+function isStandalone(){
+  try{return Boolean((typeof matchMedia==='function'&&matchMedia('(display-mode: standalone)').matches)||(typeof navigator!=='undefined'&&navigator.standalone));}catch(e){return false;}
+}
+function isIosDevice(){
+  if(typeof navigator==='undefined')return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+}
+function installCardHTML(){
+  if(isStandalone())return '';
+  if(installPrompt)return '<div class="card"><p class="meta">홈 화면에 설치하면 아이콘으로 바로 열고, 폰 공유로 공고를 저장하고, 인터넷이 약해도 시작할 수 있어요.</p><button class="btn primary" onclick="installApp()">📲 앱으로 설치</button></div>';
+  if(isIosDevice())return '<div class="card"><p class="meta">📲 아이폰에서는 Safari의 <strong>공유 버튼 → 홈 화면에 추가</strong>를 누르면 앱처럼 설치돼요.</p></div>';
+  return '';
+}
+function refreshInstallSlot(){
+  document.querySelectorAll?.('.install-slot').forEach(slot=>{slot.innerHTML=installCardHTML();});
+}
+async function installApp(){
+  const event=installPrompt;
+  if(!event)return;
+  installPrompt=null; // 설치 창은 한 번만 띄울 수 있어요
+  try{await event.prompt();}catch(e){}
+  refreshInstallSlot();
+}
+if(typeof window!=='undefined'&&window.addEventListener){
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;refreshInstallSlot();});
+  window.addEventListener('appinstalled',()=>{installPrompt=null;refreshInstallSlot();});
+}
+
 // Offline support and installable app: the service worker only runs on https or localhost.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='undefined'&&(location.protocol==='https:'||location.hostname==='localhost')){
   watchAppUpdates(navigator.serviceWorker);

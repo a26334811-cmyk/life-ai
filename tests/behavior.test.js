@@ -1098,6 +1098,39 @@ test('a successful save still shows the confirmation',async()=>{
   for(const word of ['일정을 저장했어요.','습관을 추가했어요.','관심 회사를 저장했어요.','공고와 마감일을 저장했어요.'])assert.ok(a.toasts.includes(word),word);
 });
 
+/* ---------- 홈 화면에 앱 설치 안내 (#228) ---------- */
+const myHtml=a=>{a.run('renderMy()');return a.el('myContent').innerHTML;};
+test('MY shows no install hint on a desktop browser until the browser says it can install',async()=>{
+  const a=createApp();
+  assert.doesNotMatch(myHtml(a),/앱으로 설치|홈 화면에 추가/);
+  let prevented=false,prompted=0;
+  a.win.fire('beforeinstallprompt',{preventDefault(){prevented=true;},prompt:async()=>{prompted++;}});
+  assert.equal(prevented,true);
+  assert.match(myHtml(a),/📲 앱으로 설치/);
+  await a.run('installApp()');
+  assert.equal(prompted,1);
+  assert.doesNotMatch(myHtml(a),/앱으로 설치/);
+  await a.run('installApp()'); // the saved event is used up
+  assert.equal(prompted,1);
+});
+test('MY hides the install button once the app is installed or opened from the home screen',()=>{
+  const a=createApp();
+  a.win.fire('beforeinstallprompt',{preventDefault(){},prompt:async()=>{}});
+  assert.match(myHtml(a),/앱으로 설치/);
+  a.win.fire('appinstalled');
+  assert.doesNotMatch(myHtml(a),/앱으로 설치/);
+  const b=createApp(undefined,{standalone:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'});
+  b.win.fire('beforeinstallprompt',{preventDefault(){},prompt:async()=>{}});
+  assert.doesNotMatch(myHtml(b),/앱으로 설치|홈 화면에 추가/);
+});
+test('on an iPhone MY explains share button then add to home screen',()=>{
+  const a=createApp(undefined,{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1'});
+  const html=myHtml(a);
+  assert.match(html,/공유 버튼 → 홈 화면에 추가/);
+  assert.doesNotMatch(html,/앱으로 설치/);
+});
+
+
 /* ---------- goal text is escaped in opportunity cards (#32) ---------- */
 test('goal text with HTML characters is shown as plain text in opportunity cards and the goal summary',()=>{
   const evil='<img src=x onerror=alert(1)>';

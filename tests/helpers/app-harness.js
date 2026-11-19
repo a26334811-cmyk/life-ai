@@ -20,6 +20,9 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.failSave setItem throws (a full storage); it is read on every save, so a test can switch it off again
    opts.downloads  fake Blob, URL.createObjectURL and document.createElement for the backup download (see app.downloads)
    opts.trackHistory fake history.pushState/replaceState recorded in app.historyLog
+   opts.standalone  true = the app was opened from the home screen (display-mode: standalone)
+   opts.userAgent   navigator.userAgent (e.g. an iPhone string)
+   Returned: win.fire(type, event) runs the window listeners the app registered (e.g. 'beforeinstallprompt')
    opts.search   makes `location` exist with this query string (e.g. '?url=...' from the phone's Share sheet) */
 function createApp(saved, opts = {}) {
   const elements = new Map();
@@ -47,7 +50,15 @@ function createApp(saved, opts = {}) {
   };
   const notifications = [];
   const listeners = {};
+  const windowListeners = {};
+  const win = {
+    addEventListener: (type, fn) => { (windowListeners[type] = windowListeners[type] || []).push(fn); },
+    fire: (type, event = {}) => (windowListeners[type] || []).forEach(fn => fn(event)),
+    scrollTo() {}
+  };
   const context = {
+    window: win,
+    matchMedia: query => ({ matches: Boolean(opts.standalone) && query.includes('standalone') }),
     document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [], hidden: Boolean(opts.hidden), title: '',
       addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } },
     localStorage: {
@@ -67,7 +78,8 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
     setInterval: fn => { timers.push(fn); return timers.length; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
     requestAnimationFrame() {},
-    Intl, Date: FakeDate, URL, URLSearchParams, AbortController, AbortSignal, console, navigator: {},
+    Intl, Date: FakeDate, URL, URLSearchParams, AbortController, AbortSignal, console,
+    navigator: opts.userAgent ? { userAgent: opts.userAgent } : {},
     confirm: () => true, prompt: () => opts.answer
   };
   const historyCalls = [];
@@ -135,7 +147,7 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
   `, Object.assign(context, { __toast: (m, ms) => { toasts.push(m); toastMinMs.push(ms); } }));
   return {
     run: code => vm.runInContext(code, context),
-    el, storage, clock, timers, delays, toasts, toastMinMs, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
+    el, win, storage, clock, timers, delays, toasts, toastMinMs, dialogs, notifications, historyCalls, historyLog, downloads, revokedUrls, context,
     fire(type) { (listeners[type] || []).forEach(fn => fn()); },
     // ids of timers that are still waiting (not cleared, not yet run)
     pending() { return timers.map((fn, i) => (fn ? i + 1 : 0)).filter(Boolean); },
