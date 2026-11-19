@@ -477,8 +477,10 @@
       if (clueNear) for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
       for (const word of NEGATIVE) { if (before.slice(-10).includes(word)) score -= 3; }
       // end of a range: "11.10 ~ 11.30" (parenthesised weekdays are ignored)
-      const compact = before.replace(/\([^)]*\)/g, '').replace(/\s+/g, '');
-      if (/[~∼～]$/.test(compact)) score += 3;
+      // also "11.10 – 11.30", "11.10 — 11.30" and a space-separated "11.10 - 11.30"
+      const noParen = before.replace(/\([^)]*\)/g, '');
+      const compact = noParen.replace(/\s+/g, '');
+      if (/[~∼～–—]$/.test(compact) || /\s-\s*$/.test(noParen)) score += 3;
       if (!c.hasYear && score < 3) score -= 1; // short forms need a stronger clue
       // equal score: the one closest to a 마감 word, then the later date
       const dist = closingDistance(c);

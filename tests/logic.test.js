@@ -337,6 +337,19 @@ test('extractDeadline reads "2월 29일" in both leap and non-leap years',()=>{
   assert.equal(L.extractDeadline('서류 접수 마감 2월 30일까지','2027-12-10'),null,'a date that never exists is still ignored');
 });
 
+test('extractDeadline picks the end of a range joined by a dash',()=>{
+  const today='2026-11-16';
+  const cases=[
+    ['모집기간 2026.11.10 – 2026.11.30','2026-11-30'],
+    ['모집기간 2026.11.10 — 2026.11.30','2026-11-30'],
+    ['모집기간 2026.11.10(월) - 2026.11.30(일)','2026-11-30'],
+    ['모집기간 2026.11.10 – 2026.11.30 18:00','2026-11-30'],
+    ['접수기간 11.10 – 11.30','2026-11-30']
+  ];
+  for(const [text,expected] of cases)assert.equal(L.extractDeadline(text,today)?.date,expected,text);
+  assert.equal(L.extractDeadline('모집기간 2026.11.10 - 2026.11.30',today)?.confident,true);
+});
+
 test('extractDeadline stays quiet when there is no clear deadline',()=>{
   const today='2026-11-16';
   for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
