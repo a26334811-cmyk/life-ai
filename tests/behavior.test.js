@@ -1067,6 +1067,26 @@ test('bottom menu buttons switch tabs without stacking history',()=>{
   for(const id of ['home','opportunities','goals','calendar','my'])assert.ok(html.includes(`onclick="go('${id}','replace')"`),id);
 });
 
+/* ---------- 통계 화면의 집중 시간 합계 (#250) ---------- */
+test('focus history card shows today, this week, total and per-goal minutes; bad minutes count as 0',()=>{
+  const history=[
+    {date:'2026-05-10',minutes:25,category:'study',completedAt:'2026-05-10T01:00:00.000Z'},
+    {date:'2026-05-10',minutes:'abc',category:'job',completedAt:'2026-05-10T02:00:00.000Z'},
+    {date:'2026-05-05',minutes:30,category:'job',completedAt:'2026-05-05T02:00:00.000Z'},
+    {date:'2026-05-04',minutes:60,category:'study',completedAt:'2026-05-04T02:00:00.000Z'}
+  ];
+  const a=createApp();
+  a.run('state.focusHistory='+JSON.stringify(history));
+  const html=a.run('focusHistoryHTML()');
+  assert.match(html,/<strong>25분<\/strong><p class="meta">오늘/);
+  assert.match(html,/<strong>25분<\/strong><p class="meta">이번 주/); // 2026-05-10 is a Sunday: the week starts today
+  assert.match(html,/<strong>1시간 55분<\/strong><p class="meta">전체/);
+  assert.match(html,/자격증·공부: 1시간 25분/);
+  assert.match(html,/취업 준비: 0시간 30분/);
+  assert.doesNotMatch(html,/NaN/);
+  assert.doesNotMatch(a.run('progressInsightsHTML()'),/NaN/);
+});
+
 /* ---------- 한국 새벽(UTC로는 아직 전날)에도 '한국 날짜'를 써요 (#243) ---------- */
 const KST_DAWN=Date.parse('2026-05-10T16:30:00Z'); // 한국 2026-05-11 01:30
 test('at 01:30 KST the app counts today as the Korean date, not the UTC date',()=>{

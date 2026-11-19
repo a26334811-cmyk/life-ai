@@ -1999,7 +1999,7 @@ function progressInsightsHTML(){
   const days=dates.map(date=>{
     const possible=date<=today?habits.filter(h=>!h.createdAt||h.createdAt<=date).length:0;
     const done=date<=today?habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length:0;
-    const minutes=date<=today?history.filter(x=>x.date===date).reduce((sum,x)=>sum+(Number(x.minutes)||0),0):0;
+    const minutes=date<=today?LifeLogic.focusMinutes(history,x=>x.date===date):0;
     return {date,done,possible,minutes};
   });
   const totalPossible=days.reduce((sum,d)=>sum+d.possible,0);
@@ -2067,11 +2067,11 @@ async function focusHistoryRemove(id){
 function focusHistoryHTML(){
   const history=focusHistory();
   const today=koreaToday(),weekStart=LifeLogic.weekStart(today);
-  const todayMin=history.filter(x=>x.date===today).reduce((n,x)=>n+Number(x.minutes||0),0);
-  const weekMin=history.filter(x=>x.date>=weekStart&&x.date<=today).reduce((n,x)=>n+Number(x.minutes||0),0);
-  const allMin=history.reduce((n,x)=>n+Number(x.minutes||0),0);
+  const todayMin=LifeLogic.focusMinutes(history,x=>x.date===today);
+  const weekMin=LifeLogic.focusMinutes(history,x=>x.date>=weekStart&&x.date<=today);
+  const allMin=LifeLogic.focusMinutes(history);
   const categories=Object.fromEntries(LifeLogic.FOCUS_CATEGORIES.map(c=>[c.name,c.label]));
-  const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:history.filter(x=>x.category===c.name).reduce((n,x)=>n+Number(x.minutes||0),0)}));
+  const breakdown=LifeLogic.FOCUS_CATEGORIES.map(c=>({label:c.label,minutes:LifeLogic.focusMinutes(history,x=>x.category===c.name)}));
   return `<div class="card" id="focusHistoryCard"><h3>📊 집중 기록</h3>
     <div class="planner-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><strong>${todayMin}분</strong><p class="meta">오늘</p></div>

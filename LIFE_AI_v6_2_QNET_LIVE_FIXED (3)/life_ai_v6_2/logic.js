@@ -288,6 +288,13 @@
     return value !== '' && value !== null && Number.isInteger(n) && n >= 1 && n <= FOCUS_MAX_MINUTES;
   }
 
+  /* Sum of the minutes of the focus records that pass `filter` (all records when it is left out).
+     A minutes value that is not a number counts as 0 - this is the only place that rule lives. */
+  function focusMinutes(history, filter) {
+    if (!Array.isArray(history)) return 0;
+    return history.reduce((sum, x) => (!filter || filter(x) ? sum + (Number(x && x.minutes) || 0) : sum), 0);
+  }
+
   /* Decides what to do with a focus timer that was saved before the page closed.
      status: idle | paused | running | finished */
   function resumeFocus(run, now) {
@@ -793,7 +800,7 @@
     occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,
-    resumeFocus, backupNudge, hasUserData, recordCount
+    focusMinutes, resumeFocus, backupNudge, hasUserData, recordCount
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LifeLogic = api;

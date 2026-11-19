@@ -10,6 +10,25 @@ test('koreaDate uses the Korean calendar day, also between 00:00 and 09:00 KST',
   assert.equal(L.koreaDate(Date.parse('2026-12-31T20:00:00Z')),'2027-01-01','year boundary');
 });
 
+/* 집중 시간 합계는 한 곳에서만 계산해요 (#250) */
+test('focusMinutes adds up the records that match and treats a non-number as 0',()=>{
+  const history=[
+    {date:'2026-05-10',minutes:25,category:'study'},
+    {date:'2026-05-10',minutes:'30',category:'job'},
+    {date:'2026-05-09',minutes:'abc',category:'study'},
+    {date:'2026-05-09',minutes:null,category:'study'},
+    {date:'2026-05-08',category:'job'},
+    {date:'2026-05-08',minutes:15,category:'study'}
+  ];
+  assert.equal(L.focusMinutes(history),70,'no filter = all records');
+  assert.equal(L.focusMinutes(history,x=>x.date==='2026-05-10'),55);
+  assert.equal(L.focusMinutes(history,x=>x.category==='study'),40);
+  assert.equal(L.focusMinutes(history,x=>x.date>='2026-05-09'&&x.date<='2026-05-09'),0,'text minutes never turn the total into NaN');
+  assert.equal(L.focusMinutes(history,()=>false),0);
+  assert.equal(L.focusMinutes([]),0);
+  assert.equal(L.focusMinutes(undefined),0);
+});
+
 test('monthly repeat that starts on the 31st lands on the last day of shorter months',()=>{
   const item={date:'2026-01-31',repeat:'monthly'};
   assert.equal(L.occurs(item,'2026-01-31'),true);
