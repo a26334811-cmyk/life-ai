@@ -247,7 +247,12 @@ function safeChar(code) {
   try { return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : ''; } catch (e) { return ''; }
 }
 function plain(text, max) {
-  return decodeEntities(String(text || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, max || 200);
+  /* Invisible direction/zero-width characters could make a title look different from what it is, so drop them (after entity decoding). */
+  return decodeEntities(String(text || '').replace(/<[^>]*>/g, ' '))
+    .replace(/[​-‏‪-‮⁦-⁩]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim().slice(0, max || 200);
 }
 
 function metaContent(html, key) {

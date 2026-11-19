@@ -49,6 +49,14 @@ test('deadline written in UTC (Z) or with an offset becomes the Korean date; no 
   assert.equal(dl('2026-11-22'),'2026-11-22');
 });
 
+test('invisible direction and zero-width characters are removed from title and company',()=>{
+  const html='<html><head><title>시설‮관리​ 신⁦입\u0001 ‏&#x202E;&#8203;끝</title><meta property="og:site_name" content="삼‍천리"></head></html>';
+  const r=parsePage(html,'https://example.com/job/1');
+  assert.equal(r.title,'시설관리 신입 끝');
+  assert.equal(r.siteName,'삼천리');
+  assert.equal(parsePage('<title>줄\n바꿈\t탭</title>','https://example.com/job/2').title,'줄 바꿈 탭','ordinary line breaks still become spaces');
+});
+
 test('JobPosting inside @graph and with a list type is found',()=>{
   const html='<script type="application/ld+json">{"@graph":[{"@type":"WebSite","name":"x"},{"@type":["Thing","JobPosting"],"title":"정비 신입","hiringOrganization":"한국가스공사","validThrough":"not a date"}]}</script>';
   const r=parsePage(html,'https://e.com');
