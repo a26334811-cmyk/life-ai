@@ -80,3 +80,35 @@ test('more than 10 results are cut to 10',async()=>{
   const {items}=JSON.parse(result.body);
   assert.equal(result.statusCode,200);assert.equal(items.length,10);assert.equal(items[0].title,'공고0');assert.equal(items[9].title,'공고9');
 });
+const sampleWanted=(n)=>`<wanted><wantedAuthNo>K${n}</wantedAuthNo><company><![CDATA[(주)에이&비 설비 ${n}]]></company><title><![CDATA[설비정비 & 안전관리 ${n}]]></title><region>서울 &amp; 경기</region><career>경력무관</career><regDt>2026-11-0${n%9}</regDt><closeDt>2026-12-31</closeDt><wantedInfoUrl><![CDATA[https://www.work24.go.kr/job?id=${n}&amp;type=a]]></wantedInfoUrl><infoSvc>VALIDATION</infoSvc></wanted>`;
+test('decodes CDATA text and &amp; from a realistic response',async()=>{
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><wantedRoot><total>1</total><startPage>1</startPage><display>20</display>${sampleWanted(1)}</wantedRoot>`;
+  const result=await setup(xml)({queryStringParameters:{keyword:'설비'}});
+  assert.equal(result.statusCode,200);
+  const {items}=JSON.parse(result.body);
+  assert.equal(items.length,1);
+  assert.equal(items[0].title,'설비정비 & 안전관리 1');
+  assert.equal(items[0].company,'(주)에이&비 설비 1');
+  assert.equal(items[0].region,'서울 & 경기');
+  assert.equal(items[0].url,'https://www.work24.go.kr/job?id=1&type=a');
+  assert.equal(items[0].wantedAuthNo,'K1');
+  assert.ok(!/CDATA|&amp;/.test(JSON.stringify(items)),'no leftover markup');
+});
+test('returns only the first 10 when the response has 15 items',async()=>{
+  const xml=`<wantedRoot><total>15</total>${Array.from({length:15},(_,i)=>sampleWanted(i+1)).join('')}</wantedRoot>`;
+  const result=await setup(xml)({queryStringParameters:{keyword:'설비'}});
+  const {items}=JSON.parse(result.body);
+  assert.equal(items.length,10);
+  assert.equal(items[0].wantedAuthNo,'K1');
+  assert.equal(items[9].wantedAuthNo,'K10');
+});
+test('drops items with an empty title before applying the 10-item limit',async()=>{
+  const empty='<wanted><wantedAuthNo>EMPTY</wantedAuthNo><company>X</company><title></title></wanted>';
+  const blank='<wanted><wantedAuthNo>BLANK</wantedAuthNo><title><![CDATA[   ]]></title></wanted>';
+  const xml=`<wantedRoot>${empty}${blank}${Array.from({length:11},(_,i)=>sampleWanted(i+1)).join('')}</wantedRoot>`;
+  const result=await setup(xml)({queryStringParameters:{keyword:'설비'}});
+  const {items}=JSON.parse(result.body);
+  assert.equal(items.length,10);
+  assert.ok(items.every(x=>x.title&&x.wantedAuthNo!=='EMPTY'&&x.wantedAuthNo!=='BLANK'));
+  assert.equal(items[0].wantedAuthNo,'K1');
+});
