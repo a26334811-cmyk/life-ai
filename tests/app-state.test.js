@@ -50,6 +50,13 @@ test('picking a company and job does not change the goal until the goal is creat
  assert.equal(a.run('state.mainGoal'),'포스코 정비 취업');
  assert.equal(a.run('state.selectedCompany'),'포스코');assert.equal(a.run('state.selectedJob'),'정비');
 });
+test('job goal home shows the posting-management card and reason',()=>{
+ const a=app(JSON.stringify({goalType:'job',mainGoal:'취업 준비',jobSubmitted:true,jobPreparationStarted:true}));
+ const cards=a.run('opportunityCards()');
+ assert.match(cards,/관심 회사·공고 관리/);assert.match(cards,/취업 관리 열기/);assert.match(cards,/고용24 공고 조회/);assert.doesNotMatch(cards,/채용 예시/);
+ assert.equal(a.run('currentAction().title'),'관심 회사와 공고를 관리해보세요');
+ assert.equal(a.run('currentAction().cta'),'공고 관리 열기');
+});
 test('policy input remains editable and does not assert eligibility',()=>{
  const a=app();a.run('saveIncome()');assert.equal(a.run('state.policyIncomeAdded'),false);
  a.el('incomeSelect').value='150% 초과';a.run('saveIncome()');
