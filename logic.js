@@ -168,7 +168,7 @@
     jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
     taskNames: item => isText(item, 100) && item.trim() !== '',
     watchCompanies: item => isPlain(item) || typeof item === 'string',
-    favoriteCerts: item => isPlain(item) || typeof item === 'string'
+    favoriteCerts: item => isPlain(item) && isText(item.name, 300) && isText(item.code, 300)
   };
 
   /* A planner item keeps its title and date even when time/repeat/until are broken: those fields fall back to their
@@ -203,6 +203,10 @@
       if (!Array.isArray(out[key])) continue;
       out[key] = out[key].map(item =>
         isPlain(item) && (item.id === undefined || item.id === null || item.id === '') ? Object.assign({}, item, { id: newRecordId() }) : item);
+    }
+    // an old or hand-edited file may list a favourite certificate as plain text: keep it as a named item without a code
+    if (Array.isArray(out.favoriteCerts)) {
+      out.favoriteCerts = out.favoriteCerts.map(item => (typeof item === 'string' && item.trim() ? { name: item.trim(), code: '' } : item));
     }
     out.schemaVersion = Math.max(version, STATE_SCHEMA_VERSION); // never lower a version written by a newer app
     return out;

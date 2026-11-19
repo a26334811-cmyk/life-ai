@@ -2913,12 +2913,12 @@ function saveFavoriteCert(){
 function openFavoriteCert(button){
   go('cert');chooseCert(button);
 }
-async function removeFavoriteCert(code){
+async function removeFavoriteCert(code,name){
   if(!await uiConfirm('관심 자격증에서 뺄까요?',{title:'관심 자격증 해제',ok:'빼기',danger:true}))return;
-  state.favoriteCerts=(state.favoriteCerts||[]).filter(x=>x.code!==code);persistState();renderMy();
+  state.favoriteCerts=(state.favoriteCerts||[]).filter(x=>code?x.code!==code:x.name!==name);persistState();renderMy(); // items without a code (from an old file) are removed by name
 }
 function favoriteCertHTML(){
-  return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" onclick="removeFavoriteCert(this.dataset.code)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
+  return (state.favoriteCerts||[]).map(x=>`<div class="card"><button class="btn secondary" data-name="${esc(x.name)}" data-code="${esc(x.code)}" onclick="openFavoriteCert(this)">${esc(x.name)} · 일정 보기</button><button class="btn ghost" data-code="${esc(x.code)}" data-name="${esc(x.name)}" onclick="removeFavoriteCert(this.dataset.code,this.dataset.name)">관심 해제</button></div>`).join('')||'<p class="meta">자격증 검색에서 관심 종목을 저장해 보세요.</p>';
 }
 function certRoundsHTML(data){
   return `<div class="section-title">실제 시험일정</div><div class="stack">${(

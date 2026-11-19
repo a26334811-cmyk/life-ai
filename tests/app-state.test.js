@@ -62,6 +62,16 @@ test('favorite qualification requires selection, deduplicates and survives goal 
  a.run("saveFavoriteCert();saveFavoriteCert();quickGoal('위험물산업기사 준비')");
  assert.equal(a.run('state.favoriteCerts.length'),1);assert.match(a.run('favoriteCertHTML()'),/전기기사/);
 });
+test('a text-only favorite certificate from an old file is kept with its name and can be removed',async()=>{
+ const raw=JSON.stringify({mainGoal:'x',favoriteCerts:['전기기사',{name:'소방설비기사',code:'2290'},{name:'코드 없음'},42]});
+ const a=createApp(raw,{search:''});
+ assert.equal(JSON.stringify(a.run('state.favoriteCerts')),JSON.stringify([{name:'전기기사',code:''},{name:'소방설비기사',code:'2290'}]));
+ assert.match(a.run('favoriteCertHTML()'),/data-name="전기기사"/);
+ await a.run("removeFavoriteCert('','전기기사')");
+ assert.equal(JSON.stringify(a.run('state.favoriteCerts')),JSON.stringify([{name:'소방설비기사',code:'2290'}]));
+ await a.run("removeFavoriteCert('2290','소방설비기사')");
+ assert.equal(a.run('state.favoriteCerts.length'),0);
+});
 test('calendar separates past events and highlights next registration',()=>{
  const a=app();const html=a.run("certCalendarHTML({qualification:{name:'전기기사'},year:2026,items:[{label:'지난 시험',type:'시험',round:'1회',startDate:'2000-01-01',endDate:'2000-01-01'},{label:'접수',type:'필기원서접수',round:'2회',startDate:'2099-01-01',endDate:'2099-01-05'}]})");
  assert.match(html,/다음 접수/);assert.match(html,/<details><summary>지난 일정 1개/);
