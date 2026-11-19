@@ -1644,3 +1644,23 @@ test('home next exam event includes a registration window that already started',
   assert.match(later.el('homeContent').innerHTML,/필기시험/);
   assert.doesNotMatch(later.el('homeContent').innerHTML,/접수 중/);
 });
+
+test('pasting the posting text never overwrites a filled deadline silently (#186)',async()=>{
+  const text='접수기간 2026.11.10(월) ~ 2026.11.30(일) 18:00';
+  const base={now:Date.parse('2026-11-16T03:00:00Z')};
+  const same=createApp(undefined,base);
+  same.el('postingDeadline').value='2026-11-30';same.el('postingPaste').value=text;
+  await same.run('fillPostingFromPaste()');
+  assert.match(status(same),/이미 같은 마감일/);assert.doesNotMatch(status(same),/찾지 못했어요/);
+  assert.equal(same.dialogs.length,0,'same date needs no question');
+  const no=createApp(undefined,{...base,confirm:false});
+  no.el('postingDeadline').value='2026-12-20';no.el('postingPaste').value=text;
+  await no.run('fillPostingFromPaste()');
+  assert.equal(no.dialogs.at(-1).kind,'confirm');assert.match(no.dialogs.at(-1).message,/2026-11-30/);
+  assert.equal(no.el('postingDeadline').value,'2026-12-20','declined: kept');
+  assert.doesNotMatch(status(no),/찾지 못했어요/);
+  const yes=createApp(undefined,{...base,confirm:true});
+  yes.el('postingDeadline').value='2026-12-20';yes.el('postingPaste').value=text;
+  await yes.run('fillPostingFromPaste()');
+  assert.equal(yes.el('postingDeadline').value,'2026-11-30','accepted: replaced');
+});

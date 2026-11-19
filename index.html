@@ -2487,7 +2487,7 @@ function postingFillField(id,value){
 }
 /* The text that came with a phone share is only a stand-in title: when the link gives a real title, that one wins. */
 let sharedTitleText='';
-function applyPostingInfo(info){
+function applyPostingInfo(info,opts){
   const filled=[];
   const siteName=info.siteName||'';
   const titleBox=document.getElementById('postingTitle');
@@ -2506,7 +2506,8 @@ function applyPostingInfo(info){
     else{
       // The deadline box already has a value: it is kept, but the user is told what the text says.
       const typed=String(document.getElementById('postingDeadline')?.value||'').trim();
-      note=typed===deadline.date?' 글에 적힌 마감일('+deadline.date+')이 입력한 값과 같아요.':' 글에는 마감일이 '+deadline.date+'로 적혀 있어요. 지금 입력한 값과 달라요.';
+      note=typed===deadline.date?' 이미 같은 마감일이에요. 글에 적힌 마감일('+deadline.date+')이 입력한 값과 같아요.':' 글에는 마감일이 '+deadline.date+'로 적혀 있어요. 지금 입력한 값과 달라요.';
+      if(opts&&opts.paste&&typed!==deadline.date)opts.conflict=deadline.date; // pasted text: never overwrite silently, ask afterwards
     }
   }
   const deadlinePast=Boolean(deadline&&deadline.past);
@@ -2562,10 +2563,19 @@ async function fillPostingFromUrl(){
 function fillPostingFromPaste(){
   const text=document.getElementById('postingPaste')?.value||'';
   if(!text.trim()){postingSetStatus('붙여넣을 공고 글을 먼저 입력해 주세요.');return;}
-  const {found,message}=applyPostingInfo({description:text});
+  const opts={paste:true};
+  const {found,message}=applyPostingInfo({description:text},opts);
   const linkFilled=postingFillField('postingUrl',LifeLogic.cleanPostingUrl(LifeLogic.firstUrl(text)));
   if(found)postingSetStatus(message+(linkFilled?' 글 안의 링크도 채웠어요.':''));
   else postingSetStatus(linkFilled?'글 안의 링크를 채웠어요. 마감일은 찾지 못했으니 직접 입력해 주세요.':'글에서 마감일로 볼 만한 날짜를 찾지 못했어요. 직접 입력해 주세요.');
+  if(opts.conflict)return askReplaceDeadline(opts.conflict);
+}
+async function askReplaceDeadline(date){
+  const version=postingFetchVersion;
+  const ok=await uiConfirm('글에서는 '+date+'일로 보여요. 마감일 칸의 날짜를 바꿀까요?',{title:'마감일 바꾸기',ok:'바꾸기'});
+  if(!ok||version!==postingFetchVersion)return;
+  const el=document.getElementById('postingDeadline');
+  if(el){el.value=date;postingSetStatus('마감일을 '+date+'로 바꿨어요. 내용을 확인해 주세요.');}
 }
 /* The phone's Share sheet opens the app as index.html?title=&text=&url= (see share_target in manifest.json). */
 function handleSharedLink(){
