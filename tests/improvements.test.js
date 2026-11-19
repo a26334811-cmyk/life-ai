@@ -130,6 +130,37 @@ test('postpone crosses a month end',()=>{
   assert.equal(a.saved().plannerEntries[0].date,'2026-06-01');
 });
 
+/* ---------- #266 one-line add on the Today tab ---------- */
+const entries=a=>a.saved().plannerEntries;
+test('the Today tab has a title box and saves a plain one-off item for today',()=>{
+  const a=createApp();
+  a.run('renderCalendar()');
+  assert.match(a.el('calendarContent').innerHTML,/id="plannerQuickTitle"/);
+  a.el('plannerQuickTitle').value='  자기소개서 쓰기  ';
+  a.run('plannerQuickAdd()');
+  const saved=entries(a);
+  assert.equal(saved.length,1);
+  assert.equal(saved[0].title,'자기소개서 쓰기');
+  assert.equal(saved[0].date,'2026-05-10');
+  assert.equal(saved[0].repeat,'none');
+  assert.equal(saved[0].priority,'normal');
+  assert.equal(saved[0].category,'personal');
+  assert.ok(saved[0].id);
+  assert.equal(a.run("plannerForDate('2026-05-10').some(e=>e.title==='자기소개서 쓰기')"),true);
+});
+test('the quick add refuses an empty or over-long title and saves nothing',()=>{
+  const a=createApp();
+  a.el('plannerQuickTitle').value='   ';
+  a.run('plannerQuickAdd()');
+  a.el('plannerQuickTitle').value='가'.repeat(121);
+  a.run('plannerQuickAdd()');
+  assert.equal(a.run('plannerEntries().length'),0);
+  assert.equal(a.toasts.length,2);
+  a.el('plannerQuickTitle').value='가'.repeat(120);
+  a.run('plannerQuickAdd()');
+  assert.equal(entries(a).length,1);
+});
+
 /* ---------- #84 posting display order ---------- */
 test('saved postings are shown by deadline urgency without changing the stored order',()=>{
   const mk=(id,deadline,stage)=>({id,company:id,title:id,url:'https://x.example/'+id,deadline,stage,tasks:[false,false,false,false]});

@@ -1689,6 +1689,17 @@ function plannerSearchHTML(){
   return `<div class="planner-search"><input id="plannerSearch" type="search" placeholder="🔍 일정·공고 검색 (예: 치과)" maxlength="60" value="${esc(plannerSearchQuery)}" oninput="plannerSearchRun(this.value)" aria-label="일정 검색"><div id="plannerSearchResults">${plannerSearchResultsHTML()}</div></div>`;
 }
 function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
+/* One-line add on the Today tab: title only, saved for today with default time/priority.
+   Same rules as plannerSave (title 1-120 characters, id from newJobId). */
+function plannerQuickAdd(){
+  const input=document.getElementById('plannerQuickTitle');
+  const title=input?.value.trim()||'';
+  if(!title||title.length>120){toast('제목을 1~120자로 입력해 주세요.');return;}
+  const today=koreaToday();
+  plannerEntries().push({id:newJobId(),title,date:today,time:'',category:'personal',repeat:'none',until:'',priority:'normal',done:false});
+  plannerSelected=today;
+  persistState();renderCalendar();toast('오늘 일정에 추가했어요.');
+}
 function plannerPostpone(id){
   const e=plannerEntries().find(x=>x.id===id);
   if(!e||LifeLogic.isRepeating(e)||!LifeLogic.validDate(e.date)||!e.date)return;
@@ -2355,6 +2366,9 @@ function renderCalendar(){
       ${PLANNER_TAB_LABELS.map(([tab,label])=>`<button type="button" role="tab" id="plannerTab-${tab}" data-tab="${tab}" aria-selected="${plannerActiveTab===tab}" aria-controls="plannerPanel-${tab}" tabindex="${plannerActiveTab===tab?0:-1}" onclick="plannerSwitchTab('${tab}')" onkeydown="plannerTabKey(event,'${tab}')">${label}</button>`).join('')}
     </div>
     <section class="planner-tabpanel" id="plannerPanel-today" data-tab="today" role="tabpanel" aria-labelledby="plannerTab-today" ${plannerActiveTab==='today'?'':'hidden'}>
+      <div class="card"><label class="wide">오늘 할 일 바로 추가<input id="plannerQuickTitle" maxlength="120" placeholder="예: 자기소개서 한 문단 쓰기" onkeydown="if(event.key==='Enter'){event.preventDefault();plannerQuickAdd();}"></label>
+        <button class="btn secondary" onclick="plannerQuickAdd()">추가</button>
+        <p class="meta">제목만 적으면 오늘 일정으로 저장돼요. 날짜·분류를 바꾸려면 캘린더 탭에서 수정하세요.</p></div>
       ${recoveryPanelHTML()}
       ${plannerFocusHTML()}
       ${plannerOverdueHTML()}
