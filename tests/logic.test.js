@@ -454,3 +454,12 @@ test('periodDates lists the dates of the week or month that contains today',()=>
   assert.equal(L.periodDates('2024-02-10','month').dates.length,29,'leap year February');
   assert.equal(L.periodDates('2026-02-10','month').end,'2026-02-28');
 });
+
+test('deadlineInRange accepts about two years either way and rejects placeholders',()=>{
+  const today='2026-11-16';
+  assert.equal(L.deadlineInRange('2026-12-05',today),true);
+  assert.equal(L.deadlineInRange('2027-11-16',today),true);
+  assert.equal(L.deadlineInRange('9999-12-31',today),false);
+  assert.equal(L.deadlineInRange('1970-01-01',today),false);
+  assert.equal(L.deadlineInRange('2026-02-30',today),false);
+});

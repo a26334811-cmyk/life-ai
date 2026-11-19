@@ -1019,6 +1019,18 @@ test('pasting into the posting text box searches automatically',()=>{
   assert.ok(html.includes('id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)"'));
 });
 
+test('a placeholder deadline such as 9999-12-31 from a link is not filled, and the description is used instead',async()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'상시채용',company:'삼천리',deadline:'9999-12-31',description:''})});
+  a.el('postingUrl').value='https://example.com/job/11';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingDeadline').value,'');
+  assert.match(status(a),/마감일은 링크에서 찾지 못했어요/);
+  const b=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'채용',company:'삼천리',deadline:'9999-12-31',description:'지원 마감 12월 5일 18시까지'})});
+  b.el('postingUrl').value='https://example.com/job/12';
+  await b.run('fillPostingFromUrl()');
+  assert.equal(b.el('postingDeadline').value,'2026-12-05');
+});
+
 test('when the link gives no deadline the user is pointed to the paste box and it is opened',async()=>{
   const a=createApp(undefined,{fetch:reply({ok:true,title:'정비 신입',company:'현대제철',companyInferred:true,description:''})});
   let opened=false;
@@ -1027,7 +1039,7 @@ test('when the link gives no deadline the user is pointed to the paste box and i
   await a.run('fillPostingFromUrl()');
   assert.match(status(a),/마감일은 링크에서 찾지 못했어요/);
   assert.equal(opened,true);
-  const b=createApp(undefined,{fetch:reply({ok:true,title:'정비 신입',deadline:'2099-01-01',description:''})});
+  const b=createApp(undefined,{fetch:reply({ok:true,title:'정비 신입',deadline:'2026-12-31',description:''})});
   let bOpened=false;b.el('postingPaste').closest=()=>({set open(v){bOpened=v;}});
   b.el('postingUrl').value='https://example.com/job/6';
   await b.run('fillPostingFromUrl()');

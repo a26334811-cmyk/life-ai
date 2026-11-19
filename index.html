@@ -2599,7 +2599,7 @@ function applyPostingInfo(info,opts){
   if(postingFillField('postingCompany',info.company))filled.push('회사명');
   if(postingFillField('postingRegion',info.region))filled.push('근무지역');
   const today=koreaToday();
-  let deadline=info.deadline&&LifeLogic.validDate(info.deadline)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
+  let deadline=info.deadline&&LifeLogic.validDate(info.deadline)&&LifeLogic.deadlineInRange(info.deadline,today)?{date:info.deadline,past:info.deadline<today,confident:true}:null;
   if(!deadline)deadline=LifeLogic.extractDeadline(info.description,today);
   let note='';
   if(deadline&&deadline.past)note=' 마감일로 보이는 날짜('+deadline.date+')가 이미 지났어요. 공고를 확인해 주세요.';

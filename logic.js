@@ -419,6 +419,11 @@
     return t.slice(0, 120);
   }
 
+  // Dates about 2 years away from today are not trusted as a posting deadline ('9999-12-31' placeholders etc.)
+  function deadlineInRange(iso, today) {
+    return validDate(iso) && validDate(today) && iso >= dateOffset(today, -366 * 2) && iso <= dateOffset(today, 366 * 2);
+  }
+
   const POSITIVE = [['마감', 3], ['까지', 2], ['접수', 1], ['지원기간', 1], ['모집기간', 1], ['서류', 1]];
   const NEGATIVE = ['공고일', '게시일', '등록일', '작성일', '발표', '면접', '시작', '개시', '입사', '입과', '교육'];
 
@@ -440,7 +445,7 @@
         // "12월 28일까지" read in early January means last month, not 11 months from now
         else if (iso > dateOffset(today, 183)) iso = make(year - 1) || iso;
       }
-      if (iso && iso >= dateOffset(today, -366 * 2) && iso <= dateOffset(today, 366 * 2)) found.push({ index, length, iso, hasYear });
+      if (iso && deadlineInRange(iso, today)) found.push({ index, length, iso, hasYear });
     };
     let m;
     const full = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
@@ -809,7 +814,7 @@
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
-    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline,
+    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
