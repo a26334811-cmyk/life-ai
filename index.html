@@ -370,6 +370,7 @@ h3{font-size:16px;line-height:1.4}
 .habit-row p.meta{margin:0 0 8px 30px}
 .habit-row .habit-yesterday{width:auto;display:inline;padding:2px 8px;font-size:12px}
 .habit-row .habit-remove{width:auto;min-width:58px;min-height:44px;padding:8px 14px;font-size:12px;color:var(--muted)}
+.habit-row .habit-rest{width:auto;min-width:58px;min-height:44px;padding:8px 14px;font-size:12px}
 .habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
 .habit-add .planner-form{margin-top:12px}
@@ -2011,7 +2012,8 @@ function progressInsightsHTML(){
   const habits=habitEntries();
   const history=focusHistory();
   const days=dates.map(date=>{
-    const possible=date<=today?habits.filter(h=>!h.createdAt||h.createdAt<=date).length:0;
+    // a rest day is not counted against the rate (unless the habit was done anyway)
+    const possible=date<=today?habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&(!LifeLogic.isHabitRestDay(h,date)||(Array.isArray(h.checks)&&h.checks.includes(date)))).length:0;
     const done=date<=today?habits.filter(h=>(!h.createdAt||h.createdAt<=date)&&Array.isArray(h.checks)&&h.checks.includes(date)).length:0;
     const minutes=date<=today?LifeLogic.focusMinutes(history,x=>x.date===date):0;
     return {date,done,possible,minutes};
@@ -2051,7 +2053,7 @@ function progressInsightsHTML(){
     <p class="meta" aria-live="polite">${selected?selected.date+' · 집중 '+selected.minutes+'분 · 습관 '+selected.done+'개 완료':'날짜를 선택해 집중 시간을 확인하세요.'}</p>`:`<div class="insights-bars" role="group" aria-label="이번 주 요일별 집중 시간">
       ${buckets.map(d=>`<div class="insights-bar" role="img" aria-label="${d.label} ${d.minutes}분"><div class="insights-bar-track"><div style="width:65%;height:${d.minutes?Math.max(3,Math.round(d.minutes/maxMinutes*70)):0}px;background:var(--primary);border-radius:5px 5px 0 0"></div></div><small>${d.label}</small><div class="meta">${d.minutes}분</div></div>`).join('')}
     </div>`}
-    <details class="insights-details"><summary>집계 기준 보기</summary><p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p><p class="meta">등록일 이후 오늘까지의 습관과 완료된 집중 세션만 집계합니다. 기록이 없는 날은 실패로 간주하지 않아요.</p></details>
+    <details class="insights-details"><summary>집계 기준 보기</summary><p class="meta">습관 달성 ${checked}/${totalPossible}회 · 등록된 습관 ${habits.length}개</p><p class="meta">등록일 이후 오늘까지의 습관과 완료된 집중 세션만 집계합니다. 기록이 없는 날은 실패로 간주하지 않고, 쉬는 날로 정한 날은 달성률 계산에서 빼요.</p></details>
   </div>`;
 }
 let focusHistoryOpen=false;
@@ -2177,13 +2179,22 @@ async function habitRemove(id){
   state.habits=habitEntries().filter(x=>x.id!==id);
   persistState();renderCalendar();
 }
-function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday());}
+function habitStreak(habit){return LifeLogic.habitStreak(habit.checks,koreaToday(),habit.restDates);}
+/* A rest day keeps the streak alive and is left out of the achievement rate. Tapping again takes it back. */
+function habitRestToggle(id){
+  const habit=habitEntries().find(x=>x.id===id);
+  if(!habit)return;
+  const today=koreaToday();
+  const rest=Array.isArray(habit.restDates)?habit.restDates:[];
+  habit.restDates=rest.includes(today)?rest.filter(d=>d!==today):[...rest,today].sort();
+  persistState();renderCalendar();
+}
 function habitPanelHTML(){
   const today=koreaToday(),yesterday=plannerDateOffset(today,-1),habits=habitEntries();
   const completed=habits.filter(h=>Array.isArray(h.checks)&&h.checks.includes(today)).length;
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
-    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} data-id="${esc(h.id)}" onchange="habitToggle(this.dataset.id,koreaToday())"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일 · <button type="button" class="btn ghost habit-yesterday" data-id="${esc(h.id)}" onclick="habitToggle(this.dataset.id,'${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" data-id="${esc(h.id)}" onclick="habitRename(this.dataset.id)">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" data-id="${esc(h.id)}" onclick="habitRemove(this.dataset.id)">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
+    ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} data-id="${esc(h.id)}" onchange="habitToggle(this.dataset.id,koreaToday())"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일${LifeLogic.isHabitRestDay(h,today)?' · 오늘은 쉬는 날이에요':''} · <button type="button" class="btn ghost habit-yesterday" data-id="${esc(h.id)}" onclick="habitToggle(this.dataset.id,'${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-rest" aria-pressed="${LifeLogic.isHabitRestDay(h,today)}" aria-label="${esc(h.name)} ${LifeLogic.isHabitRestDay(h,today)?'쉬는 날 취소':'오늘 쉬기'}" data-id="${esc(h.id)}" onclick="habitRestToggle(this.dataset.id)">${LifeLogic.isHabitRestDay(h,today)?'쉬기 취소':'오늘 쉬기'}</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" data-id="${esc(h.id)}" onclick="habitRename(this.dataset.id)">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" data-id="${esc(h.id)}" onclick="habitRemove(this.dataset.id)">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
     <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();habitAdd()}"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }

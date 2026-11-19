@@ -127,13 +127,22 @@
     return item.skipDates;
   }
 
-  function habitStreak(checks, today) {
+  /* Consecutive days with a check. A rest day does not break the run and does not add to it. */
+  function habitStreak(checks, today, restDates) {
     const set = new Set(Array.isArray(checks) ? checks : []);
+    const rest = new Set(Array.isArray(restDates) ? restDates : []);
     let date = today;
-    if (!set.has(date)) date = dateOffset(date, -1);
+    if (!set.has(date) && !rest.has(date)) date = dateOffset(date, -1);
     let streak = 0;
-    while (set.has(date) && streak < 3650) { streak++; date = dateOffset(date, -1); }
+    for (let steps = 0; (set.has(date) || rest.has(date)) && steps < 3650; steps++) {
+      if (set.has(date)) streak++;
+      date = dateOffset(date, -1);
+    }
     return streak;
+  }
+
+  function isHabitRestDay(habit, date) {
+    return isPlain(habit) && Array.isArray(habit.restDates) && habit.restDates.includes(date);
   }
 
   /* ---------- saved data checks ---------- */
@@ -152,7 +161,8 @@
   const itemChecks = {
     activity: item => isText(item, 300),
     // only the name is checked here; broken check dates are removed one by one in sanitizeState
-    habits: item => isPlain(item) && validId(item.id) && isText(item.name, 200) && Array.isArray(item.checks),
+    habits: item => isPlain(item) && validId(item.id) && isText(item.name, 200) && Array.isArray(item.checks) &&
+      (item.restDates === undefined || Array.isArray(item.restDates)),
     plannerEntries: item => isPlain(item) && validId(item.id) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
     jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
@@ -227,9 +237,12 @@
           items = value.map(habit => {
             if (!(check(habit))) return habit;
             const checks = habit.checks.filter(validDate);
-            if (checks.length === habit.checks.length) return habit;
+            const fixed = {};
+            if (checks.length !== habit.checks.length) fixed.checks = checks;
+            if (Array.isArray(habit.restDates) && !habit.restDates.every(validDate)) fixed.restDates = habit.restDates.filter(validDate);
+            if (!Object.keys(fixed).length) return habit;
             droppedDate = true;
-            return Object.assign({}, habit, { checks });
+            return Object.assign({}, habit, fixed);
           });
         }
         if (key === 'otherGoals') {
@@ -797,7 +810,7 @@
     firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
-    occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak,
+    occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,
     focusMinutes, resumeFocus, backupNudge, hasUserData, recordCount
