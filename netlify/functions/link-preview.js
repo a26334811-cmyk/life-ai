@@ -43,7 +43,8 @@ function isPrivateIp(ip) {
   if (family === 4) {
     const [a, b] = ip.split('.').map(Number);
     return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) || a >= 224;
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19)) || a >= 224;
   }
   if (family === 6) {
     const lower = ip.toLowerCase();
@@ -61,9 +62,24 @@ function isPrivateIp(ip) {
       }
       if (groups[0] === 0x2002) return v4(groups[1], groups[2]); // 2002::/16 6to4 carries an IPv4
     }
-    return /^(fc|fd|fe[89ab])/.test(lower) || lower.startsWith('ff');
+    return /^(fc|fd|fe[89a-f])/.test(lower) || lower.startsWith('ff');
   }
   return true; // not an IP at all: treat as unsafe
+}
+
+/* "2001:db8::1" or "::ffff:1.2.3.4" -> eight numbers (only called for text that net.isIP already accepted). */
+function ipv6Groups(ip) {
+  let s = ip.toLowerCase().split('%')[0];
+  const dotted = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(s);
+  if (dotted) {
+    const p = dotted.slice(1).map(Number);
+    s = s.slice(0, dotted.index) + ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16);
+  }
+  const halves = s.split('::');
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length > 1 && halves[1] ? halves[1].split(':') : [];
+  const fill = halves.length > 1 ? new Array(8 - head.length - tail.length).fill('0') : [];
+  return [...head, ...fill, ...tail].map(x => parseInt(x, 16));
 }
 
 async function assertPublicUrl(raw, lookup) {

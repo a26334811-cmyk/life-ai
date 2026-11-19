@@ -80,6 +80,11 @@ test('private, loopback and metadata addresses are recognised',()=>{
   for(const ip of ['93.184.216.34','8.8.8.8','172.32.0.1','2606:2800:220:1:248:1893:25c8:1946'])assert.equal(isPrivateIp(ip),false,ip);
 });
 
+test('site-local fec0::/10 and the benchmark range are refused',()=>{
+  for(const ip of ['fec0::1','feff::1','198.18.0.1','198.19.255.254'])assert.equal(isPrivateIp(ip),true,ip);
+  for(const ip of ['198.17.255.255','198.20.0.1','2001:4860:4860::8888'])assert.equal(isPrivateIp(ip),false,ip);
+});
+
 test('IPv6 forms that carry an internal IPv4 address are refused',()=>{
   for(const ip of ['::7f00:1','::127.0.0.1','::a00:1','::808:808','64:ff9b::7f00:1','64:ff9b::127.0.0.1','64:ff9b::a9fe:a9fe','64:ff9b:1::1','2002:7f00:1::','2002:a9fe:a9fe::1','2002:c0a8:1::','0:0:0:0:0:ffff:7f00:1'])assert.equal(isPrivateIp(ip),true,ip);
   for(const ip of ['64:ff9b::808:808','64:ff9b::8.8.8.8','2002:808:808::1','::ffff:8.8.8.8','::ffff:808:808'])assert.equal(isPrivateIp(ip),false,ip);
