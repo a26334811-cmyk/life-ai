@@ -17,6 +17,14 @@ test('modern blue dashboard and navigation targets exist',()=>{
   }
 });
 
+test('lookup status boxes are announced to screen readers',()=>{
+  for(const id of ['liveCertStatus','liveJobStatus','postingFetchStatus']){
+    const tag=html.match(new RegExp('<[a-z]+[^>]*\\bid="'+id+'"[^>]*>'));
+    assert.ok(tag,id);
+    assert.match(tag[0],/role="status"/,id);assert.match(tag[0],/aria-live="polite"/,id);
+  }
+});
+
 test('planner, focus and habit integration markers are present',()=>{
   for(const fn of ['plannerSave','plannerOccurs','plannerForDate','habitToggle','habitStreak','focusStartPause','focusRecordCompletion','progressInsightsHTML','focusNotify']){
     assert.match(html,new RegExp('function '+fn+'\\('),fn);

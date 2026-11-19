@@ -548,7 +548,7 @@ h3{font-size:16px;line-height:1.4}
       <div class="field"><label for="certYear">시행년도</label><select id="certYear" onchange="loadLiveCertSchedule()"></select></div>
       <button class="btn secondary" style="margin-top:12px" onclick="loadLiveCertSchedule()">시험일정 확인</button>
     </div>
-    <div id="liveCertStatus" class="card"><strong>종목을 선택하면 실제 접수일·시험일을 확인할 수 있어요.</strong></div>
+    <div id="liveCertStatus" class="card" role="status" aria-live="polite"><strong>종목을 선택하면 실제 접수일·시험일을 확인할 수 있어요.</strong></div>
     <div id="liveCertResults"></div>
     <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
     <p class="meta">조회한 일정은 이 기기에 저장돼요. 변경될 수 있으니 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener">Q-Net 공식 홈페이지</a>에서 최종 확인해 주세요.</p>
@@ -559,7 +559,7 @@ h3{font-size:16px;line-height:1.4}
   </section>
 
 
-  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요. 결과가 없으면 회사명이나 직무로 검색어를 고쳐 다시 찾아 보세요.</p><label for="liveJobKeyword"><strong>검색어</strong></label><input id="liveJobKeyword" type="text" maxlength="100" placeholder="회사명 또는 직무"><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus"></div><div id="liveJobResults"></div></section>
+  <section id="liveJobs" class="screen"><div class="topbar"><button class="back" aria-label="뒤로" onclick="go('jobHub')">←</button><h2>고용24 공고 조회</h2></div><p class="meta">회사명·직무 목표 기준으로 조회해요. 결과가 없으면 회사명이나 직무로 검색어를 고쳐 다시 찾아 보세요.</p><label for="liveJobKeyword"><strong>검색어</strong></label><input id="liveJobKeyword" type="text" maxlength="100" placeholder="회사명 또는 직무"><button class="btn primary" onclick="loadLiveJobs()">공고 조회</button><div id="liveJobStatus" role="status" aria-live="polite"></div><div id="liveJobResults"></div></section>
   <section id="jobHub" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('opportunities')">←</button><h2>💼 취업 관리</h2></div>
     <button class="btn secondary" onclick="go('liveJobs')">고용24 공고 조회</button><p class="meta">관심 회사와 공고를 이 기기에 저장해요. 새 공고 자동 감지·알림은 제공하지 않아요.</p>
