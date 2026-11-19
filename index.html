@@ -2094,7 +2094,7 @@ function focusHistoryHTML(){
 /* 오늘 날짜의 집중 기록만 합산한다 (focusHistoryHTML의 '오늘'과 같은 방식). */
 function focusTodaySummary(){
   const today=koreaToday(),done=focusHistory().filter(x=>x.date===today);
-  return {minutes:done.reduce((n,x)=>n+Number(x.minutes||0),0),sessions:done.length};
+  return {minutes:LifeLogic.focusMinutes(done),sessions:done.length};
 }
 function focusPanelHTML(){
   focusNotifyBlockedCheck();
