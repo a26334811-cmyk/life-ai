@@ -1994,12 +1994,15 @@ function focusRestore(){
 }
 let insightsPeriod='week';
 let insightsSelectedDate='';
-function insightsSelectDate(date){insightsSelectedDate=date;const target=document.getElementById('progressInsights');if(target)target.outerHTML=progressInsightsHTML();}
+function insightsRedraw(){
+  const target=document.getElementById('progressInsights');
+  if(target)keepFocus(target.parentElement,()=>{target.outerHTML=progressInsightsHTML();});
+}
+function insightsSelectDate(date){insightsSelectedDate=date;insightsRedraw();}
 function insightsSetPeriod(period){
   if(period!=='week'&&period!=='month')return;
   insightsPeriod=period;
-  const target=document.getElementById('progressInsights');
-  if(target)target.outerHTML=progressInsightsHTML();
+  insightsRedraw();
 }
 function progressInsightsHTML(){
   const today=koreaToday();
@@ -2344,7 +2347,24 @@ function plannerDayRollover(){
   renderCalendar();
 }
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(!document.hidden)plannerDayRollover();});
+/* Redrawing replaces every element, so the keyboard focus would fall back to the top of the page.
+   Remember which control had focus (by its tag, handler and label) and focus the same control again afterwards. */
+function focusKey(el){
+  if(!el||typeof el.getAttribute!=='function')return '';
+  return [el.tagName,el.id||'',el.getAttribute('onclick')||'',el.getAttribute('onchange')||'',el.getAttribute('aria-label')||''].join('|');
+}
+function keepFocus(root,redraw){
+  const active=document.activeElement;
+  const key=root&&active&&typeof root.contains==='function'&&root.contains(active)?focusKey(active):'';
+  redraw();
+  if(!key||!root||typeof root.querySelectorAll!=='function')return;
+  const next=Array.from(root.querySelectorAll('button,input,select,textarea,a[href]')).find(n=>focusKey(n)===key);
+  if(next&&typeof next.focus==='function')next.focus({preventScroll:true});
+}
 function renderCalendar(){
+  keepFocus(document.getElementById('calendarContent'),renderCalendarNow);
+}
+function renderCalendarNow(){
   const c=document.getElementById('calendarContent');
   const today=koreaToday();
   plannerRenderedToday=today;
