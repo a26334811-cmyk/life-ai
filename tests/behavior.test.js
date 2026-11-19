@@ -710,10 +710,17 @@ test('a nearly full focus history triggers the reminder and overflow warns',()=>
 /* ---------- in-app dialogs (improvement 7) ---------- */
 test('the app no longer uses the browser confirm/prompt/alert popups',()=>{
   const {html}=require('./helpers/app-harness.js');
-  const appScript=html.match(/<script>([\s\S]*?)<\/script>/)[1];
-  assert.doesNotMatch(appScript,/[^.\w]confirm\(/);
-  assert.doesNotMatch(appScript,/[^.\w]prompt\(/);
-  assert.doesNotMatch(appScript,/[^.\w]alert\(/);
+  // the install button's own event.prompt() (the browser's app-install sheet) is not one of the old popups
+  const appScript=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('await event.prompt()','');
+  assert.doesNotMatch(appScript,/(^|[^\w])(window\.)?confirm\(/);
+  assert.doesNotMatch(appScript,/(^|[^\w])(window\.)?prompt\(/);
+  assert.doesNotMatch(appScript,/(^|[^\w])(window\.)?alert\(/);
+  // the pattern must catch window.* popups but still allow uiConfirm/uiAlert-style names
+  const banned=/(^|[^\w])(window\.)?(confirm|prompt|alert)\(/;
+  assert.match('window.confirm("x")',banned);
+  assert.match('x=window.alert(1)',banned);
+  assert.match('if(confirm("x"))',banned);
+  assert.doesNotMatch('await uiConfirm("x");uiAlert("y")',banned);
 });
 
 test('cancelling a posting delete keeps the posting',async()=>{
