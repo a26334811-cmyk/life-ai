@@ -318,6 +318,15 @@ test('extractDeadline stays quiet when there is no clear deadline',()=>{
   assert.equal(L.extractDeadline('마감 2026.12.05','2026-02-30'),null,'bad today');
 });
 
+test('extractDeadline does not pick a decimal like 학점 3.5 as the deadline',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('학점 3.5 이상 우대, 지원 마감 11.30',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('학점 3.5 이상 우대, 지원 마감 11/30',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('지원 마감 11.30, 어학 점수 1.5배 가산',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('학점 3.5 이상 우대, 지원 마감은 공고 참고',today),null,'decimal alone is not a deadline');
+  assert.equal(L.extractDeadline('11.30 마감, 학점 3.5',today)?.date,'2026-11-30');
+});
+
 test('extractDeadline flags past dates and confidence',()=>{
   const r=L.extractDeadline('접수기간 2026.10.01 ~ 2026.10.31','2026-11-16');
   assert.equal(r.date,'2026-10-31');assert.equal(r.past,true);

@@ -439,21 +439,30 @@
     const short = /(?<![\d.\-/])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d.\-/])/g;
     while ((m = short.exec(src))) {
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      const before = found.length;
       add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
+      if (found.length > before) found[found.length - 1].short = true; // "11.30" / "11/30"
     }
     if (!found.length) return null;
+    const closing = [];
+    for (let i = src.indexOf('마감'); i >= 0; i = src.indexOf('마감', i + 1)) closing.push(i);
+    const closingDistance = c => closing.reduce((min, i) => Math.min(min, i >= c.index + c.length ? i - (c.index + c.length) : c.index - (i + 2)), Infinity);
     let best = null;
     for (const c of found) {
       const before = src.slice(Math.max(0, c.index - 30), c.index);
       const after = src.slice(c.index + c.length, c.index + c.length + 16);
       let score = 0;
-      for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
+      // "3.5" in "학점 3.5 이상" must not borrow a 마감 that is far away: a short form needs the clue right next to it.
+      const clueNear = !c.short || /(마감|까지)[^\d]{0,6}$/.test(before) || /^[^\d]{0,3}(까지|마감)/.test(after);
+      if (clueNear) for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
       for (const word of NEGATIVE) { if (before.slice(-10).includes(word)) score -= 3; }
       // end of a range: "11.10 ~ 11.30" (parenthesised weekdays are ignored)
       const compact = before.replace(/\([^)]*\)/g, '').replace(/\s+/g, '');
       if (/[~∼～]$/.test(compact)) score += 3;
       if (!c.hasYear && score < 3) score -= 1; // short forms need a stronger clue
-      if (!best || score > best.score || (score === best.score && c.iso > best.iso)) best = { ...c, score };
+      // equal score: the one closest to a 마감 word, then the later date
+      const dist = closingDistance(c);
+      if (!best || score > best.score || (score === best.score && (dist < best.dist || (dist === best.dist && c.iso > best.iso)))) best = { ...c, score, dist };
     }
     if (!best || best.score < 2) return null;
     return {
