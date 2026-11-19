@@ -1821,7 +1821,7 @@ function focusElapsedMinutes(){
   return remaining>0?Math.max(0,Math.floor((total-remaining)/60)):0;
 }
 async function focusReset(){
-  if(focusRunning||focusRemaining<Number(focusSettings().minutes)*60){
+  if(focusRunning||(focusRemaining>0&&focusRemaining<Number(focusSettings().minutes)*60)){ // a finished timer needs no warning
     const elapsed=focusElapsedMinutes();
     if(elapsed>=1){
       const choice=await uiChoice(`지금까지 ${elapsed}분 집중했어요. 어떻게 할까요?`,[
@@ -1850,7 +1850,7 @@ async function focusChangeMinutes(value){
     if(!LifeLogic.isFocusMinutes(value)){toast('1~180 사이의 숫자(분)를 입력해 주세요.');renderCalendar();return;}
   }
   const previous=Number(focusSettings().minutes);
-  if((focusRunning||focusRemaining<previous*60)&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
+  if((focusRunning||(focusRemaining>0&&focusRemaining<previous*60))&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
   focusStopTimer();
   focusDoneMinutes=0;
   focusSettings().minutes=Number(value);
