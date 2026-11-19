@@ -489,7 +489,7 @@
       else {
         iso = make(year);
         // "1월 5일까지" read in December means next year; "2월 29일" in a non-leap year only exists in a later year
-        if (!iso || iso < dateOffset(today, -31)) iso = make(year + 1);
+        if (!iso || iso < dateOffset(today, -180)) iso = make(year + 1); // a date only weeks ago ("10월 5일" in mid-November) stays a past date
         // "12월 28일까지" read in early January means last month, not 11 months from now
         else if (iso > dateOffset(today, 183)) iso = make(year - 1) || iso;
       }

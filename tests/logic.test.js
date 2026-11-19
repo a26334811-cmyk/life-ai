@@ -365,6 +365,17 @@ test('extractDeadline picks the end of a range joined by a dash',()=>{
   assert.equal(L.extractDeadline('모집기간 2026.11.10 - 2026.11.30',today)?.confident,true);
 });
 
+test('extractDeadline keeps a recently passed short date in this year and flags it as past',()=>{
+  const today='2026-11-16';
+  const recent=L.extractDeadline('마감 10월 5일',today);
+  assert.equal(recent.date,'2026-10-05');assert.equal(recent.past,true);
+  assert.equal(L.extractDeadline('마감 10/5',today).date,'2026-10-05');
+  assert.equal(L.extractDeadline('마감 1월 5일',today).date,'2027-01-05');
+  // boundary: 179 days ago stays this year, 181 days ago moves to next year
+  assert.equal(L.extractDeadline('마감 5월 21일',today).date,'2026-05-21');
+  assert.equal(L.extractDeadline('마감 5월 19일',today).date,'2027-05-19');
+});
+
 test('extractDeadline stays quiet when there is no clear deadline',()=>{
   const today='2026-11-16';
   for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
