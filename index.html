@@ -223,7 +223,9 @@
 .planner-day{min-height:75px;padding:7px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);text-align:left;cursor:pointer;min-width:0}
 .planner-day.today{border:2px solid var(--primary)}
 .planner-day.selected{background:#e8f1ff}
-.planner-day .dot{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.planner-day.other{background:#f6f8fb;color:var(--muted);opacity:.65}
+.planner-day.other.selected{background:#e8f1ff}
+.planner-day .dot{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .planner-day .dot-count{display:none;margin-top:3px;font-size:13px;font-weight:700;color:var(--primary)}
 .planner-weekday{text-align:center;font-size:12px;padding:8px 0;color:var(--muted)}
 .planner-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -1572,7 +1574,12 @@ function plannerDayLabel(date,count,isToday){
   const week=WEEKDAYS_LONG[d.getUTCDay()];
   return `${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${week}, ${count?`일정 ${count}개`:'일정 없음'}${isToday?', 오늘':''}`;
 }
-function plannerSelect(date){plannerSelected=date;plannerEditing='';renderCalendar();}
+/* After a tap, bring the card the user is looking for into view (the day list can be far below the calendar). */
+function plannerReveal(id){
+  const target=document.getElementById(id);
+  if(target&&target.scrollIntoView)target.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function plannerSelect(date,reveal){plannerSelected=date;plannerEditing='';renderCalendar();if(reveal)plannerReveal('plannerDayList');}
 function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
 let plannerFormOpen=false;
 /* After the form opens, bring it into view and put the cursor in the title box (it can be far below the day list). */
@@ -1581,7 +1588,7 @@ function plannerRevealEditor(){
   document.getElementById('plannerTitle')?.focus?.({preventScroll:true});
 }
 function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
-function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
+function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();plannerReveal('plannerDayList');}
 let plannerEditingDate='';
 let plannerEditScope='all';
 async function plannerEdit(id,date){
@@ -1621,7 +1628,7 @@ async function plannerSave(){
     const index=entries.findIndex(e=>e.id===item.id);
     if(index>=0)entries[index]=item;else entries.push(item);
   }
-  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();if(saved)toast(repeatIgnored?'일정을 저장했어요. 이번 일정만 바꾸면 반복은 적용되지 않아요.':'일정을 저장했어요.');
+  plannerEditing='';plannerEditingDate='';plannerFormOpen=false;plannerSelected=date;const saved=persistState();renderCalendar();plannerReveal('plannerDayList');if(saved)toast(repeatIgnored?'일정을 저장했어요. 이번 일정만 바꾸면 반복은 적용되지 않아요.':'일정을 저장했어요.');
 }
 async function plannerRemove(id,date){
   const item=plannerEntries().find(x=>x.id===id);
@@ -2380,11 +2387,11 @@ function renderCalendar(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${WEEKDAYS_LONG[weekdayOf(plannerSelected)]}의 일정</p>`
         :`<div class="planner-grid">${WEEKDAYS_SHORT.map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>{const dayEvents=plannerForDate(date);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''}" onclick="plannerSelect('${date}')" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
+        ${dates.map(date=>{const dayEvents=plannerForDate(date),otherMonth=plannerView==='month'&&date.slice(0,7)!==plannerSelected.slice(0,7);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''} ${otherMonth?'other':''}" onclick="plannerSelect('${date}',true)" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}${otherMonth?' (다른 달)':''}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
         </div>`}
 
     </div>
-    <div class="card"><h3>📍 ${esc(plannerSelected)} 일정</h3>
+    <div class="card" id="plannerDayList"><h3>📍 ${esc(plannerSelected)} 일정</h3>
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong${e.done?' style="text-decoration:line-through;opacity:.6"':''}>${e.origin==='external'?'💼 ':e.origin==='cert'?'🏅 ':''}${esc(e.title)}</strong>${e.done?' <span class="meta">✓ 완료</span>':''}<p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.origin==='cert'?'조회한 자격증 일정':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
       ${e.origin==='personal'?`<div class="planner-item-actions"><button class="btn ghost" aria-label="${e.done?'되돌리기':'완료 표시'}: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerToggle(this.dataset.id,'${plannerSelected}')">${e.done?'되돌리기':'완료 표시'}</button>${LifeLogic.isRepeating(e)?'':`<button class="btn ghost" aria-label="내일로 미루기: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerPostpone(this.dataset.id)">내일</button>`}<button class="btn ghost" aria-label="수정: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerEdit(this.dataset.id,'${plannerSelected}')">수정</button><button class="btn ghost" aria-label="삭제: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerRemove(this.dataset.id,'${plannerSelected}')">삭제</button></div>`:e.origin==='cert'?certAddHTML(e):e.origin==='external'?`<div class="planner-item-actions"><button class="btn ghost" onclick="go('jobHub')">공고 보기</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
