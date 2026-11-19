@@ -1003,7 +1003,7 @@ function understandingHTML(){
     return `<div class="card"><strong>정리한 내용</strong><div style="margin-top:10px"><span class="tag">취업</span> <span class="tag">${esc(state.selectedCompany||'회사 미정')}</span> <span class="tag">${esc(state.selectedJob||'직무 미정')}</span></div></div>`;
   }
   if(!p.raw) return `<div class="card"><strong>정리한 내용</strong><p class="meta">${esc(state.mainGoal)}</p></div>`;
-  const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${x}</span>`).join(' ');
+  const chips=[p.intent,p.region,p.timing,p.subject].filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join(' ');
   const note=p.confidence==='low'
     ? '아직 목표 유형을 확실히 판단하기 어려워요. 우선 일반 목표로 시작하고 이후 필요한 정보를 더 확인할게요.'
     : '입력한 단어로 분류한 결과예요. 잘못된 부분은 MY에서 수정할 수 있어요.';

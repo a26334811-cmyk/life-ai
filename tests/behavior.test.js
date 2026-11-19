@@ -1608,6 +1608,22 @@ test('an empty Q-Net schedule shows the server message and suggests another year
   assert.ok(box.includes('다른 연도를 골라 다시 확인해 보세요'),box);
 });
 
+/* ---------- MY screen escapes saved text ---------- */
+test('MY screen and the goal summary show saved text as plain text',()=>{
+  const x='<img src=x onerror=alert(1)>';
+  const raw=JSON.stringify({mainGoal:x,goalType:'job',selectedCompany:x,selectedJob:x,employmentStatus:x,career:x,education:x,ownedCert:x});
+  const a=createApp(raw);
+  a.run('renderMy()');
+  const my=a.el('myContent').innerHTML;
+  assert.doesNotMatch(my,/<img/);
+  assert.match(my,/&lt;img src=x/);
+  assert.doesNotMatch(a.run('understandingHTML()'),/<img/);
+  const plain=createApp(JSON.stringify({mainGoal:x,goalType:'general'}));
+  assert.doesNotMatch(plain.run('understandingHTML()'),/<img/);
+  const parsed=createApp(JSON.stringify({mainGoal:'g',goalType:'general',parsedGoal:{raw:'g',intent:x,region:x,timing:x,subject:x}}));
+  assert.doesNotMatch(parsed.run('understandingHTML()'),/<img/);
+});
+
 /* ---------- home: next exam schedule ---------- */
 test('home next exam event includes a registration window that already started',()=>{
   const schedule={rounds:[{round:'2026년 3회',events:[
