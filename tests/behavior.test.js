@@ -576,6 +576,20 @@ test('ticking a repeating item done affects only that day',()=>{
   assert.equal(a.run("plannerForDate('2026-05-06')[0].done"),false);
 });
 
+test('a finished schedule item is marked in the list and the calendar, and the button says what it does (#205)',()=>{
+  const a=createApp();
+  a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-10'}];plannerSelected='2026-05-10';plannerView='week'");
+  a.run('renderCalendar()');
+  let html=a.el('calendarContent').innerHTML;
+  assert.match(html,/aria-label="완료 표시: 운동"[^>]*>완료 표시</);
+  assert.doesNotMatch(html,/✓ 완료|line-through/);
+  a.run("plannerToggle('d','2026-05-10')");
+  html=a.el('calendarContent').innerHTML;
+  assert.match(html,/aria-label="되돌리기: 운동"[^>]*>되돌리기</);
+  assert.match(html,/<strong style="text-decoration:line-through[^"]*">운동<\/strong> <span class="meta">✓ 완료<\/span>/);
+  assert.match(html,/<span class="dot done" style="opacity:\.5;text-decoration:line-through">• 운동<\/span>/);
+});
+
 /* ---------- damaged saved data (improvement 5) ---------- */
 test('damaged saved data does not break startup and the original is kept',()=>{
   const raw=JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',completedTasks:'bad',habits:'oops',plannerEntries:[{title:'x',date:'nope'}],focusSettings:7});
