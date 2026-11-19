@@ -101,6 +101,39 @@
     return item.date === date;
   }
 
+  /* Same answers as occurs(), but for many dates at once: each item is checked once and each date is parsed once.
+     Returns a Map: date -> items that fall on it (in item order). Invalid dates map to an empty list. */
+  function occurrencesByDate(items, dates) {
+    const result = new Map();
+    const days = [];
+    for (const date of dates) {
+      if (result.has(date)) continue;
+      result.set(date, []);
+      if (validDate(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        days.push({ date, day, year, month, num: Math.round(Date.parse(date + 'T00:00:00Z') / 86400000), last: daysInMonth(year, month) });
+      }
+    }
+    for (const item of Array.isArray(items) ? items : []) {
+      if (!item || typeof item !== 'object' || !validDate(item.date)) continue;
+      const skip = Array.isArray(item.skipDates) && item.skipDates.length ? new Set(item.skipDates) : null;
+      const startNum = Math.round(Date.parse(item.date + 'T00:00:00Z') / 86400000);
+      const startDay = Number(item.date.slice(8, 10));
+      for (const d of days) {
+        if (d.date < item.date) continue;
+        if (item.until && d.date > item.until) continue;
+        if (skip && skip.has(d.date)) continue;
+        let hit;
+        if (item.repeat === 'daily') hit = true;
+        else if (item.repeat === 'weekly') hit = (d.num - startNum) % 7 === 0;
+        else if (item.repeat === 'monthly') hit = d.day === Math.min(startDay, d.last);
+        else hit = item.date === d.date;
+        if (hit) result.get(d.date).push(item);
+      }
+    }
+    return result;
+  }
+
   // Repeating items keep a done flag per date so ticking one day does not tick every day.
   function isDone(item, date) {
     if (!item) return false;
@@ -832,7 +865,7 @@
     firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
-    occurs, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
+    occurs, occurrencesByDate, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
     STATE_SCHEMA_VERSION, migrateState, sanitizeState, validateBackupState,
     BACKUP_FORMAT, BACKUP_VERSION, readBackup,
     focusMinutes, resumeFocus, backupNudge, hasUserData, recordCount

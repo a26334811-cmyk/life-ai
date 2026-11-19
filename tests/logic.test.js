@@ -478,3 +478,26 @@ test('deadlineInRange accepts about two years either way and rejects placeholder
   assert.equal(L.deadlineInRange('1970-01-01',today),false);
   assert.equal(L.deadlineInRange('2026-02-30',today),false);
 });
+
+test('occurrencesByDate gives the same answers as occurs for every kind of item',()=>{
+  const items=[
+    {id:'a',date:'2026-01-31',repeat:'monthly'},
+    {id:'b',date:'2026-11-03',repeat:'weekly',until:'2026-11-24',skipDates:['2026-11-10']},
+    {id:'c',date:'2026-11-05',repeat:'daily'},
+    {id:'d',date:'2026-11-12'},
+    {id:'e',date:'2026-11-12',repeat:'none'},
+    {id:'bad',date:'2026-13-40',repeat:'daily'},
+    null,
+    {id:'f',date:'2026-12-01',repeat:'daily'}
+  ];
+  const dates=[];
+  for(let i=0;i<42;i++)dates.push(L.dateOffset('2026-10-25',i));
+  dates.push('not-a-date','2026-11-12');
+  const map=L.occurrencesByDate(items,dates);
+  for(const date of dates){
+    const expected=items.filter(x=>L.occurs(x,date)).map(x=>x.id);
+    assert.deepEqual((map.get(date)||[]).map(x=>x.id),expected,date);
+  }
+  assert.deepEqual(map.get('not-a-date'),[]);
+  assert.deepEqual(L.occurrencesByDate(null,['2026-11-12']).get('2026-11-12'),[]);
+});

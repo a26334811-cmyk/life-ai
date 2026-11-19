@@ -1547,8 +1547,9 @@ function plannerEntries(){
 }
 function plannerDateOffset(date,days){return LifeLogic.dateOffset(date,days);}
 function plannerOccurs(item,date){return LifeLogic.occurs(item,date);}
-function plannerForDate(date){
-  const own=plannerEntries().filter(e=>plannerOccurs(e,date)).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
+/* ownList: the personal entries of that day when the caller already worked them out for the whole screen (see occurrencesByDate). */
+function plannerForDate(date,ownList){
+  const own=(ownList||plannerEntries().filter(e=>plannerOccurs(e,date))).map(e=>({...e,origin:'personal',done:LifeLogic.isDone(e,date)}));
   const jobs=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.deadline===date&&(!x.stage||['관심','준비 중'].includes(x.stage))).map(x=>({title:x.company+' · '+x.title+' 마감',date,category:'job',origin:'external',postingId:x.id}));
   const interviews=(Array.isArray(state.jobPostings)?state.jobPostings:[]).filter(x=>x.interviewDate===date&&!['합격','불합격','지원 취소'].includes(x.stage)).map(x=>({title:x.company+' · '+x.title+' 면접',date,category:'job',origin:'external',postingId:x.id,time:/^([01]\d|2[0-3]):[0-5]\d$/.test(x.interviewTime||'')?x.interviewTime:''}));
   // Looked-up exam dates: registration and exam periods only. origin 'cert' (not 'external') keeps them out of the "check first" list.
@@ -2247,7 +2248,8 @@ function habitPanelHTML(){
 function plannerAgenda(){
   const today=koreaToday();
   const dates=Array.from({length:7},(_,i)=>plannerDateOffset(today,i));
-  return dates.flatMap(date=>plannerForDate(date).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
+  const byDate=LifeLogic.occurrencesByDate(plannerEntries(),dates);
+  return dates.flatMap(date=>plannerForDate(date,byDate.get(date)).filter(e=>!e.done).map(e=>({...e,occursOn:date})))
     .sort((a,b)=>a.occursOn.localeCompare(b.occursOn)||(a.time||'99:99').localeCompare(b.time||'99:99'));
 }
 /* Unfinished one-time personal entries from the last 14 days (repeating ones are skipped). */
@@ -2436,7 +2438,8 @@ function renderCalendarNow(){
   }
   const existing=plannerEntries().find(e=>e.id===plannerEditing);
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+WEEKDAYS_SHORT[weekdayOf(plannerSelected)]+')':plannerSelected;
-  const dayList=plannerForDate(plannerSelected);
+  const byDate=LifeLogic.occurrencesByDate(plannerEntries(),[...dates,plannerSelected]); // every entry is looked at once, not once per day cell
+  const dayList=plannerForDate(plannerSelected,byDate.get(plannerSelected));
   const upcoming=plannerUpcomingPriority();
   c.innerHTML=`
     <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
@@ -2478,7 +2481,7 @@ function renderCalendarNow(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${WEEKDAYS_LONG[weekdayOf(plannerSelected)]}의 일정</p>`
         :`<div class="planner-grid">${WEEKDAYS_SHORT.map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>{const dayEvents=plannerForDate(date),otherMonth=plannerView==='month'&&date.slice(0,7)!==plannerSelected.slice(0,7);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''} ${otherMonth?'other':''}" onclick="plannerSelect('${date}',true)" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}${otherMonth?' (다른 달)':''}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
+        ${dates.map(date=>{const dayEvents=plannerForDate(date,byDate.get(date)),otherMonth=plannerView==='month'&&date.slice(0,7)!==plannerSelected.slice(0,7);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''} ${otherMonth?'other':''}" onclick="plannerSelect('${date}',true)" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}${otherMonth?' (다른 달)':''}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
         </div>`}
 
     </div>
