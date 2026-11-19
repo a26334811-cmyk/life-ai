@@ -1845,6 +1845,22 @@ test('pasting the posting text never overwrites a filled deadline silently (#186
   assert.equal(yes.el('postingDeadline').value,'2026-11-30','accepted: replaced');
 });
 
+test('a name that fits several qualifications asks the user to pick, with no failure title and no retry button',async()=>{
+  const a=createApp(undefined,{fetch:async()=>({ok:false,json:async()=>({needsPick:true,message:'여러 종목이 검색됐어요. 검색 목록에서 정확한 자격증을 선택해 주세요.'})})});
+  a.el('certSearchInput').value='전기';
+  await a.run('loadLiveCertSchedule()');
+  const html=a.el('liveCertStatus').innerHTML;
+  assert.match(html,/골라 주세요/);
+  assert.match(html,/여러 종목이 검색됐어요/);
+  assert.doesNotMatch(html,/불러오지 못했어요/);
+  assert.doesNotMatch(html,/다시 시도/);
+  const b=createApp(undefined,{fetch:async()=>({ok:false,json:async()=>({message:'Q-Net 호출 실패'})})});
+  b.el('certSearchInput').value='전기기사';
+  await b.run('loadLiveCertSchedule()');
+  assert.match(b.el('liveCertStatus').innerHTML,/불러오지 못했어요/);
+  assert.match(b.el('liveCertStatus').innerHTML,/다시 시도/);
+});
+
 test('schedule and habit ids come from newId, not from a posting-named helper',()=>{
   const a=createApp();
   assert.equal(a.run('typeof newJobId'),'undefined');

@@ -44,8 +44,10 @@ test('종목 목록 요청(http)에는 인증키를 싣지 않고, 시험일정(
 test('partial names do not silently select a different exam level',async()=>{
   const handler=setup(()=>`<response><totalCount>2</totalCount>${qual('1150','전기기사')}${qual('2150','전기산업기사')}</response>`);
   const result=await handler({queryStringParameters:{name:'전기'}});
-  assert.equal(result.statusCode,502);
-  assert.match(JSON.parse(result.body).message,/여러 종목/);
+  assert.equal(result.statusCode,400,'a name that fits several qualifications is the user to pick one, not a server failure');
+  const body=JSON.parse(result.body);
+  assert.equal(body.needsPick,true);
+  assert.match(body.message,/여러 종목/);
 });
 test('upstream repeating page is reported as incomplete',async()=>{
   const handler=setup(()=>`<response><totalCount>2</totalCount>${qual('1150','전기기사')}</response>`);

@@ -2984,7 +2984,7 @@ async function fetchJson(url,signal){
     if(e.name==='AbortError')throw e;
     throw new Error('서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.');
   }
-  if(!r.ok){const err=new Error(data.message||'정보를 불러오지 못했어요.');err.serverStatus=r.status;throw err;}
+  if(!r.ok){const err=new Error(data.message||'정보를 불러오지 못했어요.');err.serverStatus=r.status;if(data.needsPick)err.needsPick=true;throw err;}
   return data;
 }
 let certSearchTimer, certSearchController, certScheduleController;
@@ -3066,6 +3066,13 @@ async function loadLiveCertSchedule(){
     box.innerHTML=certRoundsHTML(data);
   }catch(e){
     if(version!==certScheduleVersion||e.name==='AbortError') return;
+    if(e.needsPick){
+      // The name fits several qualifications: not a failure, so no retry button. Show the candidates to pick from.
+      if(input&&!input.value)input.value=name;
+      searchCertNames();
+      status.innerHTML=`<strong>어느 종목인지 골라 주세요.</strong><p class="meta">${esc(e.message)}</p>`;
+      return;
+    }
     status.innerHTML=`<strong>시험일정을 불러오지 못했어요.</strong><p class="meta">${esc(friendlyErrorMessage(e,'잠시 후 다시 시도해 주세요.'))}</p><button class="btn secondary" onclick="loadLiveCertSchedule()">다시 시도</button>`;
   }
 }

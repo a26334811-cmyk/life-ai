@@ -112,7 +112,12 @@ async function findQualification(key,name){
   const exact=items.find(x=>cleanName(x.name)===q);
   if(exact) return exact;
   const matches=items.filter(x=>cleanName(x.name).includes(q));
-  if(matches.length>1) throw new Error('여러 종목이 검색됐어요. 검색 목록에서 정확한 자격증을 선택해 주세요.');
+  if(matches.length>1){
+    // The user's name fits several qualifications. That is not a server failure: the app shows the candidate list.
+    const err=new Error('여러 종목이 검색됐어요. 검색 목록에서 정확한 자격증을 선택해 주세요.');
+    err.needsPick=true;
+    throw err;
+  }
   return matches[0]||null;
 }
 async function fetchOfficialSchedule(key, qual, year){
@@ -207,6 +212,7 @@ exports.handler=async(event)=>{
       message:items.length?'Q-Net 공식 시험일정을 불러왔어요.':'해당 연도의 종목별 시험일정을 찾지 못했어요. 상시검정 종목은 별도 일정 연동이 필요할 수 있어요.'
     })};
   }catch(e){
+    if(e.needsPick) return {statusCode:400,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify({message:e.message,needsPick:true})};
     return {statusCode:502,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify(errorBody(e,SCHEDULE_FAIL))};
   }
 };
