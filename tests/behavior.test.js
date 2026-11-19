@@ -707,6 +707,32 @@ test('a nearly full focus history triggers the reminder and overflow warns',()=>
   assert.match(b.toasts.join('|'),/가장 오래된 기록/);
 });
 
+test('checking a habit redraws only the habit and stats panels, not the whole calendar',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',habits:[{id:'h',name:'공부',createdAt:'2026-05-01',checks:[]}]}));
+  const panels={habits:{innerHTML:''},stats:{innerHTML:''}};
+  a.el('calendarContent').querySelector=sel=>sel.includes('"habits"')?panels.habits:sel.includes('"stats"')?panels.stats:null;
+  a.run('globalThis.__full=0;renderCalendar=()=>{globalThis.__full++;}');
+  a.run("habitToggle('h','2026-05-10')");
+  assert.equal(a.run('globalThis.__full'),0,'calendar not rebuilt');
+  assert.match(panels.habits.innerHTML,/1\/1개 실천/);
+  assert.ok(panels.stats.innerHTML.length>0,'stats refreshed');
+  assert.deepEqual(a.saved().habits[0].checks,['2026-05-10']);
+  a.run("habitToggle('h','2026-05-10')");
+  assert.match(panels.habits.innerHTML,/0\/1개 실천/);
+  assert.equal(a.run('globalThis.__full'),0);
+});
+
+test('a finished focus session never redraws the whole schedule screen (only the record cards, and only when it is open)',()=>{
+  const a=createApp();
+  a.run('globalThis.__full=0;renderCalendar=()=>{globalThis.__full++;}');
+  a.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'c1',date:'2026-05-10'})");
+  assert.equal(a.run('globalThis.__full'),0,'schedule screen closed');
+  assert.equal(a.run('focusHistory().length'),1,'still recorded');
+  a.el('calendar').classList.contains=()=>true;
+  a.run("focusRecordCompletion({minutes:25,category:'study',completedAt:'c2',date:'2026-05-10'})");
+  assert.equal(a.run('globalThis.__full'),0,'schedule screen open: only the record cards are redrawn, not the whole screen');
+});
+
 /* ---------- in-app dialogs (improvement 7) ---------- */
 test('the app no longer uses the browser confirm/prompt/alert popups',()=>{
   const {html}=require('./helpers/app-harness.js');

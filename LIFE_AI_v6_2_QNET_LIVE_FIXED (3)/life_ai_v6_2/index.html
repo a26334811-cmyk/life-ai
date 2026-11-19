@@ -2207,7 +2207,18 @@ function habitSetCheck(id,date){
 function habitToggle(id,date){
   date=date||koreaToday(); // read when tapped, not when the screen was drawn
   if(!habitSetCheck(id,date))return;
-  persistState();renderCalendar();
+  persistState();habitRefreshPanels();
+}
+/* A habit check only changes the habit card and the stats numbers, so redraw just those two panels, not the 42-cell calendar. */
+function habitRefreshPanels(){
+  const root=document.getElementById('calendarContent');
+  const find=tab=>typeof root?.querySelector==='function'?root.querySelector('.planner-tabpanel[data-tab="'+tab+'"]'):null;
+  const habitPanel=find('habits'),statsPanel=find('stats');
+  if(!habitPanel||!statsPanel){renderCalendar();return;}
+  keepFocus(root,()=>{ // the keyboard focus stays on the same button after the cards are redrawn
+    habitPanel.innerHTML=habitPanelHTML();
+    statsPanel.innerHTML=progressInsightsHTML()+focusHistoryHTML();
+  });
 }
 async function habitRename(id){
   const habit=habitEntries().find(x=>x.id===id);
