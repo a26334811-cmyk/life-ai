@@ -2473,9 +2473,13 @@ async function removeWatchCompany(id){
   state.watchCompanies=state.watchCompanies.filter(x=>x.id!==id);persistState();renderJobHub();
 }
 function clearPostingForm(){
-  ['postingId','postingCompany','postingTitle','postingUrl','postingDeadline','postingRegion','postingNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('postingAlways').checked=false;
+  ['postingId','postingCompany','postingTitle','postingUrl','postingDeadline','postingRegion','postingNotes','postingPaste'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const always=document.getElementById('postingAlways');if(always)always.checked=false;
   document.getElementById('postingFormTitle').textContent='관심 공고 저장';
+  postingSetStatus('');
+  postingFetchVersion++; // a link read still in progress must not fill the cleared form
+  const button=document.getElementById('postingFetch');
+  if(button)button.disabled=false;
 }
 /* Fills the posting form from the pasted link. Only EMPTY fields are filled, so nothing the user typed is overwritten. */
 let postingFetchVersion=0;

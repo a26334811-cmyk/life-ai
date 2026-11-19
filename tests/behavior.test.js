@@ -1645,6 +1645,27 @@ test('home next exam event includes a registration window that already started',
   assert.doesNotMatch(later.el('homeContent').innerHTML,/접수 중/);
 });
 
+test('clearing the posting form also clears the paste box, the status text, and ignores a link read in progress (#188)',async()=>{
+  const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z')});
+  a.el('postingPaste').value='접수기간 2026.11.10(월) ~ 2026.11.30(일) 18:00';
+  a.run('fillPostingFromPaste()');
+  assert.equal(a.el('postingDeadline').value,'2026-11-30');
+  assert.match(status(a),/채운 항목/);
+  a.run('clearPostingForm()');
+  assert.equal(a.el('postingPaste').value,'');assert.equal(status(a),'');assert.equal(a.el('postingDeadline').value,'');
+  a.el('postingPaste').value='';
+  a.run('fillPostingFromPaste()');
+  assert.equal(a.el('postingDeadline').value,'','old posting text cannot fill the next posting');
+  let release;const gate=new Promise(r=>{release=r;});
+  const b=createApp(undefined,{fetch:async()=>{await gate;return {ok:true,json:async()=>({ok:true,title:'옛 공고',company:'옛 회사',deadline:'2099-01-01',description:''})};}});
+  b.el('postingUrl').value='https://example.com/job/old';
+  const pending=b.run('fillPostingFromUrl()');
+  b.run('clearPostingForm()');
+  release();await pending;
+  assert.equal(b.el('postingTitle').value,'','late link result does not fill the cleared form');
+  assert.equal(b.el('postingFetch').disabled,false);
+});
+
 test('pasting the posting text never overwrites a filled deadline silently (#186)',async()=>{
   const text='접수기간 2026.11.10(월) ~ 2026.11.30(일) 18:00';
   const base={now:Date.parse('2026-11-16T03:00:00Z')};
