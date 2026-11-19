@@ -22,6 +22,7 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.trackHistory fake history.pushState/replaceState recorded in app.historyLog
    opts.standalone  true = the app was opened from the home screen (display-mode: standalone)
    opts.userAgent   navigator.userAgent (e.g. an iPhone string)
+   setTimeout    actions wait in a list; a.advance(ms) moves the clock and runs the ones that are due
    Returned: win.fire(type, event) runs the window listeners the app registered (e.g. 'beforeinstallprompt')
    opts.search   makes `location` exist with this query string (e.g. '?url=...' from the phone's Share sheet) */
 function createApp(saved, opts = {}) {
@@ -29,6 +30,7 @@ function createApp(saved, opts = {}) {
   const storage = new Map(saved ? [['lifeAIPrototypeV5', saved]] : []);
   const clock = { now: opts.now || Date.parse('2026-05-10T03:00:00Z') };
   const timers = [];
+  let virtualMs = 0; const dueAt = {}; // a.advance(ms) moves this clock forward and runs the setTimeout callbacks that became due
   const oneShot = new Set(); // ids of setTimeout timers (dropped once they have run)
   const delays = {};
   let reloads = 0;
@@ -73,7 +75,7 @@ function createApp(saved, opts = {}) {
       removeItem: k => storage.delete(k)
     },
 // setTimeout is recorded too (one-shot: dropped after tick() or flushTimeouts() runs it); delays[id] holds the requested wait in ms.
-setTimeout: (fn, ms) => { timers.push(fn); oneShot.add(timers.length); delays[timers.length] = ms; return timers.length; },
+setTimeout: (fn, ms) => { timers.push(fn); oneShot.add(timers.length); delays[timers.length] = ms; dueAt[timers.length] = virtualMs + (Number(ms) || 0); return timers.length; },
 clearTimeout: id => { if (id) timers[id - 1] = null; },
     setInterval: fn => { timers.push(fn); return timers.length; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
@@ -158,6 +160,11 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
       });
     },
     // runs only the waiting setTimeout callbacks (not the repeating timers)
+    advance(ms) {
+      virtualMs += ms;
+      timers.map((fn, i) => [fn, i]).filter(([fn, i]) => fn && oneShot.has(i + 1) && dueAt[i + 1] <= virtualMs)
+        .sort((a, b) => dueAt[a[1] + 1] - dueAt[b[1] + 1]).forEach(([fn, i]) => { if (timers[i]) { timers[i] = null; fn(); } });
+    },
     flushTimeouts() {
       timers.map((fn, i) => [fn, i]).filter(([fn, i]) => fn && oneShot.has(i + 1)).forEach(([fn, i]) => { timers[i] = null; fn(); });
     },

@@ -642,6 +642,38 @@ test('data saved by the previous version is upgraded',()=>{
   assert.equal(a.run("plannerForDate('2026-05-02')[0].done"),false,'old global done flag no longer hides every day');
 });
 
+/* ---------- 시작할 때 띄우는 안내가 실제로 화면(알림 칸)에 나와요 (#237) ---------- */
+test('the damaged-data notice is really shown 0.6 seconds after the app opens',()=>{
+  const raw=JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',completedTasks:'bad',habits:'oops'});
+  const a=createApp(raw);
+  assert.deepEqual(a.toasts,[],'not shown immediately');
+  a.advance(599);
+  assert.deepEqual(a.toasts,[]);
+  a.advance(1);
+  assert.equal(a.toasts.length,1);
+  assert.match(a.toasts[0],/저장된 기록 일부가 올바르지 않아/);
+});
+test('the unreadable-data notice is really shown after the app opens',()=>{
+  const a=createApp('{not json');
+  a.advance(600);
+  assert.equal(a.toasts.length,1);
+  assert.match(a.toasts[0],/저장된 기록을 읽지 못해 새로 시작해요/);
+});
+test('the notice for a timer that ended while the app was closed is really shown',()=>{
+  const a=createApp();
+  a.run('focusStartPause()');
+  const b=createApp(JSON.stringify(a.saved()),{now:a.saved().focusRun.deadline+90*60*1000});
+  assert.deepEqual(b.toasts,[]);
+  b.advance(600);
+  assert.equal(b.toasts.length,1);
+  assert.match(b.toasts[0],/25분 집중이 끝났어요\. 기록에 저장했어요/);
+});
+test('no startup notice is shown when the saved data is fine',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
+  a.advance(5000);
+  assert.deepEqual(a.toasts,[]);
+});
+
 /* ---------- backup reminders (improvement 6) ---------- */
 test('home and MY show the backup reminder until a backup is made, and it can be snoozed',()=>{
   const goalOnly=createApp(JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert'}));
