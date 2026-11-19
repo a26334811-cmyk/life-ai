@@ -1717,6 +1717,45 @@ let focusAudioContext=null;
    so a short toast that disappears is not the only sign that the timer finished. Not saved. */
 let focusDoneMinutes=0;
 function focusDoneText(){return focusDoneMinutes?'✅ '+focusDoneMinutes+'분 집중을 마쳤어요':'';}
+
+/* The 5-minute break after a finished session. It is a separate countdown: it never touches the saved
+   focus duration, is not written to the focus history and is not saved (a reload simply ends the break). */
+const FOCUS_BREAK_SECONDS=300;
+let focusBreakInterval=null;
+let focusBreakDeadline=0;
+let focusBreakRemaining=0;
+function focusBreakActive(){return focusBreakInterval!==null;}
+function focusBreakStop(){
+  if(focusBreakInterval!==null)clearInterval(focusBreakInterval);
+  focusBreakInterval=null;focusBreakRemaining=0;
+  if(!focusRunning&&focusRemaining<=0)focusRemaining=Number(focusSettings().minutes)*60;
+}
+function focusBreakStart(){
+  focusBreakStop();
+  focusBreakDeadline=Date.now()+FOCUS_BREAK_SECONDS*1000;
+  focusBreakRemaining=FOCUS_BREAK_SECONDS;
+  focusBreakInterval=setInterval(focusBreakTick,500);
+  focusUpdateUI();
+}
+function focusBreakTick(){
+  if(!focusBreakActive())return;
+  focusBreakRemaining=Math.max(0,Math.ceil((focusBreakDeadline-Date.now())/1000));
+  if(focusBreakRemaining>0){focusUpdateUI();return;}
+  focusBreakStop();focusUpdateUI();
+  try{if(focusSettings().alarm==='vibrate'&&navigator.vibrate)navigator.vibrate([250,150,250]);}catch(e){}
+  toast('쉬는 시간이 끝났어요!');
+  focusAskAfterBreak();
+}
+async function focusAskAfterFinish(){
+  const choice=await uiChoice('집중을 마쳤어요! 잠깐 쉬어갈까요?',[{label:'☕ 5분 쉬기',value:'break',kind:'primary'},{label:'한 번 더 집중',value:'again'}],{title:'수고했어요'});
+  if(focusRunning||focusBreakActive())return;
+  if(choice==='break')focusBreakStart();
+  else if(choice==='again'){focusPrimeSound();focusStartPause();}
+}
+async function focusAskAfterBreak(){
+  const again=await uiConfirm('쉬는 시간이 끝났어요. 다시 집중할까요?',{title:'다시 집중',ok:'집중 시작',cancel:'나중에'});
+  if(again&&!focusRunning&&!focusBreakActive()){focusPrimeSound();focusStartPause();}
+}
 function focusSettings(){
   if(!state.focusSettings||typeof state.focusSettings!=='object')state.focusSettings={minutes:25,alarm:'vibrate'};
   if(!LifeLogic.isFocusMinutes(state.focusSettings.minutes))state.focusSettings.minutes=25;
@@ -1730,14 +1769,16 @@ function focusFormat(seconds){
 }
 function focusUpdateUI(){
   const clock=document.getElementById('focusClock'),button=document.getElementById('focusStart');
-  const clockText=focusFormat(focusRemaining),buttonText=focusRunning?'일시정지':'시작';
+  const onBreak=focusBreakActive();
+  const clockText=focusFormat(onBreak?focusBreakRemaining:focusRemaining),buttonText=onBreak?'집중 시작':focusRunning?'일시정지':'시작';
   // Only touch the page when the text really changed.
   if(clock&&clock.textContent!==clockText)clock.textContent=clockText;
+  if(clock&&typeof clock.setAttribute==='function')clock.setAttribute('aria-label',onBreak?'남은 쉬는 시간':'남은 집중 시간');
   if(button&&button.textContent!==buttonText)button.textContent=buttonText;
   const doneNote=document.getElementById('focusDoneNote'),doneText=focusDoneText();
   if(doneNote&&doneNote.textContent!==doneText)doneNote.textContent=doneText;
   // Show the countdown in the browser tab title so a hidden tab still tells the time.
-  try{const title=focusRunning?'⏱ '+clockText+' · life-ai':focusDoneMinutes?'✅ 집중이 끝났어요 · life-ai':'life-ai | 나의 목표와 일정';if(document.title!==title)document.title=title;}catch(e){}
+  try{const title=onBreak?'☕ '+clockText+' · life-ai':focusRunning?'⏱ '+clockText+' · life-ai':focusDoneMinutes?'✅ 집중이 끝났어요 · life-ai':'life-ai | 나의 목표와 일정';if(document.title!==title)document.title=title;}catch(e){}
 }
 /* The running/paused timer is saved so a reload, a closed tab or a phone that unloads the page
    does not lose the session. Only the end time is stored while running, so time keeps counting. */
@@ -1798,9 +1839,11 @@ function focusTick(){
     focusDoneMinutes=finished.minutes;
     focusRecordCompletion(finished);focusNotify();toast('집중 시간이 끝났어요!');
     focusUpdateUI();
+    focusAskAfterFinish();
   }
 }
 function focusStartPause(){
+  if(focusBreakActive())focusBreakStop();
   if(focusRunning){
     focusTick();
     if(focusRunning){focusStopTimer();focusSaveRun();}
@@ -1822,6 +1865,7 @@ function focusElapsedMinutes(){
   return remaining>0?Math.max(0,Math.floor((total-remaining)/60)):0;
 }
 async function focusReset(){
+  if(focusBreakActive()){focusBreakStop();focusUpdateUI();return;}
   if(focusRunning||(focusRemaining>0&&focusRemaining<Number(focusSettings().minutes)*60)){ // a finished timer needs no warning
     const elapsed=focusElapsedMinutes();
     if(elapsed>=1){
@@ -1851,6 +1895,7 @@ async function focusChangeMinutes(value){
     if(!LifeLogic.isFocusMinutes(value)){toast('1~180 사이의 숫자(분)를 입력해 주세요.');renderCalendar();return;}
   }
   const previous=Number(focusSettings().minutes);
+  if(focusBreakActive())focusBreakStop();
   if((focusRunning||(focusRemaining>0&&focusRemaining<previous*60))&&!await uiConfirm('집중 시간을 변경하면 진행 중인 타이머가 초기화돼요. 변경할까요?',{title:'집중 시간 변경',ok:'변경하기'})){renderCalendar();return;}
   focusStopTimer();
   focusDoneMinutes=0;
@@ -2118,9 +2163,9 @@ function focusPanelHTML(){
   const cfg=focusSettings();
   return `<div class="card" id="focusPanel"><h3>⏱ 집중 타이머</h3>
     <p class="meta">지금 할 수 있는 만큼, 차분하게 집중해요.</p>
-    <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="남은 집중 시간">${focusFormat(focusRemaining)}</div>
+    <div class="focus-timer"><div class="focus-clock" id="focusClock" role="timer" aria-label="${focusBreakActive()?'남은 쉬는 시간':'남은 집중 시간'}">${focusFormat(focusBreakActive()?focusBreakRemaining:focusRemaining)}</div>
       <p class="focus-done" id="focusDoneNote" role="status" aria-live="polite">${focusDoneText()}</p>
-      <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
+      <div class="focus-actions"><button class="btn primary" id="focusStart" onclick="focusPrimeSound();focusStartPause()">${focusBreakActive()?'집중 시작':focusRunning?'일시정지':'시작'}</button><button class="btn ghost" id="focusResetButton" onclick="focusReset()" aria-label="집중 타이머 초기화">↺ 초기화</button></div>
     </div>
     <p class="meta" id="focusTodaySummary">오늘 집중 ${todaySum.minutes}분 · 세션 ${todaySum.sessions}번</p>
     <div class="focus-options"><label>목표<select id="focusCategory" onchange="focusChangeCategory(this.value)">\n      ${LifeLogic.FOCUS_CATEGORIES.map(c=>`<option value="${c.name}" ${cfg.category===c.name?'selected':''}>${c.label}</option>`).join('')}\n    </select></label><label>집중 시간<select onchange="focusChangeMinutes(this.value)">
