@@ -1569,7 +1569,7 @@ function plannerNavigate(days){
     const d=new Date(Date.UTC(year,month-1+(days>0?1:-1),1,12));
     plannerSelected=d.toISOString().slice(0,10);
   } else plannerSelected=plannerDateOffset(plannerSelected,days);
-  renderCalendar();
+  plannerKeepTyping(renderCalendar);
 }
 /* Screen-reader label for a calendar day button: date, weekday, number of events and whether it is today. */
 function plannerDayLabel(date,count,isToday){
@@ -1582,8 +1582,20 @@ function plannerReveal(id){
   const target=document.getElementById(id);
   if(target&&target.scrollIntoView)target.scrollIntoView({behavior:'smooth',block:'start'});
 }
-function plannerSelect(date,reveal){plannerSelected=date;plannerEditing='';renderCalendar();if(reveal)plannerReveal('plannerDayList');}
-function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';renderCalendar();}
+/* Changing the date or the view redraws the whole planner. Text the user was typing in the "add" boxes (and the open
+   "add habit" fold) is put back afterwards, so tapping a date does not wipe it. Not done while an item is being edited. */
+const PLANNER_TYPING_IDS=['plannerTitle','plannerDate','plannerTime','plannerCategory','plannerPriority','plannerRepeat','plannerUntil','plannerQuickTitle','habitName'];
+function plannerKeepTyping(redraw,wasEditing){
+  const keep=(wasEditing===undefined?plannerEditing:wasEditing)?{}:Object.fromEntries(PLANNER_TYPING_IDS.map(id=>[id,document.getElementById(id)?.value]).filter(([,v])=>typeof v==='string'&&v!==''));
+  const fold=document.querySelector?.('#calendarContent .habit-add');
+  const foldOpen=Boolean(fold&&fold.open);
+  redraw();
+  for(const id in keep){const el=document.getElementById(id);if(el)el.value=keep[id];}
+  const next=foldOpen&&document.querySelector?.('#calendarContent .habit-add');
+  if(next)next.open=true;
+}
+function plannerSelect(date,reveal){plannerSelected=date;const editing=plannerEditing;plannerEditing='';plannerKeepTyping(renderCalendar,editing);if(reveal)plannerReveal('plannerDayList');}
+function plannerSetView(view){plannerView=view;plannerActiveTab='calendar';plannerKeepTyping(renderCalendar);}
 let plannerFormOpen=false;
 /* After the form opens, bring it into view and put the cursor in the title box (it can be far below the day list). */
 function plannerRevealEditor(){
@@ -2215,10 +2227,10 @@ function habitRefreshPanels(){
   const find=tab=>typeof root?.querySelector==='function'?root.querySelector('.planner-tabpanel[data-tab="'+tab+'"]'):null;
   const habitPanel=find('habits'),statsPanel=find('stats');
   if(!habitPanel||!statsPanel){renderCalendar();return;}
-  keepFocus(root,()=>{ // the keyboard focus stays on the same button after the cards are redrawn
+  keepFocus(root,()=>plannerKeepTyping(()=>{ // the keyboard focus and the typing stay as they were after the cards are redrawn
     habitPanel.innerHTML=habitPanelHTML();
     statsPanel.innerHTML=progressInsightsHTML()+focusHistoryHTML();
-  });
+  }));
 }
 async function habitRename(id){
   const habit=habitEntries().find(x=>x.id===id);

@@ -1895,3 +1895,25 @@ test('schedule and habit ids come from newId, not from a posting-named helper',(
   a.run('habitAdd()');
   assert.match(a.run('state.habits[0].id'),/^[0-9a-z]+-[0-9a-z]+$/);
 });
+
+/* ---------- typing is not wiped when the date or view changes (#43) ---------- */
+test('tapping a date, changing the view or checking a habit keeps what was typed in the add boxes',async()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',habits:[{id:'h1',name:'공부',createdAt:'2026-05-01',checks:[]}]}));
+  a.run('plannerOpenForm()');
+  a.el('plannerTitle').value='치과 예약';
+  a.el('habitName').value='물 마시기';
+  // the fake page rebuilds nothing by itself, so make the redraw clear the boxes like the real one does
+  a.run("const __render=renderCalendar;renderCalendar=()=>{for(const id of ['plannerTitle','habitName'])document.getElementById(id).value='';__render();}");
+  a.run("plannerSelect('2026-05-12',true)");
+  assert.equal(a.el('plannerTitle').value,'치과 예약');
+  assert.equal(a.el('habitName').value,'물 마시기');
+  a.el('plannerTitle').value='병원';
+  a.run("plannerSetView('week')");
+  assert.equal(a.el('plannerTitle').value,'병원');
+  // while an existing item is being edited, its text is not carried into a new form
+  a.run("state.plannerEntries=[{id:'e1',title:'운동',date:'2026-05-10',repeat:'none'}]");
+  await a.run("plannerEdit('e1','2026-05-10')");
+  a.el('plannerTitle').value='운동(수정 중)';
+  a.run("plannerSelect('2026-05-13')");
+  assert.notEqual(a.el('plannerTitle').value,'운동(수정 중)');
+});
