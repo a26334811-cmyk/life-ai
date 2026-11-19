@@ -138,6 +138,22 @@ test('schedules saved by older versions (rounds and items, or items only) still 
   assert.match(a.run('certCalendarHTML(state.certSchedule)'),/필기시험/);
  }
 });
+
+test('script-like text in postings and goals is shown as plain text on every screen',()=>{
+ const evil='<img src=x onerror=alert(1)>';
+ const noRaw=(html,where)=>{assert.doesNotMatch(html,/<img/,where);assert.match(html,/&lt;img/,where);};
+ const a=app();
+ a.el('postingCompany').value=evil+'회사';a.el('postingTitle').value=evil+'공고';a.el('postingUrl').value='https://example.com/jobs/evil';
+ a.el('postingRegion').value=evil+'지역';a.el('postingNotes').value=evil+'메모';a.el('postingDeadline').value='2026-05-10';
+ a.run('savePosting()');assert.equal(a.run('state.jobPostings.length'),1);
+ // Reload from storage, the same path a restored backup takes.
+ const b=app(a.storage.get('lifeAIPrototypeV5'));
+ assert.equal(b.run('state.jobPostings.length'),1);
+ b.run('renderJobHub()');noRaw(b.el('savedPostings').innerHTML,'job list');
+ b.run("plannerSelected='2026-05-10';plannerView='day';renderCalendar()");noRaw(b.el('calendarContent').innerHTML,'planner');
+ const c=app(JSON.stringify({mainGoal:evil+' 준비',goalType:'cert'}));
+ noRaw(c.run('opportunityCards()'),'opportunities');
+});
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);
