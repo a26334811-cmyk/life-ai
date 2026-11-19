@@ -375,7 +375,7 @@ test('go() sends the old job screens to the job hub',()=>{
 test('editing one occurrence changes only that day',async()=>{
   const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
-  a.run("plannerEdit('d','2026-05-05')");
+  await a.run("plannerEdit('d','2026-05-05')");
   fillForm(a,{title:'병원',date:'2026-05-05',repeat:'none'});
   await a.run('plannerSave()');
   assert.equal(a.run('state.plannerEntries.length'),2);
@@ -387,7 +387,7 @@ test('editing one occurrence changes only that day',async()=>{
 test('editing one occurrence with a repeat chosen saves it as one-off and says so',async()=>{
   const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
-  a.run("plannerEdit('d','2026-05-05')");
+  await a.run("plannerEdit('d','2026-05-05')");
   fillForm(a,{title:'병원',date:'2026-05-05',repeat:'weekly',until:'2026-06-01'});
   await a.run('plannerSave()');
   const created=JSON.parse(a.run("JSON.stringify(state.plannerEntries.find(e=>e.title==='병원'))"));
@@ -397,7 +397,7 @@ test('editing one occurrence with a repeat chosen saves it as one-off and says s
   assert.deepEqual(titles(a,'2026-05-12'),['운동']);
   const plain=createApp(undefined,{choice:'one'});
   plain.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
-  plain.run("plannerEdit('d','2026-05-05')");
+  await plain.run("plannerEdit('d','2026-05-05')");
   fillForm(plain,{title:'병원',date:'2026-05-05',repeat:'none'});
   await plain.run('plannerSave()');
   assert.doesNotMatch(plain.toasts.at(-1),/반복은 적용되지 않아요/);
@@ -406,7 +406,7 @@ test('editing one occurrence with a repeat chosen saves it as one-off and says s
 test('editing all occurrences changes the series and keeps skipped days',async()=>{
   const a=createApp(undefined,{choice:'all'});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily',skipDates:['2026-05-03']}]");
-  a.run("plannerEdit('d','2026-05-05')");
+  await a.run("plannerEdit('d','2026-05-05')");
   fillForm(a,{title:'조깅',date:'2026-05-01',repeat:'daily'});
   await a.run('plannerSave()');
   assert.equal(a.run('state.plannerEntries.length'),1);
@@ -417,28 +417,52 @@ test('editing all occurrences changes the series and keeps skipped days',async()
 test('cancelling the scope question leaves the series untouched',async()=>{
   const a=createApp(undefined,{choice:null});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
-  a.run("plannerEdit('d','2026-05-05')");
-  fillForm(a,{title:'바뀜',date:'2026-05-01',repeat:'daily'});
-  await a.run('plannerSave()');
+  await a.run("plannerEdit('d','2026-05-05')");
+  assert.equal(a.run('plannerEditing'),'');
+  assert.equal(a.run('plannerFormOpen'),false);
   assert.deepEqual(titles(a,'2026-05-05'),['운동']);
+  assert.equal(a.run('state.plannerEntries.length'),1);
+});
+
+// The date box value the form was drawn with (what the user would see and save).
+const formDate=a=>a.el('calendarContent').innerHTML.match(/id="plannerDate" type="date" value="([^"]*)"/)[1];
+
+test('editing one occurrence opens the form on the tapped day, all occurrences on the start date',async()=>{
+  const seed="state.plannerEntries=[{id:'w',title:'스터디',date:'2026-11-05',repeat:'weekly'}]";
+  const one=createApp(undefined,{choice:'one'});
+  one.run(seed);
+  await one.run("plannerEdit('w','2026-11-19')");
+  assert.equal(formDate(one),'2026-11-19');
+  // Save with the date the form showed, not a hand-typed one.
+  fillForm(one,{title:'스터디(변경)',date:formDate(one),repeat:'none'});
+  await one.run('plannerSave()');
+  assert.deepEqual(titles(one,'2026-11-19'),['스터디(변경)']);
+  assert.deepEqual(titles(one,'2026-11-05'),['스터디']);
+  assert.deepEqual(titles(one,'2026-11-26'),['스터디']);
+  assert.equal(one.run('state.plannerEntries.length'),2);
+  const all=createApp(undefined,{choice:'all'});
+  all.run(seed);
+  await all.run("plannerEdit('w','2026-11-19')");
+  assert.equal(formDate(all),'2026-11-05');
 });
 
 const dateInForm=a=>a.el('calendarContent').innerHTML.match(/id="plannerDate"[^>]*value="([^"]*)"/)[1];
 
-test('editing a repeating item shows the tapped day in the date field, not the series start',()=>{
-  const a=createApp();
+test('editing a repeating item shows the tapped day in the date field, not the series start',async()=>{
+  const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
-  a.run("plannerEdit('w','2026-11-20')");
+  await a.run("plannerEdit('w','2026-11-20')");
   assert.equal(dateInForm(a),'2026-11-20');
   // a one-off item still shows its own date
-  a.run("state.plannerEntries.push({id:'o',title:'치과',date:'2026-11-25',repeat:'none'});plannerEdit('o','2026-11-25')");
+  a.run("state.plannerEntries.push({id:'o',title:'치과',date:'2026-11-25',repeat:'none'})");
+  await a.run("plannerEdit('o','2026-11-25')");
   assert.equal(dateInForm(a),'2026-11-25');
 });
 
 test('saving "this one only" on a repeating item moves just that day, not a past day',async()=>{
   const a=createApp(undefined,{choice:'one'});
   a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
-  a.run("plannerEdit('w','2026-11-20')");
+  await a.run("plannerEdit('w','2026-11-20')");
   fillForm(a,{title:'스터디(변경)',date:dateInForm(a),time:'19:00',repeat:'weekly'});
   a.el('plannerRepeat').value='none';
   await a.run('plannerSave()');
@@ -450,7 +474,7 @@ test('saving "this one only" on a repeating item moves just that day, not a past
 test('saving "all" with the date field untouched keeps the series start date',async()=>{
   const a=createApp(undefined,{choice:'all'});
   a.run("state.plannerEntries=[{id:'w',title:'스터디',date:'2026-10-02',repeat:'weekly'}]");
-  a.run("plannerEdit('w','2026-11-20')");
+  await a.run("plannerEdit('w','2026-11-20')");
   fillForm(a,{title:'스터디2',date:dateInForm(a),repeat:'weekly'});
   await a.run('plannerSave()');
   assert.equal(a.run('state.plannerEntries.length'),1);

@@ -1581,7 +1581,19 @@ function plannerRevealEditor(){
 function plannerOpenForm(){plannerEditing='';plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
 function plannerCancelForm(){plannerEditing='';plannerFormOpen=false;renderCalendar();}
 let plannerEditingDate='';
-function plannerEdit(id,date){plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();}
+let plannerEditScope='all';
+async function plannerEdit(id,date){
+  const item=plannerEntries().find(e=>e.id===id);
+  let scope='all';
+  if(item&&LifeLogic.isRepeating(item)){
+    // Ask first, so the date box starts with the tapped day ('one') or the start date ('all').
+    scope=await uiChoice('반복 일정이에요. 어느 범위를 수정할까요?',[
+      {value:'one',label:'이번 일정만 ('+(date||plannerSelected)+')',kind:'primary'},
+      {value:'all',label:'모든 반복 일정',kind:'secondary'}],{title:'반복 일정 수정'});
+    if(scope===null)return;
+  }
+  plannerEditing=id;plannerEditingDate=date||plannerSelected;plannerEditScope=scope;plannerFormOpen=true;plannerActiveTab='calendar';renderCalendar();plannerRevealEditor();
+}
 async function plannerSave(){
   const get=id=>document.getElementById(id)?.value.trim()||'';
   const title=get('plannerTitle'),date=get('plannerDate'),time=get('plannerTime'),category=get('plannerCategory'),repeat=get('plannerRepeat'),until=get('plannerUntil'),priority=get('plannerPriority');
@@ -1589,14 +1601,8 @@ async function plannerSave(){
   if(until&&(!LifeLogic.validDate(until)||until<date)){toast('반복 종료일을 확인해 주세요.');return;}
   const editingId=plannerEditing,occurrence=plannerEditingDate;
   const before=plannerEntries().find(e=>e.id===editingId);
-  let scope='all';
-  if(before&&LifeLogic.isRepeating(before)){
-    // A repeating item can change for just this day, or for every day it repeats.
-    scope=await uiChoice('반복 일정이에요. 어느 범위를 수정할까요?',[
-      {value:'one',label:'이번 일정만 ('+occurrence+')',kind:'primary'},
-      {value:'all',label:'모든 반복 일정',kind:'secondary'}],{title:'반복 일정 수정'});
-    if(scope===null)return;
-  }
+  // 반복 일정은 plannerEdit에서 고른 범위('one'=이번 일정만, 'all'=모든 반복 일정)를 따른다.
+  const scope=before&&LifeLogic.isRepeating(before)&&plannerEditScope==='one'?'one':'all';
   const entries=plannerEntries();
   const old=entries.find(e=>e.id===editingId);
   let repeatIgnored=false;
@@ -2387,7 +2393,7 @@ function renderCalendar(){
       </div>
       <div id="plannerEditor" ${plannerFormOpen?'':'hidden'}><div class="planner-form">
       <label class="wide">제목<input id="plannerTitle" maxlength="120" placeholder="예: 위험물산업기사 공부" value="${plannerEscapeAttr(existing?.title)}"></label>
-      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing&&LifeLogic.isRepeating(existing)&&plannerEditingDate?plannerEditingDate:(existing?.date||plannerSelected))}"></label>
+      <label>날짜<input id="plannerDate" type="date" value="${plannerEscapeAttr(existing?(plannerEditScope==='one'&&LifeLogic.isRepeating(existing)?plannerEditingDate:existing.date):plannerSelected)}"></label>
       <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
       <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
       <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
