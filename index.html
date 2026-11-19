@@ -1271,12 +1271,14 @@ function renderHome(){
   const {done:completed,total:taskTotal,percent:progress}=LifeLogic.goalProgress(state);
   const jobs=Array.isArray(state.jobPostings)?state.jobPostings:[];
   const favorites=Array.isArray(state.favoriteCerts)?state.favoriteCerts:[];
-  const nextEvent=LifeLogic.nextExam(state,koreaToday()); // the closest exam date over all goals
+  const nextRaw=LifeLogic.nextExam(state,koreaToday()); // the exam date ending soonest over all goals
+  // 이미 시작했어도 끝나는 날이 오늘 이후면 '다음 일정' 후보. 진행 중이면 '접수 중 · ~마감일'로 보여 준다.
+  const nextEvent=nextRaw&&{...nextRaw,when:nextRaw.started?(/접수/.test(nextRaw.name)?'접수 중':'진행 중')+' · ~'+fmtDate(nextRaw.end):fmtDate(nextRaw.date)};
   c.innerHTML=`
     ${upcomingBannerHTML()}
     <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
     <div class="soft-overview" aria-label="내 생활 요약">
-      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(fmtDate(nextEvent.date)):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
+      <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(nextEvent.when):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">💼</span><div class="soft-overview-copy"><strong>저장한 공고 ${jobs.length}건</strong><span class="meta">관심 회사 ${(Array.isArray(state.watchCompanies)?state.watchCompanies:[]).length}곳 · 관심 자격증 ${favorites.length}개</span></div><button class="soft-overview-action" onclick="go('jobHub')" aria-label="채용공고 관리 보기">관리</button></div>
     </div>

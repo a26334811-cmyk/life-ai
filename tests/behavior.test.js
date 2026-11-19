@@ -1607,3 +1607,24 @@ test('an empty Q-Net schedule shows the server message and suggests another year
   assert.ok(box.includes('상시검정 종목은 별도 일정 연동이 필요할 수 있어요'),box);
   assert.ok(box.includes('다른 연도를 골라 다시 확인해 보세요'),box);
 });
+
+/* ---------- home: next exam schedule ---------- */
+test('home next exam event includes a registration window that already started',()=>{
+  const schedule={rounds:[{round:'2026년 3회',events:[
+    {label:'원서접수',startDate:'2026-05-04',endDate:'2026-05-14'},
+    {label:'필기시험',startDate:'2026-05-30',endDate:'2026-05-30'},
+    {label:'지난 접수',startDate:'2026-04-01',endDate:'2026-04-10'}]}]};
+  const raw=JSON.stringify({mainGoal:'전기기사 준비',goalType:'cert',certSchedule:schedule});
+  const a=createApp(raw);
+  a.run('renderHome()');
+  const html=a.el('homeContent').innerHTML;
+  assert.match(html,/접수 중 · ~/);
+  assert.match(html,/3회 · 원서접수/);
+  assert.doesNotMatch(html,/필기시험/);
+  assert.doesNotMatch(html,/지난 접수/);
+  // Once the window is over, the next event is the exam day.
+  const later=createApp(raw,{now:Date.parse('2026-05-20T03:00:00Z')});
+  later.run('renderHome()');
+  assert.match(later.el('homeContent').innerHTML,/필기시험/);
+  assert.doesNotMatch(later.el('homeContent').innerHTML,/접수 중/);
+});

@@ -615,10 +615,10 @@
         const end = it.endDate || it.startDate;
         if (!validDate(it.startDate) || !validDate(end) || end < today) continue;
         const parts = [it.round, it.label].filter(Boolean).join(' · ');
-        found.push({ name: sets.length > 1 && it.qualificationName ? it.qualificationName + ' · ' + parts : parts, date: it.startDate, end, goalTitle });
+        found.push({ name: sets.length > 1 && it.qualificationName ? it.qualificationName + ' · ' + parts : parts, date: it.startDate, end, goalTitle, started: it.startDate < today && end > it.startDate });
       }
     }
-    found.sort((a, b) => a.date.localeCompare(b.date));
+    found.sort((a, b) => a.end.localeCompare(b.end) || a.date.localeCompare(b.date));
     return found[0] || null;
   }
 
