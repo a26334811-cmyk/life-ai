@@ -773,7 +773,7 @@ function resetGoalProgress(){
   state.policyIncomeAdded=false;state.policyIncome='';
   state.certSchedule=null;
   state.taskNames=[]; // a new goal starts with the default steps
-  state.goalId=newJobId();
+  state.goalId=newId();
   resetGoalScreenState();
 }
 
@@ -781,7 +781,7 @@ function resetGoalProgress(){
 function addGoal(){
   if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 추가해 주세요.');return;}
   // The current goal is put aside right away, so choosing a company or type in the next screens never changes it.
-  if(state.mainGoal&&!LifeLogic.parkActiveGoal(state,newJobId)){toast('목표를 추가하지 못했어요. 다시 시도해 주세요.');return;}
+  if(state.mainGoal&&!LifeLogic.parkActiveGoal(state,newId)){toast('목표를 추가하지 못했어요. 다시 시도해 주세요.');return;}
   persistState();resetGoalScreenState();
   go('goalChoice');
 }
@@ -789,17 +789,17 @@ function goalChoiceBack(){
   go(LifeLogic.goalCount(state)>0?'goals':'name'); // go() brings the put-aside goal back when the new one is dropped
 }
 function switchToGoal(id){
-  if(!LifeLogic.switchGoal(state,newJobId,id)){toast('그 목표를 찾지 못했어요.');return;}
+  if(!LifeLogic.switchGoal(state,newId,id)){toast('그 목표를 찾지 못했어요.');return;}
   persistState();resetGoalScreenState();
   toast('목표를 바꿨어요: '+state.mainGoal);
   renderGoals();
 }
 async function removeGoalById(id){
-  const goal=LifeLogic.goalList(state,newJobId).find(g=>g.id===id);
+  const goal=LifeLogic.goalList(state,newId).find(g=>g.id===id);
   if(!goal)return;
   if(LifeLogic.goalCount(state)<=1){toast('마지막 목표는 지울 수 없어요. 새 목표를 추가한 뒤 지워 주세요.');return;}
   if(!await uiConfirm('"'+goal.title+'" 목표를 지울까요?\n이 목표의 진행 기록과 저장한 시험 일정이 함께 지워져요. (저장한 공고·습관·일정은 그대로예요)',{title:'목표 삭제',ok:'삭제',danger:true}))return;
-  const res=LifeLogic.removeGoal(state,newJobId,id);
+  const res=LifeLogic.removeGoal(state,newId,id);
   if(!res.ok){toast('목표를 지우지 못했어요.');return;}
   persistState();resetGoalScreenState();
   toast('목표를 지웠어요.');
@@ -1365,7 +1365,7 @@ function homeToggleHabit(id){
 /* With several goals: the progress of each goal (inside the details block of the home screen). */
 function goalProgressListHTML(){
   if(LifeLogic.goalCount(state)<2)return '';
-  const rows=LifeLogic.goalList(state,newJobId).map(g=>{
+  const rows=LifeLogic.goalList(state,newId).map(g=>{
     const src=g.active?state:(state.otherGoals||[]).find(x=>x.id===g.id)||{};
     const p=LifeLogic.goalProgress({goalType:src.goalType,completedTasks:src.completedTasks,jobPostings:state.jobPostings});
     return `<p class="meta"><strong>${esc(g.title)}</strong>${g.active?' (지금 집중 중)':''} · ${p.done}/${p.total}단계 · ${p.percent}%</p>`;
@@ -1411,7 +1411,7 @@ function goalStatusText(type){
   return type==='job'?'기회 탐색 중':type==='cert'?'시험 일정 확인 단계':type==='policy'?'조건 확인 단계':'첫 행동 정리 중';
 }
 function goalCardsHTML(){
-  const goals=LifeLogic.goalList(state,newJobId);
+  const goals=LifeLogic.goalList(state,newId);
   const icon={job:'💼',cert:'🏅',policy:'🏛'};
   if(!goals.length)return '<div class="card"><h3>아직 목표가 없어요</h3><p class="meta">하고 싶은 일을 정하면 시험 일정과 할 일을 정리해 드려요.</p></div>';
   return goals.map(g=>`<div class="card goal-card${g.active?' active':''}">
@@ -1621,11 +1621,11 @@ async function plannerSave(){
   if(old&&scope==='one'){
     repeatIgnored=repeat!=='none'||Boolean(until);
     LifeLogic.skipOccurrence(old,occurrence);
-    entries.push({id:newJobId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
+    entries.push({id:newId(),title,date,time,category,repeat:'none',until:'',priority,done:LifeLogic.isDone(old,occurrence)});
   }else{
     // The form shows the day the user tapped; if they left it unchanged, the series keeps its own start date.
     const startDate=old&&LifeLogic.isRepeating(old)&&date===occurrence&&repeat!=='none'?old.date:date;
-    const item={...(old||{}),id:old?.id||newJobId(),title,date:startDate,time,category,repeat,until,priority};
+    const item={...(old||{}),id:old?.id||newId(),title,date:startDate,time,category,repeat,until,priority};
     if(LifeLogic.isRepeating(item)){item.done=false;if(!Array.isArray(item.doneDates))item.doneDates=[];}
     else{item.done=Boolean(old?.done)&&!LifeLogic.isRepeating(old);delete item.doneDates;delete item.skipDates;}
     const index=entries.findIndex(e=>e.id===item.id);
@@ -1664,7 +1664,7 @@ function plannerAddFromCert(title,date){
   title=String(title||'').trim();
   if(!title||title.length>120||!LifeLogic.validDate(date)){toast('이 일정은 추가할 수 없어요.');return;}
   if(certEntryExists(title,date)){toast('이미 내 일정에 있어요.');return;}
-  plannerEntries().push({id:newJobId(),title,date,time:'',category:'study',repeat:'none',until:'',priority:'high',done:false});
+  plannerEntries().push({id:newId(),title,date,time:'',category:'study',repeat:'none',until:'',priority:'high',done:false});
   plannerSelected=date;
   const saved=persistState();renderCalendar();
   if(saved)toast('내 일정에 추가했어요. 시간 등은 일정의 "수정"에서 바꿀 수 있어요.');
@@ -1693,13 +1693,13 @@ function plannerSearchHTML(){
 }
 function plannerToggle(id,date){const e=plannerEntries().find(x=>x.id===id);if(!e)return;LifeLogic.toggleDone(e,date||plannerSelected);persistState();renderCalendar();}
 /* One-line add on the Today tab: title only, saved for today with default time/priority.
-   Same rules as plannerSave (title 1-120 characters, id from newJobId). */
+   Same rules as plannerSave (title 1-120 characters, id from newId). */
 function plannerQuickAdd(){
   const input=document.getElementById('plannerQuickTitle');
   const title=input?.value.trim()||'';
   if(!title||title.length>120){toast('제목을 1~120자로 입력해 주세요.');return;}
   const today=koreaToday();
-  plannerEntries().push({id:newJobId(),title,date:today,time:'',category:'personal',repeat:'none',until:'',priority:'normal',done:false});
+  plannerEntries().push({id:newId(),title,date:today,time:'',category:'personal',repeat:'none',until:'',priority:'normal',done:false});
   plannerSelected=today;
   persistState();renderCalendar();toast('오늘 일정에 추가했어요.');
 }
@@ -2191,7 +2191,7 @@ function habitAdd(){
   const name=input?.value.trim();
   if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
   if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
-  habitEntries().push({id:newJobId(),name,createdAt:koreaToday(),checks:[]});
+  habitEntries().push({id:newId(),name,createdAt:koreaToday(),checks:[]});
   const saved=persistState();renderCalendar();if(saved)toast('습관을 추가했어요.');
 }
 /* Checks or unchecks a habit on a day. Returns false when nothing changed (unknown habit, bad or future day). */
@@ -2556,7 +2556,7 @@ function jobCollections(){
   if(!Array.isArray(state.jobPostings)) state.jobPostings=[];
   state.jobPostings.forEach(p=>{if(p&&!Array.isArray(p.tasks))p.tasks=POSTING_TASKS.map(()=>false);});
 }
-function newJobId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
+function newId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
   const query=encodeURIComponent(name+' 채용');
   return `<div class="company-links"><a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener">잡코리아 검색</a></div>`;
@@ -2567,7 +2567,7 @@ function addWatchCompany(){
   if(!name){toast('회사명을 입력해 주세요.');return;}
   if(raw&&!url){toast('http 또는 https 주소를 입력해 주세요.');return;}
   const existing=state.watchCompanies.find(x=>x.name.replace(/\s/g,'')===name.replace(/\s/g,''));
-  if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newJobId(),name,url});
+  if(existing){if(url)existing.url=url;}else state.watchCompanies.push({id:newId(),name,url});
   const saved=persistState();renderJobHub();if(saved)toast('관심 회사를 저장했어요.');
 }
 async function removeWatchCompany(id){
@@ -2713,7 +2713,7 @@ function savePosting(){
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
   const data={company,title,url,deadline,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes')};
-  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newJobId(),stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()});
+  if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newId(),stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()});
   const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
@@ -2889,15 +2889,15 @@ function startCertGoal(){
   if(!name){toast('준비할 자격증을 먼저 검색해 주세요.');return;}
   const title=name+' 준비';
   const lookup=lastCertLookup; // the reset below clears it, so keep the result that was just looked up
-  const same=LifeLogic.findGoalByTitle(state,title,newJobId);
+  const same=LifeLogic.findGoalByTitle(state,title,newId);
   let message='취득 준비 목표를 만들었어요.';
   if(same){ // already a goal: use it instead of making a copy
-    if(!same.active)LifeLogic.switchGoal(state,newJobId,same.id);
+    if(!same.active)LifeLogic.switchGoal(state,newId,same.id);
     message='이미 있는 목표라서 그 목표로 바꿨어요.';
   }else{
     if(state.mainGoal){
       if(!LifeLogic.canAddGoal(state)){toast('목표는 최대 '+LifeLogic.MAX_GOALS+'개까지 둘 수 있어요. 쓰지 않는 목표를 지운 뒤 만들어 주세요.');return;}
-      LifeLogic.parkActiveGoal(state,newJobId); // the goal in use stays, as one of the goals
+      LifeLogic.parkActiveGoal(state,newId); // the goal in use stays, as one of the goals
     }
     resetGoalProgress();
     state.goalType='cert';state.mainGoal=title;state.parsedGoal=inferGoal(state.mainGoal);

@@ -1844,3 +1844,12 @@ test('pasting the posting text never overwrites a filled deadline silently (#186
   await yes.run('fillPostingFromPaste()');
   assert.equal(yes.el('postingDeadline').value,'2026-11-30','accepted: replaced');
 });
+
+test('schedule and habit ids come from newId, not from a posting-named helper',()=>{
+  const a=createApp();
+  assert.equal(a.run('typeof newJobId'),'undefined');
+  assert.match(a.run('newId()'),/^[0-9a-z]+-[0-9a-z]{1,8}$/);
+  a.el('habitName').value='매일 공부';
+  a.run('habitAdd()');
+  assert.match(a.run('state.habits[0].id'),/^[0-9a-z]+-[0-9a-z]+$/);
+});
