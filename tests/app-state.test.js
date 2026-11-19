@@ -207,6 +207,15 @@ test('applied or rejected postings leave the calendar and the 7-day agenda',()=>
  a.run("setPostingStage(state.jobPostings[0].id,'준비 중')");assert.match(inAgenda(),/삼천리/);
 });
 
+test('live qualification schedule escapes dates from the server before showing them',async()=>{
+ const evil='<img src=x onerror=alert(1)>';
+ const a=createApp(undefined,{fetch:async()=>({ok:true,json:async()=>({qualification:{name:'전기기사',code:'1150'},items:[{}],rounds:[{round:'1회',events:[{label:'필기',startDate:evil,endDate:evil+'2'}]}]})})});
+ a.el('certSearchInput').value='전기기사';
+ await a.run('loadLiveCertSchedule()');
+ const html=a.el('liveCertResults').innerHTML;
+ assert.doesNotMatch(html,/<img/);assert.match(html,/&lt;img/);
+});
+
 test('renaming preserves checklist and saved qualification schedule',async()=>{
  const saved={mainGoal:'전기기사 준비',goalType:'cert',completedTasks:[true,false,false,false,false],certSchedule:{qualification:{name:'전기기사'},items:[]}};
  const a=app(JSON.stringify(saved),'전기기사 올해 취득');await a.run('editCurrentGoal()');

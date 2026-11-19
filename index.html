@@ -2925,7 +2925,7 @@ function certRoundsHTML(data){
     data.rounds||[]).map(round=>`
     <div class="card">
       <h3>${esc(round.round)}</h3>
-      ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${fmtDate(e.startDate)}${e.endDate&&e.endDate!==e.startDate?` ~ ${fmtDate(e.endDate)}`:''}</p>`).join('')}
+      ${round.events.map(e=>`<p><strong>${esc(e.label)}</strong> ${esc(fmtDate(e.startDate))}${e.endDate&&e.endDate!==e.startDate?` ~ ${esc(fmtDate(e.endDate))}`:''}</p>`).join('')}
     </div>`).join('')
   }</div>`;
 }
