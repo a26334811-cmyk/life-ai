@@ -154,6 +154,16 @@ test('script-like text in postings and goals is shown as plain text on every scr
  const c=app(JSON.stringify({mainGoal:evil+' 준비',goalType:'cert'}));
  noRaw(c.run('opportunityCards()'),'opportunities');
 });
+test('very long goal text is refused so it cannot vanish on the next launch',()=>{
+ const {html}=require('./helpers/app-harness.js');
+ for(const id of ['customGoalInput','companyInput','jobInput','certInput','careerInput','certOwnedInput'])
+  assert.match(html,new RegExp(`<input id="${id}"[^>]*maxlength="\\d+"`),id);
+ const a=app();
+ a.el('customGoalInput').value='가'.repeat(121);a.run('createCustomGoal()');
+ assert.equal(a.run('state.mainGoal'),'');assert.match(a.toasts.at(-1),/120자/);
+ a.el('customGoalInput').value='가'.repeat(120);a.run('createCustomGoal()');
+ assert.equal(a.run('state.mainGoal.length'),120);
+});
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);

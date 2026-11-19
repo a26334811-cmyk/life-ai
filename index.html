@@ -418,7 +418,7 @@ h3{font-size:16px;line-height:1.4}
   <section id="company" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>어느 회사에 관심이 있나요?</h2>
-    <div class="field"><input id="companyInput" aria-label="회사명" value="" placeholder="회사명을 직접 입력하세요" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectCompany()}" /></div>
+    <div class="field"><input id="companyInput" aria-label="회사명" maxlength="60" value="" placeholder="회사명을 직접 입력하세요" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectCompany()}" /></div>
     <div class="stack">
       <button class="choice" onclick="selectCompany('포스코')"><span><strong>포스코</strong><div class="meta">예시</div></span><span>›</span></button>
       <button class="choice" onclick="selectCompany('삼성전자')"><span><strong>삼성전자</strong><div class="meta">목표 입력 예시</div></span><span>›</span></button>
@@ -443,14 +443,14 @@ h3{font-size:16px;line-height:1.4}
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('companyChoice')">←</button></div>
     <h2>원하는 직무를 알려주세요.</h2>
     <p class="muted">정확하지 않아도 괜찮아요. 나중에 바꿀 수 있어요.</p>
-    <div class="field"><input id="jobInput" aria-label="직무" placeholder="예: 설비기술, 회계, 개발자" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectJob(this.value||'관심 직무')}" /></div>
+    <div class="field"><input id="jobInput" aria-label="직무" maxlength="60" placeholder="예: 설비기술, 회계, 개발자" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();selectJob(this.value||'관심 직무')}" /></div>
     <button class="btn primary" onclick="selectJob(document.getElementById('jobInput').value || '관심 직무')">이 직무로 계속</button>
   </section>
 
   <section id="certStart" class="screen">
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>어떤 자격증을 준비하고 싶나요?</h2>
-    <div class="field"><input id="certInput" aria-label="자격증" placeholder="예: 컴퓨터활용능력, 전기기사" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();quickGoal((this.value||'자격증')+' 준비')}" /></div>
+    <div class="field"><input id="certInput" aria-label="자격증" maxlength="60" placeholder="예: 컴퓨터활용능력, 전기기사" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();quickGoal((this.value||'자격증')+' 준비')}" /></div>
     <div class="stack">
       <button class="choice" onclick="quickGoal('컴퓨터활용능력 준비')"><strong>컴퓨터활용능력</strong><span>›</span></button>
       <button class="choice" onclick="quickGoal('전기기사 준비')"><strong>전기기사</strong><span>›</span></button>
@@ -473,7 +473,7 @@ h3{font-size:16px;line-height:1.4}
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('goalChoice')">←</button></div>
     <h2>하고 싶은 일을 편하게 적어주세요.</h2>
     <p class="muted">문장으로 적어도 괜찮아요. 예: 올해 안에 서울로 이직하고 싶어요.</p>
-    <div class="field"><input id="customGoalInput" aria-label="내 목표" placeholder="내 목표를 한 문장으로 입력" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();createCustomGoal()}" /></div>
+    <div class="field"><input id="customGoalInput" aria-label="내 목표" maxlength="120" placeholder="내 목표를 한 문장으로 입력" enterkeyhint="go" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();createCustomGoal()}" /></div>
     <button class="btn primary" onclick="createCustomGoal()">목표 정리하기</button>
   </section>
 
@@ -481,9 +481,9 @@ h3{font-size:16px;line-height:1.4}
     <div class="topbar"><button class="back" aria-label="뒤로" onclick="go('job')">←</button></div>
     <h2>더 잘 맞는 기회를 찾기 위해<br>몇 가지만 알려주세요.</h2>
     <div class="field"><label>현재 상태</label><select id="employmentStatus"><option>구직 중</option><option>재직 중</option><option>학생</option><option>기타</option></select></div>
-    <div class="field"><label>관련 경력</label><input id="careerInput" placeholder="예: 2년 / 신입" /></div>
+    <div class="field"><label>관련 경력</label><input id="careerInput" maxlength="60" placeholder="예: 2년 / 신입" /></div>
     <div class="field"><label>최종학력</label><select id="educationInput"><option>고등학교 졸업</option><option>전문대 졸업</option><option>대학교 졸업</option><option>대학원 이상</option></select></div>
-    <div class="field"><label>보유 자격증</label><input id="certOwnedInput" placeholder="없으면 비워두세요" /></div>
+    <div class="field"><label>보유 자격증</label><input id="certOwnedInput" maxlength="100" placeholder="없으면 비워두세요" /></div>
     <button class="btn primary" onclick="createGoal()">목표 만들기</button>
   </section>
 
@@ -1028,6 +1028,7 @@ function addActivity(text){
 function createCustomGoal(){
   const raw=(document.getElementById('customGoalInput').value||'').trim();
   if(!raw){ toast('목표를 한 문장으로 적어주세요.'); return; }
+  if(raw.length>120){ toast('목표는 120자 이내로 짧게 적어주세요.'); return; }
   applyNewGoal(raw,{activity:'목표를 만들었어요'});
 }
 
