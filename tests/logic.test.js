@@ -2,6 +2,14 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const L=require('../logic.js');
 
+/* 한국 시간 새벽 0~9시(UTC 15~24시)에는 한국 날짜가 UTC 날짜보다 하루 빨라요 (#243) */
+test('koreaDate uses the Korean calendar day, also between 00:00 and 09:00 KST',()=>{
+  assert.equal(L.koreaDate(Date.parse('2026-05-10T16:30:00Z')),'2026-05-11');
+  assert.equal(L.koreaDate(Date.parse('2026-05-10T14:59:59Z')),'2026-05-10');
+  assert.equal(L.koreaDate(Date.parse('2026-05-10T15:00:00Z')),'2026-05-11');
+  assert.equal(L.koreaDate(Date.parse('2026-12-31T20:00:00Z')),'2027-01-01','year boundary');
+});
+
 test('monthly repeat that starts on the 31st lands on the last day of shorter months',()=>{
   const item={date:'2026-01-31',repeat:'monthly'};
   assert.equal(L.occurs(item,'2026-01-31'),true);

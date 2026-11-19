@@ -1067,6 +1067,41 @@ test('bottom menu buttons switch tabs without stacking history',()=>{
   for(const id of ['home','opportunities','goals','calendar','my'])assert.ok(html.includes(`onclick="go('${id}','replace')"`),id);
 });
 
+/* ---------- 한국 새벽(UTC로는 아직 전날)에도 '한국 날짜'를 써요 (#243) ---------- */
+const KST_DAWN=Date.parse('2026-05-10T16:30:00Z'); // 한국 2026-05-11 01:30
+test('at 01:30 KST the app counts today as the Korean date, not the UTC date',()=>{
+  const a=createApp(undefined,{now:KST_DAWN});
+  assert.equal(new Date(a.clock.now).toISOString().slice(0,10),'2026-05-10','UTC date is still the day before');
+  assert.equal(a.run('koreaToday()'),'2026-05-11');
+  assert.equal(a.run('plannerSelected'),'2026-05-11');
+});
+test('a focus session that ends after midnight KST is recorded on the Korean date',()=>{
+  const a=createApp(undefined,{now:KST_DAWN});
+  a.run('focusStartPause()');
+  a.clock.now+=25*60*1000+1000;
+  a.tick();
+  assert.equal(a.run('focusHistory().length'),1);
+  assert.equal(a.saved().focusHistory[0].date,'2026-05-11');
+  // a timer that ended while the app was closed gets the Korean date too
+  const b=createApp(JSON.stringify({focusRun:{status:'running',deadline:KST_DAWN-60*1000,minutes:25,category:'study'}}),{now:KST_DAWN});
+  assert.equal(b.saved().focusHistory[0].date,'2026-05-11');
+});
+test('checking a habit at 01:30 KST stamps the Korean date and counts it as today',()=>{
+  const a=createApp(JSON.stringify({habits:[{id:'h1',name:'공부',createdAt:'2026-05-01',checks:['2026-05-10']}]}),{now:KST_DAWN});
+  assert.match(a.run('habitPanelHTML()'),/habitToggle\(this\.dataset\.id,koreaToday\(\)\)/);
+  a.run("habitToggle('h1',koreaToday())");
+  assert.deepEqual(a.saved().habits[0].checks,['2026-05-10','2026-05-11']);
+  assert.equal(a.run('habitStreak(habitEntries()[0])'),2);
+  a.el('habitName').value='운동';a.run('habitAdd()');
+  assert.equal(a.saved().habits[1].createdAt,'2026-05-11');
+});
+test('a posting that closes on the Korean date is "오늘 마감" at 01:30 KST',()=>{
+  const a=createApp(undefined,{now:KST_DAWN});
+  assert.equal(a.run("daysUntil('20260511')"),'오늘 마감');
+  assert.equal(a.run("daysUntil('20260512')"),'D-1');
+  assert.equal(a.run("daysUntil('20260510')"),'마감');
+});
+
 /* ---------- two tabs open at once ---------- */
 test('when another tab saves new records, this tab re-reads them instead of overwriting later',()=>{
   const a=createApp(undefined,{search:''});
