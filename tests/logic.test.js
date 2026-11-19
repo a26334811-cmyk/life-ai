@@ -172,6 +172,21 @@ test('sanitizeState empties malformed certSchedule rounds (refetchable) but keep
   assert.equal(L.sanitizeState({certSchedule:{items:[]}}).state.certSchedule.rounds,undefined);
 });
 
+test('sanitizeState keeps planner items with broken time/repeat/until and resets those fields',()=>{
+  const raw={plannerEntries:[
+    {id:'a',title:'숫자 시간',date:'2026-05-10',time:900,repeat:'yearly',until:'abc'},
+    {id:'b',title:'이상한 시간',date:'2026-05-11',time:'25:99',repeat:'none',until:'2026-02-30'},
+    {id:'c',title:'정상',date:'2026-05-12',time:'09:30',repeat:'weekly',until:'2026-12-31'},
+    {id:'d',title:'시간 없음',date:'2026-05-13'}]};
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.deepEqual(dropped,[],'nothing is dropped, so a backup with such items can still be restored');
+  assert.equal(state.plannerEntries.length,4);
+  assert.deepEqual(state.plannerEntries.slice(0,2).map(e=>[e.time,e.repeat,e.until]),[['','none',''],['','none','']]);
+  assert.deepEqual([state.plannerEntries[2].time,state.plannerEntries[2].repeat,state.plannerEntries[2].until],['09:30','weekly','2026-12-31']);
+  assert.equal('time' in state.plannerEntries[3],false);
+  assert.equal(L.validateBackupState({mainGoal:'',nickname:'',activity:[],completedTasks:[],plannerEntries:raw.plannerEntries}),true);
+});
+
 test('sanitizeState rejects non-objects and strips prototype keys',()=>{
   assert.equal(L.sanitizeState(null),null);
   assert.equal(L.sanitizeState([]),null);

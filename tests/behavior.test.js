@@ -635,6 +635,12 @@ test('damaged original: honest notice when keeping fails, never overwrites an ea
   assert.doesNotMatch(clean.run('(renderMy(),document.getElementById("myContent").innerHTML)'),/손상된 원본 내려받기/);
 });
 
+test('a planner item with a non-text time does not break the calendar',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',plannerEntries:[
+    {id:'p1',title:'숫자 시간',date:'2026-05-10',time:900},{id:'p2',title:'아침',date:'2026-05-10',time:'08:00'}]}));
+  assert.deepEqual(titles(a,'2026-05-10'),['아침','숫자 시간']);
+});
+
 test('data saved by the previous version is upgraded',()=>{
   const old=JSON.stringify({mainGoal:'x',plannerEntries:[{id:'r',title:'매일',date:'2026-05-01',repeat:'daily',done:true}]});
   const a=createApp(old);

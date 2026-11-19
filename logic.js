@@ -171,6 +171,16 @@
     favoriteCerts: item => isPlain(item) || typeof item === 'string'
   };
 
+  /* A planner item keeps its title and date even when time/repeat/until are broken: those fields fall back to their
+     defaults (no time, no repeat, no end date) instead of the item being dropped or crashing the calendar. */
+  function cleanPlannerEntry(item) {
+    const out = Object.assign({}, item);
+    if ('time' in out && !(out.time === '' || (typeof out.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(out.time)))) out.time = '';
+    if ('repeat' in out && !['none', 'daily', 'weekly', 'monthly'].includes(out.repeat)) out.repeat = 'none';
+    if ('until' in out && !(out.until === '' || validDate(out.until))) out.until = '';
+    return out;
+  }
+
   const STATE_SCHEMA_VERSION = 2;
 
   /* Upgrades data saved by an older version. Always returns a new object (or the input when it is not an object).
@@ -254,6 +264,7 @@
         }
         let kept = check ? items.filter(check) : items;
         if (key === 'taskNames' && kept.length > 20) kept = kept.slice(0, 20);
+        if (key === 'plannerEntries') kept = kept.map(cleanPlannerEntry);
         if (kept.length !== value.length || droppedDate) dropped.push(key);
         out[key] = kept;
       } else {
