@@ -475,8 +475,26 @@
   const POSITIVE = [['마감', 3], ['까지', 2], ['접수', 1], ['지원기간', 1], ['모집기간', 1], ['서류', 1]];
   const NEGATIVE = ['공고일', '게시일', '등록일', '작성일', '발표', '면접', '시작', '개시', '입사', '입과', '교육'];
 
+  /* 'HH:MM' (24 hours) - the form of every time stored in a record. */
+  const validTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+  /* A closing time written right after a date: "2026.11.30(일) 18:00", "11월 30일 오후 6시", "11/30 17시 30분".
+     "24:00" / "24시" means the end of that day and is kept as 23:59. Returns '' when there is none. */
+  function timeRightAfter(text) {
+    const m = String(text || '').match(/^\s*(?:\([^)]*\)|[월화수목금토일]요일)?\s*(오전|오후)?\s*(\d{1,2})\s*(?::\s*(\d{2})|시(?!간)(?:\s*(\d{1,2})\s*분)?)/);
+    if (!m) return '';
+    let hour = Number(m[2]);
+    const minute = Number(m[3] !== undefined ? m[3] : (m[4] !== undefined ? m[4] : 0));
+    if (minute > 59) return '';
+    if (m[1] === '오후' && hour < 12) hour += 12;
+    if (m[1] === '오전' && hour === 12) hour = 0;
+    if (hour === 24 && minute === 0) return '23:59';
+    if (hour > 23) return '';
+    return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+  }
+
   /* Finds the most likely application deadline in pasted posting text.
-     Returns {date:'YYYY-MM-DD', past:boolean, confident:boolean, snippet} or null. Never guesses without a clue word. */
+     Returns {date:'YYYY-MM-DD', time:'HH:MM' or '', past:boolean, confident:boolean, snippet} or null. Never guesses without a clue word. */
   function extractDeadline(text, today) {
     const src = String(text || '').slice(0, 30000);
     if (!src || !validDate(today)) return null;
@@ -542,6 +560,7 @@
     if (!best || best.score < 2) return null;
     return {
       date: best.iso,
+      time: timeRightAfter(src.slice(best.index + best.length, best.index + best.length + 16)),
       past: best.iso < today,
       confident: best.score >= 4,
       snippet: src.slice(Math.max(0, best.index - 12), best.index + best.length + 8).replace(/\s+/g, ' ').trim()
@@ -718,11 +737,11 @@
     const limit = dateOffset(today, days);
     const inWindow = d => validDate(d) && d >= today && d <= limit;
     const out = [];
-    const add = (kind, title, label, date, go) => out.push({ kind, title, label, date, left: dayDiff(today, date), go });
+    const add = (kind, title, label, date, go, extra) => out.push(Object.assign({ kind, title, label, date, left: dayDiff(today, date), go }, extra));
     for (const p of Array.isArray(s.jobPostings) ? s.jobPostings : []) {
       if (!p || typeof p !== 'object') continue;
       const name = [p.company, p.title].filter(Boolean).join(' · ');
-      if (['관심', '준비 중'].includes(p.stage) && inWindow(p.deadline)) add('job', name, '마감', p.deadline, 'jobHub');
+      if (['관심', '준비 중'].includes(p.stage) && inWindow(p.deadline)) add('job', name, '마감' + (validTime(p.deadlineTime) ? ' ' + p.deadlineTime : ''), p.deadline, 'jobHub', { guess: p.deadlineGuess === true });
       if (p.interviewDate && !['합격', '불합격', '지원 취소'].includes(p.stage) && inWindow(p.interviewDate)) add('interview', name, '면접' + (/^([01]\d|2[0-3]):[0-5]\d$/.test(p.interviewTime || '') ? ' ' + p.interviewTime : ''), p.interviewDate, 'jobHub');
     }
     for (const { schedule } of certSchedulesOf(s)) {
@@ -862,7 +881,7 @@
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
-    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange,
+    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange, validTime,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, occurrencesByDate, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
