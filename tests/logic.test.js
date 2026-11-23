@@ -400,6 +400,14 @@ test('extractDeadline does not pick a decimal like 학점 3.5 as the deadline',(
   assert.equal(L.extractDeadline('11.30 마감, 학점 3.5',today)?.date,'2026-11-30');
 });
 
+test('extractDeadline ignores dates inside links but still reads real dates around them',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('마감 안내 https://site.com/2026/11/30/abc',today),null);
+  assert.equal(L.extractDeadline('마감 https://news.example.com/2026/12/05/post',today),null);
+  assert.equal(L.extractDeadline('자세히 https://site.com/2026/11/30/abc 접수 마감 2026.12.05',today)?.date,'2026-12-05');
+  assert.equal(L.extractDeadline('마감 2026-12-05 https://site.com/2026/11/30/abc',today)?.date,'2026-12-05');
+});
+
 test('extractDeadline flags past dates and confidence',()=>{
   const r=L.extractDeadline('접수기간 2026.10.01 ~ 2026.10.31','2026-11-16');
   assert.equal(r.date,'2026-10-31');assert.equal(r.past,true);

@@ -512,7 +512,8 @@
   /* Finds the most likely application deadline in pasted posting text.
      Returns {date:'YYYY-MM-DD', time:'HH:MM' or '', past:boolean, confident:boolean, snippet} or null. Never guesses without a clue word. */
   function extractDeadline(text, today) {
-    const src = String(text || '').slice(0, 30000);
+    // links often hold dates (/2026/11/30/) that are not deadlines; blank them out but keep every position
+    const src = String(text || '').slice(0, 30000).replace(/https?:\/\/[^\s<>"'`]+/gi, u => ' '.repeat(u.length));
     if (!src || !validDate(today)) return null;
     const year = Number(today.slice(0, 4));
     const found = [];
