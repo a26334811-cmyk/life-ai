@@ -2405,6 +2405,18 @@ function recoveryPanelHTML(){
     <p class="meta">페이스 선택은 기록을 삭제하거나 중요한 시험·면접 일정을 숨기지 않아요. 알림 설정도 변경하지 않아요.</p>
   </div>`;
 }
+/* "오늘 할 일": today's schedule with a check box for each own item. Saved job deadlines are shown
+   without a box (they are finished on the job screen) and are not counted. */
+function todayTasksHTML(){
+  const today=koreaToday(),items=plannerForDate(today);
+  const own=items.filter(e=>e.origin==='personal'),done=own.filter(e=>e.done).length;
+  return `<div class="card" id="todayTasks"><h3>✅ 오늘 할 일</h3>
+    <p class="meta">${own.length?`오늘 ${done}/${own.length}개 완료했어요.`:'오늘 등록된 일정이 없어요.'}</p>
+    ${items.map(e=>e.origin==='personal'
+      ?`<label class="check"><input type="checkbox" ${e.done?'checked':''} onchange="plannerToggle('${plannerEscapeAttr(e.id)}','${today}')"><span><strong>${esc(e.title)}</strong> <span class="meta">${esc(e.time||'종일')}</span></span></label>`
+      :`<p class="meta">💼 ${esc(e.title)}</p>`).join('')}
+  </div>`;
+}
 function plannerFocusHTML(){
   const agenda=plannerAgenda();
   const urgent=agenda.filter(e=>e.priority==='high'||e.origin==='external');
@@ -2560,6 +2572,7 @@ function renderCalendarNow(){
         <button class="btn secondary" onclick="plannerQuickAdd()">추가</button>
         <p class="meta">제목만 적으면 오늘 일정으로 저장돼요. 날짜·분류를 바꾸려면 캘린더 탭에서 수정하세요.</p></div>
       ${recoveryPanelHTML()}
+      ${todayTasksHTML()}
       ${plannerFocusHTML()}
       ${plannerOverdueHTML()}
       ${todayHabitsHTML()}
