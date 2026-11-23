@@ -297,3 +297,14 @@ test('installed app is not locked to portrait',()=>{
   assert.notEqual(manifest.orientation,'portrait');
   assert.notEqual(manifest.orientation,'portrait-primary');
 });
+
+test('service worker stays alive until a fetched file is stored for offline use',async()=>{
+  const sw=loadWorker(async()=>okPage('fresh'));
+  const e=swEvent('https://app.example/index.html');
+  const waited=[];
+  e.waitUntil=p=>waited.push(p);
+  sw.handlers.fetch(e);
+  await e.response;await Promise.all(waited);
+  assert.ok(waited.length>=2,'the saving is handed to waitUntil, not left running on its own');
+  assert.equal(sw.cache.get('https://app.example/index.html').text,'fresh');
+});

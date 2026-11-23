@@ -37,7 +37,8 @@ self.addEventListener('fetch', event => {
     /* Addresses with a query (e.g. a shared job link: index.html?title=..&url=..) are never stored. */
     if (response && response.ok && response.type === 'basic' && !url.search) {
       const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+      // waitUntil keeps the worker alive until the copy is really stored (it may otherwise be stopped half-way)
+      event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {}));
     }
     return response;
   });
