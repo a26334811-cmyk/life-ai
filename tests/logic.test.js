@@ -536,3 +536,14 @@ test('validDate rejects years outside 2000-2100 such as 0026 (a two-digit year t
   assert.equal(L.validDate('2100-12-31'),true);
   assert.equal(L.validDate('2026-11-24'),true);
 });
+
+test('a posting memo longer than the limit is cut when loading, not dropped',()=>{
+  const long='가'.repeat(L.POSTING_NOTES_MAX+500);
+  const posting={id:'p1',company:'삼천리',title:'시설',url:'https://example.com/j',notes:long,stage:'관심',tasks:[false,false,false,false]};
+  const {state,dropped}=L.sanitizeState({jobPostings:[posting,{...posting,id:'p2',notes:'짧은 메모'}]});
+  assert.equal(state.jobPostings.length,2);
+  assert.equal(state.jobPostings[0].notes.length,L.POSTING_NOTES_MAX);
+  assert.equal(state.jobPostings[1].notes,'짧은 메모');
+  assert.deepEqual(dropped,[],'cutting a long memo is not reported as lost data');
+  assert.equal(posting.notes.length,L.POSTING_NOTES_MAX+500,'the input is not changed');
+});

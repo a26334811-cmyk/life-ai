@@ -216,6 +216,9 @@
     return out;
   }
 
+  // A saved posting's memo is capped so a few pasted postings cannot fill the browser's storage. Longer ones are cut, not dropped.
+  const POSTING_NOTES_MAX = 2000;
+
   /* Extra steps of one posting ("서류 발표", "인적성", "1차 면접" ...): {id, label, date, time}. Broken entries are dropped one by one. */
   const MAX_POSTING_EVENTS = 20;
   function cleanPostingEvents(list) {
@@ -319,7 +322,14 @@
         let kept = check ? items.filter(check) : items;
         if (key === 'taskNames' && kept.length > 20) kept = kept.slice(0, 20);
         if (key === 'plannerEntries') kept = kept.map(cleanPlannerEntry);
-        if (key === 'jobPostings') kept = kept.map(p => (p.events === undefined ? p : Object.assign({}, p, { events: cleanPostingEvents(p.events) })));
+        if (key === 'jobPostings') {
+          kept = kept.map(p => {
+            const fixes = {};
+            if (p.events !== undefined) fixes.events = cleanPostingEvents(p.events);
+            if (typeof p.notes === 'string' && p.notes.length > POSTING_NOTES_MAX) fixes.notes = p.notes.slice(0, POSTING_NOTES_MAX);
+            return Object.keys(fixes).length ? Object.assign({}, p, fixes) : p;
+          });
+        }
         if (kept.length !== value.length || droppedDate) dropped.push(key);
         out[key] = kept;
       } else {
@@ -921,7 +931,7 @@
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
-    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange, validTime, cleanPostingEvents, postingEventsOf, MAX_POSTING_EVENTS,
+    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange, validTime, cleanPostingEvents, postingEventsOf, MAX_POSTING_EVENTS, POSTING_NOTES_MAX,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, occurrencesByDate, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,

@@ -589,7 +589,7 @@ h3{font-size:16px;line-height:1.4}
       <label class="check"><input id="postingAlways" type="checkbox"><span>상시채용·채용시 마감 (마감일이 없어요)</span></label>
       <details><summary>공고 글을 복사해 붙여넣어 마감일 찾기 (선택)</summary><div class="field"><label for="postingPaste">공고 내용 붙여넣기</label><textarea id="postingPaste" onpaste="setTimeout(fillPostingFromPaste,0)" style="width:100%;min-height:90px" placeholder="공고 화면의 글을 복사해서 붙여넣어 보세요"></textarea></div><button type="button" class="btn secondary" onclick="fillPostingFromPaste()">마감일 찾기</button></details>
       <details><summary>지역·조건 메모 추가 (선택)</summary><div class="field"><label for="postingRegion">근무지역 (선택)</label><input id="postingRegion"></div>
-      <div class="field"><label for="postingNotes">필수·우대조건과 메모 (선택)</label><textarea id="postingNotes" style="width:100%;min-height:80px"></textarea></div></details>
+      <div class="field"><label for="postingNotes">필수·우대조건과 메모 (선택)</label><textarea id="postingNotes" maxlength="2000" style="width:100%;min-height:80px"></textarea></div></details>
       <button class="btn primary" type="submit">공고 저장</button><button class="btn ghost" type="button" onclick="clearPostingForm()">입력 초기화</button>
       <p class="meta">링크나 붙여넣은 글에서 찾은 내용은 참고용이에요. 틀릴 수 있으니 공식 공고에서 마감일을 꼭 확인하고 저장해 주세요.</p>
     </form></details>
@@ -2893,7 +2893,7 @@ function savePosting(){
   if(deadlineTime&&!LifeLogic.validTime(deadlineTime)){toast('마감 시각을 올바르게 입력해 주세요. (예: 18:00)');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
-  const data={company:company||postingHost(url),title:title||POSTING_NO_TITLE,needsInfo:!company||!title,url,deadline,deadlineTime,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes')};
+  const data={company:company||postingHost(url),title:title||POSTING_NO_TITLE,needsInfo:!company||!title,url,deadline,deadlineTime,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes').slice(0,LifeLogic.POSTING_NOTES_MAX)};
   // found by the app and not changed by the user: the card asks to check it. A changed date or time loses an earlier "checked" mark.
   data.deadlineGuess=Boolean(deadline&&postingDeadlineAuto);
   data.deadlineChecked=Boolean(deadline&&existing&&existing.deadlineChecked===true&&existing.deadline===deadline&&(existing.deadlineTime||'')===deadlineTime&&!data.deadlineGuess);
