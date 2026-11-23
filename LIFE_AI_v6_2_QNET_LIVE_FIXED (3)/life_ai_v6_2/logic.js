@@ -25,7 +25,9 @@
     const known = validDateCache.get(value);
     if (known !== undefined) return known;
     const d = new Date(value + 'T00:00:00Z');
-    const ok = Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
+    // Chrome's date box turns a typed "26" into the year 0026: years outside 2000-2100 are treated as typos.
+    const year = Number(value.slice(0, 4));
+    const ok = year >= 2000 && year <= 2100 && Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
     if (validDateCache.size >= 5000) validDateCache.clear();
     validDateCache.set(value, ok);
     return ok;

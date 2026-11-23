@@ -527,3 +527,12 @@ test('occurrencesByDate gives the same answers as occurs for every kind of item'
   assert.deepEqual(map.get('not-a-date'),[]);
   assert.deepEqual(L.occurrencesByDate(null,['2026-11-12']).get('2026-11-12'),[]);
 });
+
+test('validDate rejects years outside 2000-2100 such as 0026 (a two-digit year typed into a date box)',()=>{
+  assert.equal(L.validDate('0026-11-24'),false);
+  assert.equal(L.validDate('1999-12-31'),false);
+  assert.equal(L.validDate('2101-01-01'),false);
+  assert.equal(L.validDate('2000-01-01'),true);
+  assert.equal(L.validDate('2100-12-31'),true);
+  assert.equal(L.validDate('2026-11-24'),true);
+});
