@@ -171,6 +171,18 @@ test('very long goal text is refused so it cannot vanish on the next launch',()=
  a.el('customGoalInput').value='가'.repeat(120);a.run('createCustomGoal()');
  assert.equal(a.run('state.mainGoal.length'),120);
 });
+
+test('links carrying a user name or password never keep the secret',()=>{
+ const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';
+ let n=0;
+ for(const url of ['https://user:secret@example.com/jobs','https://user@example.com/jobs2']){
+  a.el('postingUrl').value=url;a.run('savePosting()');
+  n++;assert.equal(a.run('state.jobPostings.length'),n);
+ }
+ assert.doesNotMatch(JSON.stringify(a.saved().jobPostings),/secret|user@|user:/,'the user name and password are stripped before saving');
+ a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://user:secret@example.com/careers';a.run('addWatchCompany()');
+ assert.doesNotMatch(JSON.stringify(a.saved().watchCompanies||[]),/secret|user:/,'also for a watched company page');
+});
 test('interested companies deduplicate and save a manual official link',()=>{
  const a=app();a.el('watchCompany').value='삼천리';a.el('watchUrl').value='https://example.com/careers';a.run('addWatchCompany();addWatchCompany()');assert.equal(a.run('state.watchCompanies.length'),1);
  assert.match(a.el('watchCompanies').innerHTML,/등록한 공식 채용 페이지/);
