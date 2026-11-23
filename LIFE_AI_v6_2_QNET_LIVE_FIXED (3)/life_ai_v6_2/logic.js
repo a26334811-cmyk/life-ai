@@ -84,7 +84,7 @@
   }
 
   function isRepeating(item) {
-    return Boolean(item) && ['daily', 'weekly', 'monthly'].includes(item.repeat);
+    return Boolean(item) && ['daily', 'weekdays', 'weekly', 'monthly'].includes(item.repeat);
   }
 
   /* Does a planner item fall on `date`?
@@ -95,6 +95,10 @@
     if (item.until && date > item.until) return false;
     if (Array.isArray(item.skipDates) && item.skipDates.includes(date)) return false;
     if (item.repeat === 'daily') return true;
+    if (item.repeat === 'weekdays') {
+      const day = new Date(date + 'T00:00:00Z').getUTCDay(); // 0 = Sunday
+      return day >= 1 && day <= 5;
+    }
     if (item.repeat === 'weekly') {
       return Math.round((Date.parse(date + 'T00:00:00Z') - Date.parse(item.date + 'T00:00:00Z')) / 86400000) % 7 === 0;
     }

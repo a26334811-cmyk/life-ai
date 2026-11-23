@@ -2623,7 +2623,7 @@ function renderCalendarNow(){
       <label>시간 (선택)<input id="plannerTime" type="time" value="${plannerEscapeAttr(existing?.time)}"></label>
       <label>분류<select id="plannerCategory"><option value="personal">개인</option><option value="study">공부·자격증</option><option value="job">취업</option><option value="habit">습관</option></select></label>
       <label>우선순위<select id="plannerPriority"><option value="normal">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
-      <label>반복<select id="plannerRepeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>
+      <label>반복<select id="plannerRepeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekdays">평일마다 (월~금)</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>
       <label>반복 종료일 (선택)<input id="plannerUntil" type="date" value="${plannerEscapeAttr(existing?.until)}"></label>
       <button class="btn primary wide" onclick="plannerSave()">${existing?'변경 저장':'일정 저장'}</button>
       <button type="button" class="btn ghost wide" onclick="plannerCancelForm()">취소</button>
