@@ -1,5 +1,12 @@
+# 이 저장소는 GitHub에 공개로 올라가 있어요. 인증키·개인 자료가 올라가지 않게 막아요.
+# 인증키 파일 (.env.example 은 이름만 적힌 안내 파일이라 올려도 돼요)
 .env
 .env.*
 !.env.example
-node_modules/
+
+# Netlify 로컬 설정, 설치 폴더
 .netlify/
+node_modules/
+
+# 앱에서 내려받은 개인 백업 파일
+life-ai-backup-*.json
