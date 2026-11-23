@@ -954,6 +954,8 @@ function snoozeBackupNudge(){
 }
 function refreshBackupNudges(){
   document.querySelectorAll?.('.backup-nudge-slot').forEach(slot=>{slot.innerHTML=backupNudgeHTML();});
+  const info=document.getElementById('lastBackupInfo');
+  if(info)info.innerHTML='<strong>마지막 백업:</strong> '+(state.lastBackupAt?esc(state.lastBackupAt.slice(0,10)):'아직 없음');
 }
 function openLifeAIBackup(){
   const input=document.getElementById('lifeAIBackupFile');
