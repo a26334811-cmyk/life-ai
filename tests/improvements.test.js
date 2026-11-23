@@ -387,3 +387,11 @@ test('.gitignore keeps .env files out but still tracks .env.example',()=>{
   for(const rule of ['.env','.env.*','!.env.example','node_modules/','.netlify/']) assert.ok(lines.includes(rule),rule);
   assert.ok(lines.indexOf('!.env.example')>lines.indexOf('.env.*'),'the .env.example exception must come after .env.*');
 });
+
+/* ---------- #289 section titles are real headings ---------- */
+test('section titles are heading tags (not divs) and keep the look of the old class',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.equal((html.match(/<h3 class="section-title">/g)||[]).length>=14,true);
+  assert.doesNotMatch(html,/<div[^>]*class="section-title"/);
+  assert.match(html,/\.section-title\{[^}]*font-size:inherit/);
+});
