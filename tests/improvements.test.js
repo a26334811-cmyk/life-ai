@@ -42,6 +42,35 @@ test('wake lock is requested on start and released on pause/finish/reset when th
   assert.deepEqual(stats(),{requests:3,released:3});
 });
 
+/* ---------- #392 opportunity filter works from the card's own kind, also for a job goal ---------- */
+function opportunityScreen(goalType,mainGoal,filter){
+  const a=createApp(JSON.stringify({mainGoal,goalType,nickname:'a',activity:[],completedTasks:[false,false,false,false,false]}));
+  const feed=a.el('opportunityFeed');
+  // a tiny stand-in for the browser: finds every element carrying data-kind in the feed html
+  feed.querySelectorAll=sel=>{
+    assert.equal(sel,'[data-kind]');
+    return [...feed.innerHTML.matchAll(/data-kind="(\w+)"/g)].map(m=>({dataset:{kind:m[1]},style:{}}));
+  };
+  a.run(`filterOpportunities('${filter}')`);
+  return feed.innerHTML;
+}
+const EMPTY=/이 종류의 기회는 아직 없어요/;
+test('a job goal shows its opportunity card under "all" and "job", and none under other filters',()=>{
+  assert.doesNotMatch(opportunityScreen('job','삼천리 시설관리 지원','all'),EMPTY);
+  assert.doesNotMatch(opportunityScreen('job','삼천리 시설관리 지원','job'),EMPTY);
+  assert.match(opportunityScreen('job','삼천리 시설관리 지원','cert'),EMPTY);
+  assert.match(opportunityScreen('job','삼천리 시설관리 지원','policy'),EMPTY);
+});
+test('cert, policy and general goals are counted by their own kind',()=>{
+  assert.doesNotMatch(opportunityScreen('cert','전기기사 준비','cert'),EMPTY);
+  assert.doesNotMatch(opportunityScreen('cert','전기기사 준비','job'),EMPTY);
+  assert.match(opportunityScreen('cert','전기기사 준비','policy'),EMPTY);
+  assert.doesNotMatch(opportunityScreen('policy','청년 월세 지원','policy'),EMPTY);
+  assert.match(opportunityScreen('policy','청년 월세 지원','cert'),EMPTY);
+  assert.doesNotMatch(opportunityScreen('other','건강 챙기기','all'),EMPTY);
+  assert.match(opportunityScreen('other','건강 챙기기','job'),EMPTY);
+});
+
 test('wake lock is not requested when the option is off or the device does not support it',async()=>{
   const a=createApp();
   const stats=installWakeLock(a);

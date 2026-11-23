@@ -66,8 +66,8 @@ const feedWithCards=a=>{
   const feed=a.el('opportunityFeed');
   let cards=[];
   feed.querySelectorAll=()=>{
-    cards=[...feed.innerHTML.matchAll(/<div class="card opportunity">(.*?)<\/div>/g)].map(m=>({
-      style:{},querySelector:()=>({textContent:(m[1].match(/<span class="tag">([^<]*)<\/span>/)||[])[1]||''})}));
+    cards=[...feed.innerHTML.matchAll(/<div class="card opportunity"(?: data-kind="(\w+)")?>(.*?)<\/div>/g)].map(m=>({
+      dataset:{kind:m[1]},style:{},querySelector:()=>({textContent:(m[2].match(/<span class="tag">([^<]*)<\/span>/)||[])[1]||''})}));
     return cards;
   };
   return feed;

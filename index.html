@@ -1338,10 +1338,8 @@ function filterOpportunities(filter){
   const feed=document.getElementById('opportunityFeed');
   feed.innerHTML=opportunityCards();
   let count=0;
-  feed.querySelectorAll('.opportunity').forEach(card=>{
-    const text=card.querySelector('.tag')?.textContent||'';
-    const kind=text.includes('자격증')?'cert':text.includes('취업')?'job':text.includes('정책')?'policy':'other';
-    const visible=filter==='all'||kind===filter;
+  feed.querySelectorAll('[data-kind]').forEach(card=>{
+    const visible=filter==='all'||card.dataset.kind===filter;
     card.style.display=visible?'':'none';
     if(visible) count++;
   });
@@ -1394,23 +1392,23 @@ function opportunityCards(){
   if(state.goalType==='cert'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏅 자격증</span><strong>${esc(state.mainGoal.replace(' 준비',''))}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
-        <div class="card opportunity"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="go('jobHub')">취업 관리 열기</button></div>
+        <div class="card opportunity" data-kind="cert"><span class="tag">🏅 자격증</span><strong>${esc(state.mainGoal.replace(' 준비',''))}</strong><span class="meta">Q-Net 연동 시 실제 원서접수·시험 일정을 확인해요.</span><button class="btn secondary" onclick="go('cert')">일정 확인</button></div>
+        <div class="card opportunity" data-kind="job"><span class="tag">💼 취업</span><strong>관련 직무 기회 탐색</strong><span class="meta">자격증과 연결되는 직무를 찾아볼 수 있어요.</span><button class="btn secondary" onclick="go('jobHub')">취업 관리 열기</button></div>
       </div>`;
   }
   if(state.goalType==='policy'){
     return `
       <div class="stack">
-        <div class="card opportunity"><span class="tag">🏛 정책</span><strong>${esc(state.mainGoal)}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
-        <div class="card opportunity"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><span class="meta">🛠 준비 중이에요</span></div>
+        <div class="card opportunity" data-kind="policy"><span class="tag">🏛 정책</span><strong>${esc(state.mainGoal)}</strong><span class="meta">${state.policyIncomeAdded?'소득 정보를 저장했어요. 실제 지원 자격은 아직 확인 전이에요.':'추가 조건 1개를 확인하면 더 정확해져요.'}</span><button class="btn secondary" onclick="go('policy')">조건 확인</button></div>
+        <div class="card opportunity" data-kind="other"><span class="tag">✨ 추천</span><strong>비슷한 지원 더 찾기</strong><span class="meta">목표와 상황에 맞는 다른 지원을 함께 탐색해요.</span><span class="meta">🛠 준비 중이에요</span></div>
       </div>`;
   }
   if(state.goalType==='job'){
-    return '<div class="card opportunity"><span class="tag">💼 취업</span><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
+    return '<div class="card opportunity" data-kind="job"><span class="tag">💼 취업</span><h3>관심 회사·공고 관리</h3><p>공식 채용과 외부 사이트에서 찾은 공고를 저장해 준비하세요.</p><button class="btn primary" onclick="go(\'jobHub\')">취업 관리 열기</button><button class="btn secondary" onclick="go(\'liveJobs\')">고용24 공고 조회</button></div>';
   }
   return `
     <div class="stack">
-      <div class="card opportunity"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${esc(state.mainGoal || '내 목표')}”를 기준으로 연결된 기회를 찾아 줄 거예요.</span><span class="meta">🛠 준비 중이에요</span></div>
+      <div class="card opportunity" data-kind="other"><span class="tag">✨ 목표 기반</span><strong>내 목표와 연결된 첫 기회 찾기</strong><span class="meta">“${esc(state.mainGoal || '내 목표')}”를 기준으로 연결된 기회를 찾아 줄 거예요.</span><span class="meta">🛠 준비 중이에요</span></div>
     </div>`;
 }
 
