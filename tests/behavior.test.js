@@ -1950,3 +1950,23 @@ test('tapping a date, changing the view or checking a habit keeps what was typed
   a.run("plannerSelect('2026-05-13')");
   assert.notEqual(a.el('plannerTitle').value,'운동(수정 중)');
 });
+
+/* ---------- persistent storage request ---------- */
+test('the app asks the browser to keep its data, warns in MY only when refused, and works without support',async()=>{
+  let asked=0;
+  const refused=createApp(undefined,{storage:{persist:async()=>{asked++;return false;}}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(asked,1);
+  refused.run('renderMy()');
+  assert.match(refused.el('myContent').innerHTML,/기록을 지우지 않겠다고 약속해 주지 않았어요/);
+  const granted=createApp(undefined,{storage:{persist:async()=>true}});
+  await new Promise(r=>setImmediate(r));
+  granted.run('renderMy()');
+  assert.doesNotMatch(granted.el('myContent').innerHTML,/약속해 주지 않았어요/);
+  const unsupported=createApp();
+  unsupported.run('renderMy()');
+  assert.doesNotMatch(unsupported.el('myContent').innerHTML,/약속해 주지 않았어요/);
+  const broken=createApp(undefined,{storage:{persist:()=>{throw new Error('nope');}}});
+  broken.run('renderMy()');
+  assert.ok(broken.el('myContent').innerHTML.includes('lastBackupInfo'));
+});

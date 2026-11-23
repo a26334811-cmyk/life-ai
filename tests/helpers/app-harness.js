@@ -17,6 +17,7 @@ const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
    opts.hidden   document.hidden
    opts.notification  {permission, requestResult} to fake the Notification API
    opts.fetch    fake fetch(url, options) used by the app
+   opts.storage  fake navigator.storage (e.g. {persist: async () => true})
    opts.failSave setItem throws (a full storage); it is read on every save, so a test can switch it off again
    opts.downloads  fake Blob, URL.createObjectURL and document.createElement for the backup download (see app.downloads)
    opts.trackHistory fake history.pushState/replaceState recorded in app.historyLog
@@ -81,7 +82,7 @@ clearTimeout: id => { if (id) timers[id - 1] = null; },
     clearInterval: id => { if (id) timers[id - 1] = null; },
     requestAnimationFrame() {},
     Intl, Date: FakeDate, URL, URLSearchParams, AbortController, AbortSignal, console,
-    navigator: opts.userAgent ? { userAgent: opts.userAgent } : {},
+    navigator: Object.assign(opts.userAgent ? { userAgent: opts.userAgent } : {}, opts.storage ? { storage: opts.storage } : {}),
     confirm: () => true, prompt: () => opts.answer
   };
   const historyCalls = [];
