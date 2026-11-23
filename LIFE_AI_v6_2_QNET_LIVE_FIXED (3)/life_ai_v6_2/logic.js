@@ -562,12 +562,19 @@
       // "3.5" in "학점 3.5 이상" must not borrow a 마감 that is far away: a short form needs the clue right next to it.
       const clueNear = !c.short || /(마감|까지)[^\d]{0,6}$/.test(before) || /^[^\d]{0,3}(까지|마감)/.test(after);
       if (clueNear) for (const [word, points] of POSITIVE) { if (before.includes(word) || after.includes(word)) score += points; }
-      for (const word of NEGATIVE) { if (before.slice(-10).includes(word)) score -= 3; }
       // end of a range: "11.10 ~ 11.30" (parenthesised weekdays are ignored)
       // also "11.10 – 11.30", "11.10 — 11.30" and a space-separated "11.10 - 11.30"
       const noParen = before.replace(/\([^)]*\)/g, '');
       const compact = noParen.replace(/\s+/g, '');
-      if (/[~∼～–—]$/.test(compact) || /\s-\s*$/.test(noParen)) score += 3;
+      const isRangeEnd = /[~∼～–—]$/.test(compact) || /\s-\s*$/.test(noParen);
+      // for a range end, the clue words sit before the range start ("면접: 12.5 ~ 12.7"), so look there too
+      let near = before.slice(-10);
+      if (isRangeEnd) {
+        const cut = noParen.search(/(?:[~∼～–—]|\s-)\s*$/);
+        if (cut >= 0) near += noParen.slice(0, cut).replace(/[\d.\-/년월일\s]+$/, '').slice(-10);
+      }
+      for (const word of NEGATIVE) { if (near.includes(word)) score -= 3; }
+      if (isRangeEnd) score += 3;
       if (!c.hasYear && score < 3) score -= 1; // short forms need a stronger clue
       // equal score: the one closest to a 마감 word, then the later date
       const dist = closingDistance(c);

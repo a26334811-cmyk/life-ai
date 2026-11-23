@@ -376,6 +376,13 @@ test('extractDeadline keeps a recently passed short date in this year and flags 
   assert.equal(L.extractDeadline('마감 5월 19일',today).date,'2027-05-19');
 });
 
+test('extractDeadline does not pick the end of an interview period as the deadline',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('접수: 11.1 ~ 11.30, 면접: 12.5 ~ 12.7',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('접수기간 2026.11.10(월) ~ 2026.11.30(일), 면접 2026.12.05(금) ~ 2026.12.07(일)',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('서류 접수 11월 10일 ~ 11월 30일 / 면접전형 12월 5일 ~ 12월 7일',today)?.date,'2026-11-30');
+});
+
 test('extractDeadline stays quiet when there is no clear deadline',()=>{
   const today='2026-11-16';
   for(const text of ['채용시 마감','급여 3.5% 인상, 3.5 리터','면접 발표 2026.12.10','','공고일 2026.11.01',null,undefined]){
