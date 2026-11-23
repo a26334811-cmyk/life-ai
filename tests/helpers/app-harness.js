@@ -46,7 +46,7 @@ function createApp(saved, opts = {}) {
   const el = id => {
     if (!ids.has(id)) return null;
     if (!elements.has(id)) {
-      elements.set(id, { value: '', dataset: {}, innerHTML: '', textContent: '', style: {}, checked: false,
+      elements.set(id, { value: '', dataset: {}, innerHTML: '', textContent: '', style: {}, checked: false, scrollIntoView() {},
         classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } });
     }
     return elements.get(id);
