@@ -556,7 +556,7 @@ h3{font-size:16px;line-height:1.4}
     <div id="liveCertStatus" class="card" role="status" aria-live="polite"><strong>종목을 선택하면 실제 접수일·시험일을 확인할 수 있어요.</strong></div>
     <div id="liveCertResults"></div>
     <p>내 목표와 연결된 자격정보를 확인하는 화면이에요.</p>
-    <p class="meta">조회한 일정은 이 기기에 저장돼요. 변경될 수 있으니 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener">Q-Net 공식 홈페이지</a>에서 최종 확인해 주세요.</p>
+    <p class="meta">조회한 일정은 이 기기에 저장돼요. 변경될 수 있으니 <a href="https://www.q-net.or.kr" target="_blank" rel="noopener noreferrer">Q-Net 공식 홈페이지</a>에서 최종 확인해 주세요.</p>
     <div class="actions">
       <button class="btn ghost" onclick="saveFavoriteCert()">♡ 관심 저장</button>
       <button class="btn primary" onclick="startCertGoal()">🎯 취득 준비</button>
@@ -1448,7 +1448,7 @@ function goalCompaniesHTML(){
       <h3>${esc(c.name)}</h3>
       <p class="meta">${safeUrl(c.url)?'등록한 공식 채용 페이지가 있어요.':'공식 채용 페이지 주소는 아직 없어요.'}</p>
       <div class="planner-item-actions">
-        ${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">공식 채용 페이지 열기</a>`:''}
+        ${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener noreferrer">공식 채용 페이지 열기</a>`:''}
         <button class="btn ghost" onclick="go('jobHub')">공고 저장·관리</button>
       </div></div>`).join('')}</div>`;
 }
@@ -2608,7 +2608,7 @@ function jobCollections(){
 function newId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function companySearchLinks(name){
   const query=encodeURIComponent(name+' 채용');
-  return `<div class="company-links"><a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener">잡코리아 검색</a></div>`;
+  return `<div class="company-links"><a class="btn secondary" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener noreferrer">공식 채용 페이지 찾기</a><a class="btn ghost" href="https://www.saramin.co.kr/zf_user/search?searchword=${encodeURIComponent(name)}" target="_blank" rel="noopener noreferrer">사람인 검색</a><a class="btn ghost" href="https://www.jobkorea.co.kr/Search/?stext=${encodeURIComponent(name)}" target="_blank" rel="noopener noreferrer">잡코리아 검색</a></div>`;
 }
 function addWatchCompany(){
   jobCollections();const name=document.getElementById('watchCompany').value.trim();
@@ -2951,7 +2951,7 @@ function postingsForDisplay(){
 }
 function renderJobHub(){
   jobCollections();
-  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('')||'<div class="card"><p class="meta">아직 관심 회사가 없어요. 위 \'＋ 관심 회사 등록\'에서 추가해 보세요.</p></div>';
+  document.getElementById('watchCompanies').innerHTML=state.watchCompanies.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><p class="meta">관심 회사 · 공고는 아래 링크에서 직접 확인해 주세요.</p>${safeUrl(c.url)?`<a class="btn primary" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener noreferrer">등록한 공식 채용 페이지</a>`:''}${companySearchLinks(c.name)}<button class="btn ghost" data-id="${esc(c.id)}" onclick="removeWatchCompany(this.dataset.id)">관심 회사 해제</button></div>`).join('')||'<div class="card"><p class="meta">아직 관심 회사가 없어요. 위 \'＋ 관심 회사 등록\'에서 추가해 보세요.</p></div>';
   const today=koreaToday();
   const shown=postingsForDisplay(),active=shown.filter(p=>!postingIsEnded(p,today)),ended=shown.filter(p=>postingIsEnded(p,today));
   document.getElementById('savedPostings').innerHTML=active.map(postingCardHTML).join('')+(ended.length?`<details ${endedPostingsOpen?'open':''} ontoggle="endedPostingsOpen=this.open"><summary>끝난 공고 ${ended.length}개 (합격·불합격·지원 취소·마감 지남)</summary><div class="stack">${ended.map(postingCardHTML).join('')}</div></details>`:'')
@@ -2964,7 +2964,7 @@ function postingIsEnded(p,today){
   return ['관심','준비 중'].includes(p.stage||'관심')&&Boolean(p.deadline)&&p.deadline<today;
 }
 function postingCardHTML(p){
-  return `<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(postingDueText(p)):p.alwaysOpen?'상시채용':'마감일 미정'} · <span class="posting-progress" data-id="${esc(p.id)}">${postingProgressText(p)}</span></p>${postingNeedsInfoHTML(p)}${postingDeadlineMarkHTML(p)}${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><label>면접 시간 (선택)<input type="time" value="${esc(p.interviewTime||'')}" data-id="${esc(p.id)}" onchange="setInterviewTime(this.dataset.id,this.value)"></label>${postingEventsHTML(p)}<p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`;
+  return `<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(postingDueText(p)):p.alwaysOpen?'상시채용':'마감일 미정'} · <span class="posting-progress" data-id="${esc(p.id)}">${postingProgressText(p)}</span></p>${postingNeedsInfoHTML(p)}${postingDeadlineMarkHTML(p)}${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><label>면접 시간 (선택)<input type="time" value="${esc(p.interviewTime||'')}" data-id="${esc(p.id)}" onchange="setInterviewTime(this.dataset.id,this.value)"></label>${postingEventsHTML(p)}<p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`;
 }
 
 function esc(s){
@@ -3024,7 +3024,7 @@ async function loadLiveJobs(){
         <h3>${esc(x.title||'채용공고')}</h3>
         <p class="meta">${esc(x.region||'지역 미정')} · ${esc(x.career||'경력 무관/미정')}</p>
         <p><strong>지원기간</strong> ${esc(fmtDate(x.regDt))} ~ ${esc(fmtDate(x.closeDt))}</p>
-        ${safeUrl(x.url)?`<a class="btn secondary" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">고용24에서 확인</a>`:''}
+        ${safeUrl(x.url)?`<a class="btn secondary" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">고용24에서 확인</a>`:''}
       </div>`).join('')
     }</div>`;
   }catch(e){

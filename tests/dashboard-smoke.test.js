@@ -138,3 +138,10 @@ test('home summary is rounded and compact with details available on demand',()=>
   assert.match(html,/\.soft-overview\{[^}]*border-radius:26px/);
   assert.match(html,/aria-label="시험 일정 보기"/);
 });
+
+test('every link that opens a new tab hides the app address from the other site',()=>{
+  const links=html.match(/<a\b[^>]*target="_blank"[^>]*>/g)||[];
+  assert.ok(links.length>0);
+  for(const tag of links)assert.match(tag,/rel="noopener noreferrer"/,tag);
+});
+
