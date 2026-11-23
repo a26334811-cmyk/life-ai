@@ -272,3 +272,19 @@ test('the safe fetch never reaches a local server even when the name points at i
     assert.equal(hits,0);
   }finally{server.close();}
 });
+
+test('pages stuffed with unclosed tags are parsed quickly',()=>{
+  const SIZE=1536*1024;
+  for(const unit of ['<meta ','<script type="application/ld+json">','<title ','<a ']){
+    const html=unit.repeat(Math.floor(SIZE/unit.length));
+    const start=Date.now();
+    parsePage(html,'https://example.com');
+    const ms=Date.now()-start;
+    assert.ok(ms<1000,unit+' took '+ms+' ms');
+  }
+});
+
+test('a real posting is still read after a long run of unclosed tags',()=>{
+  const r=parsePage('<meta '.repeat(100)+JSON_LD,'https://example.com/job/1');
+  assert.equal(r.company,'삼천리');
+});

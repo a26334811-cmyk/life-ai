@@ -248,7 +248,7 @@ function safeChar(code) {
 }
 function plain(text, max) {
   /* Invisible direction/zero-width characters could make a title look different from what it is, so drop them (after entity decoding). */
-  return decodeEntities(String(text || '').replace(/<[^>]*>/g, ' '))
+  return decodeEntities(String(text || '').replace(/<[^<>]*>/g, ' '))
     .replace(/[​-‏‪-‮⁦-⁩]/g, '')
     .replace(/\s+/g, ' ')
     .replace(/[\u0000-\u001F\u007F]/g, '')
@@ -256,7 +256,8 @@ function plain(text, max) {
 }
 
 function metaContent(html, key) {
-  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+  // [^<>] stops at the next '<', so a page full of unclosed "<meta " cannot make the search quadratic.
+  const tags = html.match(/<meta\b[^<>]{0,2000}>/gi) || [];
   for (const tag of tags) {
     const name = /(?:property|name)\s*=\s*["']([^"']+)["']/i.exec(tag);
     if (!name || name[1].toLowerCase() !== key) continue;
@@ -268,12 +269,28 @@ function metaContent(html, key) {
 
 function jsonLdBlocks(html) {
   const out = [];
-  const re = /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  // Find each opening tag, then look for its closing tag with indexOf. A lazy [\s\S]*? regex retried from every
+  // unclosed "<script" would be quadratic on a hostile page.
+  const open = /<script\b([^>]{0,2000})>/gi;
+  const close = /<\/script\s*>/gi;
   let m;
-  while ((m = re.exec(html))) {
-    try { out.push(JSON.parse(m[1].trim())); } catch (e) { /* ignore broken block */ }
+  while ((m = open.exec(html))) {
+    if (!/type\s*=\s*["']application\/ld\+json["']/i.test(m[1])) continue;
+    close.lastIndex = open.lastIndex;
+    const end = close.exec(html);
+    if (!end) break;
+    try { out.push(JSON.parse(html.slice(open.lastIndex, end.index).trim())); } catch (e) { /* ignore broken block */ }
+    open.lastIndex = close.lastIndex;
   }
   return out;
+}
+function titleText(html) {
+  const open = /<title\b[^>]{0,500}>/i.exec(html);
+  if (!open) return '';
+  const close = /<\/title\s*>/gi;
+  close.lastIndex = open.index + open[0].length;
+  const end = close.exec(html);
+  return end ? html.slice(open.index + open[0].length, end.index) : '';
 }
 function flattenLd(node, list) {
   if (Array.isArray(node)) node.forEach(n => flattenLd(n, list));
@@ -333,12 +350,14 @@ function inferCompany(html, nodes, title, siteName) {
   return '';
 }
 
-function parsePage(html, finalUrl) {
+const MAX_PARSE_CHARS = 300 * 1024;
+function parsePage(rawHtml, finalUrl) {
+  // Only the head of a page holds the data we need; a hostile 1.5 MB page must not keep the function busy.
+  const html = String(rawHtml || '').slice(0, MAX_PARSE_CHARS);
   const nodes = jsonLdBlocks(html).reduce((all, block) => flattenLd(block, all), []);
   const job = nodes.find(isJobPosting);
   const siteName = metaContent(html, 'og:site_name');
-  const titleTag = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
-  const metaTitle = metaContent(html, 'og:title') || metaContent(html, 'twitter:title') || (titleTag ? plain(titleTag[1], 200) : '');
+  const metaTitle = metaContent(html, 'og:title') || metaContent(html, 'twitter:title') || plain(titleText(html), 200);
   const metaDescription = metaContent(html, 'og:description') || metaContent(html, 'description');
   if (job) {
     const title = text(job.title) || metaTitle;
