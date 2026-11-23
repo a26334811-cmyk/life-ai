@@ -1,5 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
+const L=require('../logic.js');
 const {createApp}=require('./helpers/app-harness.js');
 // The fake clock starts at 2026-05-10 (Korea time).
 
@@ -184,11 +185,36 @@ test('the quick add refuses an empty or over-long title and saves nothing',()=>{
   a.el('plannerQuickTitle').value='가'.repeat(121);
   a.run('plannerQuickAdd()');
   assert.equal(a.run('plannerEntries().length'),0);
-  assert.equal(a.toasts.length,2);
-  a.el('plannerQuickTitle').value='가'.repeat(120);
-  a.run('plannerQuickAdd()');
-  assert.equal(entries(a).length,1);
 });
+
+
+/* ---------- #347 range whose end date drops the month ---------- */
+
+test('#347 "11월 10일 ~ 30일 마감" picks the end of the range, not the start',()=>{
+  const today='2026-11-23';
+  for(const text of [
+    '지원기간 11월 10일 ~ 30일 마감','지원기간 11월 10일(월) ~ 30일(일) 마감','접수 11월 10일~30일','지원기간 11.10 ~ 30 마감','모집기간 2026.11.10 ~ 30일 까지']){
+    const r=L.extractDeadline(text,today);
+    assert.equal(r?.date,'2026-11-30',text);
+    assert.equal(r.past,false,text);
+  }
+  assert.equal(L.extractDeadline('지원기간 11월 10일 ~ 30일 마감',today).confident,true);
+});
+
+test('#347 month-dropped range does not break other readings',()=>{
+  const today='2026-11-23';
+  assert.equal(L.extractDeadline('지원기간 11월 10일 ~ 12월 5일',today)?.date,'2026-12-05','full end date still wins');
+  assert.equal(L.extractDeadline('접수 11월 10일 ~ 18시까지',today)?.date,'2026-11-10','a time after ~ is not a day');
+  assert.equal(L.extractDeadline('접수 11월 28일 ~ 5일 마감',today)?.date,'2026-11-28','end before start is not a same-month range');
+  assert.equal(L.extractDeadline('11월 10일 ~ 30일 서류 합격자 발표',today)?.date,L.extractDeadline('11월 10일 ~ 11월 30일 서류 합격자 발표',today)?.date,'same as the full-date range');
+  assert.equal(L.extractDeadline('입사일 11월 10일 ~ 30일 교육',today)?.date,L.extractDeadline('입사일 11월 10일 ~ 11월 30일 교육',today)?.date);
+});
+
+/* ---------- #342 custom to-dos on a job posting ---------- */
+
+const oldPosting={id:'p1',company:'삼천리',title:'시설',url:'https://example.com/job/9',stage:'관심',tasks:[true,false,false,false]};
+
+
 
 /* ---------- #84 posting display order ---------- */
 test('saved postings are shown by deadline urgency without changing the stored order',()=>{

@@ -550,6 +550,19 @@
       add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
       if (found.length > before) found[found.length - 1].short = true; // "11.30" / "11/30"
     }
+    // "11월 10일 ~ 30일": the end of a range often drops the month. Read it as the same month's end date.
+    const tail = /^\s*(?:\([^)]*\))?\s*[~∼～]\s*(\d{1,2})(?:\s*일|(?=\s*(?:\(|까지|마감|$|[,)\n])))/;
+    for (const c of found.slice()) {
+      const t = tail.exec(src.slice(c.index + c.length, c.index + c.length + 40));
+      if (!t) continue;
+      const ym = c.iso.slice(0, 8);
+      const endIso = ym + String(Number(t[1])).padStart(2, '0');
+      if (!validDate(endIso) || endIso < c.iso) continue;
+      const offset = t[0].lastIndexOf(t[1]);
+      const at = c.index + c.length + offset, length = t[0].length - offset;
+      if (found.some(f => f.index === at)) continue;
+      found.push({ index: at, length, iso: endIso, hasYear: c.hasYear });
+    }
     if (!found.length) return null;
     const closing = [];
     for (let i = src.indexOf('마감'); i >= 0; i = src.indexOf('마감', i + 1)) closing.push(i);
