@@ -414,6 +414,17 @@ test('editing all occurrences changes the series and keeps skipped days',async()
   assert.deepEqual(titles(a,'2026-05-03'),[]);
 });
 
+test('editing all occurrences with a new repeat kind clears old skipped and done days',async()=>{
+  const a=createApp(undefined,{choice:'all'});
+  a.run("state.plannerEntries=[{id:'w',title:'운동',date:'2026-05-04',repeat:'weekly',skipDates:['2026-05-11'],doneDates:['2026-05-18']}]");
+  await a.run("plannerEdit('w','2026-05-04')");
+  fillForm(a,{title:'운동',date:'2026-05-04',repeat:'daily'});
+  await a.run('plannerSave()');
+  assert.deepEqual(titles(a,'2026-05-11'),['운동']);
+  assert.equal(a.run("plannerForDate('2026-05-18')[0].done"),false);
+  assert.equal(a.run('state.plannerEntries[0].skipDates.length'),0);
+});
+
 test('cancelling the scope question leaves the series untouched',async()=>{
   const a=createApp(undefined,{choice:null});
   a.run("state.plannerEntries=[{id:'d',title:'운동',date:'2026-05-01',repeat:'daily'}]");
