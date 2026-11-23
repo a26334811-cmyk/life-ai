@@ -375,7 +375,9 @@ h3{font-size:16px;line-height:1.4}
 #quickPosting{margin:12px 0}
 .posting-steps{margin:12px 0}.posting-step{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.posting-step .btn{width:auto;min-height:44px}.posting-step-add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.posting-step-add input{width:100%;padding:12px;border:1px solid var(--line,#dfe6f0);border-radius:12px;font:inherit}.posting-step-add .btn{grid-column:1/-1}
 .habit-add,.focus-history-more{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
-.habit-add summary,.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
+.focus-history-more summary{color:var(--muted);font-size:13px;cursor:pointer}
+.habit-add summary{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:11px;background:#eef3fb;color:#245ba5;font-size:15px;font-weight:700;cursor:pointer;list-style:none}
+.habit-add summary::-webkit-details-marker{display:none}
 .habit-add .planner-form{margin-top:12px}
 .focus-history-more h4{margin:12px 0 8px}
 .focus-history-more p.meta{margin:6px 0}
@@ -2215,13 +2217,17 @@ function habitEntries(){
   if(!Array.isArray(state.habits))state.habits=[];
   return state.habits;
 }
+let habitAddOpen=false;
 function habitAdd(){
   const input=document.getElementById('habitName');
   const name=input?.value.trim();
   if(!name||name.length>60){toast('습관 이름을 1~60자로 입력해 주세요.');return;}
   if(habitEntries().some(x=>x.name===name)){toast('같은 이름의 습관이 있어요.');return;}
   habitEntries().push({id:newId(),name,createdAt:koreaToday(),checks:[]});
+  habitAddOpen=true; // keep the add box open so several habits can be entered in a row
   const saved=persistState();renderCalendar();if(saved)toast('습관을 추가했어요.');
+  const next=document.getElementById('habitName');
+  if(next&&typeof next.focus==='function')next.focus();
 }
 /* Checks or unchecks a habit on a day. Returns false when nothing changed (unknown habit, bad or future day). */
 function habitSetCheck(id,date){
@@ -2282,7 +2288,7 @@ function habitPanelHTML(){
   return `<div class="card"><h3>🌱 오늘의 습관</h3>
     <p class="meta">오늘 ${completed}/${habits.length}개 실천했어요. 내 속도대로 이어가요.</p>
     ${habits.map(h=>`<div class="planner-item habit-row"><div><label class="check"><input type="checkbox" ${Array.isArray(h.checks)&&h.checks.includes(today)?'checked':''} data-id="${esc(h.id)}" onchange="habitToggle(this.dataset.id,koreaToday())"><span><strong>${esc(h.name)}</strong></span></label><p class="meta">연속 달성 ${habitStreak(h)}일${LifeLogic.isHabitRestDay(h,today)?' · 오늘은 쉬는 날이에요':''} · <button type="button" class="btn ghost habit-yesterday" data-id="${esc(h.id)}" onclick="habitToggle(this.dataset.id,'${yesterday}')">어제 ${Array.isArray(h.checks)&&h.checks.includes(yesterday)?'체크 취소':'체크'}</button></p></div><div><button class="btn ghost habit-rest" aria-pressed="${LifeLogic.isHabitRestDay(h,today)}" aria-label="${esc(h.name)} ${LifeLogic.isHabitRestDay(h,today)?'쉬는 날 취소':'오늘 쉬기'}" data-id="${esc(h.id)}" onclick="habitRestToggle(this.dataset.id)">${LifeLogic.isHabitRestDay(h,today)?'쉬기 취소':'오늘 쉬기'}</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 이름 수정" data-id="${esc(h.id)}" onclick="habitRename(this.dataset.id)">이름 수정</button><button class="btn ghost habit-remove" aria-label="${esc(h.name)} 습관 삭제" data-id="${esc(h.id)}" onclick="habitRemove(this.dataset.id)">삭제</button></div></div>`).join('')||'<p class="meta">매일 반복하고 싶은 습관을 추가해 보세요.</p>'}
-    <details class="habit-add"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();habitAdd()}"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
+    <details class="habit-add" ${habitAddOpen?'open':''} ontoggle="habitAddOpen=this.open"><summary>＋ 습관 추가</summary><div class="planner-form"><label class="wide">새 습관<input id="habitName" maxlength="60" placeholder="예: 자격증 공부 30분" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();habitAdd()}"></label><button class="btn secondary wide" onclick="habitAdd()">추가하기</button></div></details>
   </div>`;
 }
 function plannerAgenda(){
