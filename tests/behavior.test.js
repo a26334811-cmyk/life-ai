@@ -1101,6 +1101,28 @@ test('screen changes leave history entries; bottom menu and the first screen onl
   assert.equal(a.historyLog.length,before+1);
 });
 
+/* ---------- cert screen does not leak the goal text (#294) ---------- */
+const openCert=goal=>{
+  const a=createApp(JSON.stringify(goal));
+  a.el('certYear').options=[];
+  a.run('initCertSearch()');
+  return a;
+};
+test('opening the cert screen with a personal goal leaves the search empty and sends nothing',()=>{
+  const a=openCert({mainGoal:'다이어트 3kg 빼기',goalType:'custom',parsedGoal:{raw:'다이어트 3kg 빼기',type:'custom',subject:''}});
+  assert.equal(a.run('certQueryName()'),'');
+  assert.equal(a.el('certSearchInput').value,'');
+  assert.equal(a.el('certSearchMatches').innerHTML,'','no "searching…" state means no request was started');
+  const b=openCert({mainGoal:'전기기사 준비',goalType:'job',parsedGoal:{raw:'취업 준비',type:'job',subject:''}});
+  assert.equal(b.el('certSearchInput').value,'');
+});
+
+test('a cert goal with a found cert name still fills the search box and searches',()=>{
+  const a=openCert({mainGoal:'전기기사 준비',goalType:'cert',parsedGoal:{raw:'전기기사 준비',type:'cert',subject:'전기기사'}});
+  assert.equal(a.el('certSearchInput').value,'전기기사');
+  assert.match(a.el('certSearchMatches').innerHTML,/종목 검색 중/);
+});
+
 test('the browser Back (popstate) shows the earlier screen without adding history',()=>{
   const a=createApp(undefined,{trackHistory:true});
   a.run("go('calendar')");a.run("go('jobHub')");
