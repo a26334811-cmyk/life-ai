@@ -1970,3 +1970,24 @@ test('the app asks the browser to keep its data, warns in MY only when refused, 
   broken.run('renderMy()');
   assert.ok(broken.el('myContent').innerHTML.includes('lastBackupInfo'));
 });
+
+test('after a successful backup the MY "마지막 백업" line updates at once, in Korean time (#491)',()=>{
+  // 한국 시간 2026-11-24 05:00 (세계 표준시로는 전날 20:00)
+  const a=createApp(JSON.stringify({mainGoal:'x'}),{now:Date.parse('2026-11-23T20:00:00Z')});
+  a.run('renderMy()');
+  assert.ok(a.el('myContent').innerHTML.includes('마지막 백업:</strong> 아직 없음'));
+  a.run('Blob=function(){}');
+  a.context.URL={createObjectURL:()=>'blob:x',revokeObjectURL(){}};
+  const link={click(){},remove(){}};
+  a.context.document.createElement=()=>link;
+  a.context.document.body={appendChild(){}};
+  a.run('exportLifeAIBackup()');
+  assert.ok(a.saved().lastBackupAt,'backup time is saved');
+  assert.equal(a.el('lastBackupInfo').innerHTML,'<strong>마지막 백업:</strong> 2026-11-24');
+  assert.ok(!a.toasts.includes('백업 파일을 만들지 못했어요.'));
+  // 화면을 다시 그려도 같은 날짜, 잘못된 값은 '아직 없음'
+  a.run('renderMy()');
+  assert.ok(a.el('myContent').innerHTML.includes('마지막 백업:</strong> 2026-11-24'));
+  assert.equal(createApp(JSON.stringify({lastBackupAt:'엉뚱한 값'})).run('lastBackupInfoHTML()'),'<strong>마지막 백업:</strong> 아직 없음');
+});
+
