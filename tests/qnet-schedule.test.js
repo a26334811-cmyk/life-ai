@@ -90,6 +90,33 @@ test('dates that are not on the calendar are skipped',async()=>{
     ['최종합격발표','2026-05-20','2026-05-20']
   ]);
 });
+const round=(name,reg,exam)=>`<item><implYy>2026</implYy><description>${name}</description><docRegStartDt>${reg[0]}</docRegStartDt><docRegEndDt>${reg[1]}</docRegEndDt><docExamStartDt>${exam}</docExamStartDt></item>`;
+const scheduleOf=async(...items)=>{
+  const handler=setup(()=>`<response><totalCount>${items.length}</totalCount>${items.join('')}</response>`);
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  assert.equal(result.statusCode,200);
+  return JSON.parse(result.body);
+};
+test('same round with a different registration period gets one extra registration event',async()=>{
+  const data=await scheduleOf(
+    round('정기 1회',['20260101','20260105'],'20260201'),
+    round('정기 1회',['20260120','20260122'],'20260201'));
+  assert.equal(data.rounds.length,1);
+  const events=data.rounds[0].events;
+  assert.equal(events.filter(e=>e.type==='필기원서접수').length,1);
+  const extra=events.filter(e=>e.type==='추가필기원서접수');
+  assert.equal(extra.length,1);
+  assert.equal(extra[0].label,'추가 필기원서접수');
+  assert.equal(extra[0].startDate,'2026-01-20');assert.equal(extra[0].endDate,'2026-01-22');
+  assert.equal(data.items.filter(i=>i.type==='추가필기원서접수').length,1);
+});
+test('rounds whose other dates differ stay separate and get no extra registration',async()=>{
+  const data=await scheduleOf(
+    round('정기 1회',['20260101','20260105'],'20260201'),
+    round('정기 1회',['20260120','20260122'],'20260301'));
+  assert.equal(data.rounds.length,2);
+  assert.equal(data.items.some(i=>i.type==='추가필기원서접수'),false);
+});
 test('invalid year and missing service key fail clearly',async()=>{
   const handler=setup(()=>{throw Error('must not fetch');});
   assert.equal((await handler({queryStringParameters:{name:'전기기사',year:'x'}})).statusCode,400);
