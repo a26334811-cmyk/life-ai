@@ -214,6 +214,21 @@
     return out;
   }
 
+  /* Extra steps of one posting ("서류 발표", "인적성", "1차 면접" ...): {id, label, date, time}. Broken entries are dropped one by one. */
+  const MAX_POSTING_EVENTS = 20;
+  function cleanPostingEvents(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(e => isPlain(e) && validId(e.id) && isText(e.label, 40) && e.label.trim() && validDate(e.date))
+      .slice(0, MAX_POSTING_EVENTS)
+      .map(e => ({ id: e.id, label: e.label.trim(), date: e.date, time: validTime(e.time) ? e.time : '' }));
+  }
+  /* The steps of a posting that are still ahead: none once it was rejected or cancelled. */
+  function postingEventsOf(p) {
+    if (!isPlain(p) || ['불합격', '지원 취소'].includes(p.stage)) return [];
+    return cleanPostingEvents(p.events);
+  }
+
   const STATE_SCHEMA_VERSION = 2;
 
   /* Upgrades data saved by an older version. Always returns a new object (or the input when it is not an object).
@@ -302,6 +317,7 @@
         let kept = check ? items.filter(check) : items;
         if (key === 'taskNames' && kept.length > 20) kept = kept.slice(0, 20);
         if (key === 'plannerEntries') kept = kept.map(cleanPlannerEntry);
+        if (key === 'jobPostings') kept = kept.map(p => (p.events === undefined ? p : Object.assign({}, p, { events: cleanPostingEvents(p.events) })));
         if (kept.length !== value.length || droppedDate) dropped.push(key);
         out[key] = kept;
       } else {
@@ -727,7 +743,7 @@
 
   /* ---------- things coming up soon (banner on the home screen) ---------- */
   const dayDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
-  const ALERT_ORDER = { job: 0, interview: 1, cert: 2, planner: 3 };
+  const ALERT_ORDER = { job: 0, interview: 1, step: 1, cert: 2, planner: 3 };
 
   /* Deadlines, interviews, exam dates and high-priority entries from today up to `days` days ahead, soonest first.
      Each: {kind, title, label, date, left (days from today), go (screen to open)}. */
@@ -743,6 +759,7 @@
       const name = [p.company, p.title].filter(Boolean).join(' · ');
       if (['관심', '준비 중'].includes(p.stage) && inWindow(p.deadline)) add('job', name, '마감' + (validTime(p.deadlineTime) ? ' ' + p.deadlineTime : ''), p.deadline, 'jobHub', { guess: p.deadlineGuess === true });
       if (p.interviewDate && !['합격', '불합격', '지원 취소'].includes(p.stage) && inWindow(p.interviewDate)) add('interview', name, '면접' + (/^([01]\d|2[0-3]):[0-5]\d$/.test(p.interviewTime || '') ? ' ' + p.interviewTime : ''), p.interviewDate, 'jobHub');
+      for (const e of postingEventsOf(p)) if (inWindow(e.date)) add('step', name, e.label + (e.time ? ' ' + e.time : ''), e.date, 'jobHub');
     }
     for (const { schedule } of certSchedulesOf(s)) {
       for (const it of scheduleItems(schedule)) {
@@ -881,7 +898,7 @@
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,
     MAX_TASKS, goalTaskNames, addGoalTask, renameGoalTask, removeGoalTask, resetGoalTasks,
     goalProgress,
-    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange, validTime,
+    firstUrl, cleanPostingUrl, parseShareParams, cleanTitle, extractDeadline, deadlineInRange, validTime, cleanPostingEvents, postingEventsOf, MAX_POSTING_EVENTS,
     FOCUS_MINUTES, FOCUS_MAX_MINUTES, isFocusMinutes, FOCUS_CATEGORIES, focusCategoryName, FOCUS_HISTORY_LIMIT,
     validDate, koreaDate, dateOffset, daysInMonth, weekStart, periodDates, scheduleItems,
     occurs, occurrencesByDate, isRepeating, isDone, toggleDone, skipOccurrence, habitStreak, isHabitRestDay,
