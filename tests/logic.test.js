@@ -547,3 +547,14 @@ test('a posting memo longer than the limit is cut when loading, not dropped',()=
   assert.deepEqual(dropped,[],'cutting a long memo is not reported as lost data');
   assert.equal(posting.notes.length,L.POSTING_NOTES_MAX+500,'the input is not changed');
 });
+
+test('saved postings keep only http(s) links; a backup with an unsafe link is refused',()=>{
+  const mk=(id,extra={})=>({id,company:'A',title:'t',...extra});
+  const good=mk('a',{url:'https://example.com/1'});
+  const raw={nickname:'n',mainGoal:'g',activity:[],completedTasks:[false],jobPostings:[good,mk('b',{url:'http://example.com/2'}),mk('c'),mk('d',{url:''}),mk('e',{url:'javascript:alert(1)'}),mk('f',{url:'not a url'}),mk('g',{url:42})]};
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.deepEqual(state.jobPostings.map(p=>p.id),['a','b','c','d']);
+  assert.ok(dropped.includes('jobPostings'));
+  assert.equal(L.validateBackupState(raw),false);
+  assert.equal(L.validateBackupState({...raw,jobPostings:[good,mk('c')]}),true);
+});

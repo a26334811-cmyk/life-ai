@@ -185,6 +185,11 @@
   const isPlain = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   const isText = (value, max) => typeof value === 'string' && value.length <= (max || 2000);
 
+  function isHttpUrl(value) {
+    if (typeof value !== 'string') return false;
+    try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch (e) { return false; }
+  }
+
   const STRING_KEYS = ['nickname', 'mainGoal', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'policyIncome', 'recoveryMode', 'lastBackupAt', 'backupSnoozeUntil', 'goalId'];
   const BOOLEAN_KEYS = ['jobPreparationStarted', 'policyIncomeAdded', 'jobSubmitted', 'favorite'];
   const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals', 'taskNames'];
@@ -200,7 +205,8 @@
       (item.restDates === undefined || Array.isArray(item.restDates)),
     plannerEntries: item => isPlain(item) && validId(item.id) && isText(item.title, 300) && validDate(item.date),
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
-    jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000),
+    jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000) &&
+      (item.url === undefined || item.url === '' || isHttpUrl(item.url)),
     taskNames: item => isText(item, 100) && item.trim() !== '',
     watchCompanies: item => isPlain(item) || typeof item === 'string',
     favoriteCerts: item => isPlain(item) && isText(item.name, 300) && isText(item.code, 300)
