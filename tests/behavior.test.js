@@ -652,6 +652,18 @@ test('a planner item with a non-text time does not break the calendar',()=>{
   assert.deepEqual(titles(a,'2026-05-10'),['아침','숫자 시간']);
 });
 
+test('the notice only says the original was kept when the copy was really stored',()=>{
+  const raw=JSON.stringify({mainGoal:'x',completedTasks:'bad'});
+  const ok=createApp(raw);
+  assert.match(ok.run('startupNotice'),/따로 남겨 두었어요/);
+  const full=createApp(raw,{failSave:true});
+  assert.equal(full.storage.get('lifeAIPrototypeV5.damaged'),undefined);
+  assert.match(full.run('startupNotice'),/보관하지 못했어요/);
+  assert.doesNotMatch(full.run('startupNotice'),/남겨 두었어요/);
+  const unreadable=createApp('{not json',{failSave:true});
+  assert.match(unreadable.run('startupNotice'),/보관하지 못했어요/);
+});
+
 test('data saved by the previous version is upgraded',()=>{
   const old=JSON.stringify({mainGoal:'x',plannerEntries:[{id:'r',title:'매일',date:'2026-05-01',repeat:'daily',done:true}]});
   const a=createApp(old);
