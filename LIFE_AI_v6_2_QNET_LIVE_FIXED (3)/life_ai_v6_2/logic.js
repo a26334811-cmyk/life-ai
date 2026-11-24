@@ -580,7 +580,8 @@
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
       add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
     }
-    const short = /(?<![\d.\-/])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d.\-/])/g;
+    // a trailing dot is fine ("11.30." / "12.5.(금)"); a dot followed by a digit is a longer number ("1.2.3")
+    const short = /(?<![\d.\-/])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d\-/])(?!\.\d)/g;
     while ((m = short.exec(src))) {
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
       const before = found.length;

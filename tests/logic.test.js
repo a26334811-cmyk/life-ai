@@ -579,3 +579,12 @@ test('sanitizeState fixes an unknown posting stage and a task list of the wrong 
   assert.deepEqual(dropped,[],'fixing a posting is not reported as lost data');
   assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:raw.jobPostings}),true);
 });
+
+test('month.day dates that end with a dot are read, longer dotted numbers are not',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('접수 마감 11.30.',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('접수 마감 12.5.(금) 18시',today)?.date,'2026-12-05');
+  assert.equal(L.extractDeadline('접수 마감 11.30. 이후 불가',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('마감 1.2.3',today),null,'1.2.3 is a number, not a date');
+  assert.equal(L.extractDeadline('마감 11.30.5',today),null,'dot followed by a digit is a longer number');
+});
