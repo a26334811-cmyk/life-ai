@@ -891,6 +891,7 @@ function makeLifeAIBackup(){
   state.lastBackupAt=exportedAt;
   const backupState=JSON.parse(JSON.stringify(state));
   delete backupState.focusRun; // a running timer in a file would be counted as a finished session when restored later
+  delete backupState.backupSnoozeUntil; // "remind me later" belongs to this phone only; a new phone should not inherit it
   const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
   return {
     text:JSON.stringify(payload),
