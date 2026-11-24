@@ -74,6 +74,22 @@ test('dates that are not on the calendar are dropped from events',async()=>{
   assert.equal(data.items[0].startDate,'2026-04-20');
   assert.equal(data.items[0].endDate,'2026-04-20','an impossible end date falls back to the start date');
 });
+test('dates that are not on the calendar are skipped',async()=>{
+  const item='<item><implYy>2026</implYy><description>정기 1회</description>'
+    +'<docRegStartDt>20260230</docRegStartDt><docRegEndDt>20260305</docRegEndDt>'   // 30 February start: whole event skipped
+    +'<docExamStartDt>20261301</docExamStartDt><docExamEndDt>20261302</docExamEndDt>' // month 13: skipped
+    +'<pracRegStartDt>20260410</pracRegStartDt><pracRegEndDt>20260431</pracRegEndDt>' // bad end: falls back to the start date
+    +'<pracExamStartDt>20260229</pracExamStartDt>'                                   // 2026 is not a leap year
+    +'<pracPassDt>20260520</pracPassDt></item>';
+  const handler=setup(()=>`<response><totalCount>1</totalCount>${item}</response>`);
+  const result=await handler({queryStringParameters:{name:'전기기사',code:'1150',year:'2026'}});
+  assert.equal(result.statusCode,200);
+  const events=JSON.parse(result.body).items;
+  assert.deepEqual(events.map(e=>[e.label,e.startDate,e.endDate]),[
+    ['실기원서접수','2026-04-10','2026-04-10'],
+    ['최종합격발표','2026-05-20','2026-05-20']
+  ]);
+});
 test('invalid year and missing service key fail clearly',async()=>{
   const handler=setup(()=>{throw Error('must not fetch');});
   assert.equal((await handler({queryStringParameters:{name:'전기기사',year:'x'}})).statusCode,400);
