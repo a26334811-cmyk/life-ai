@@ -624,6 +624,24 @@ h3{font-size:16px;line-height:1.4}
 <button type="button" id="updateBanner" class="update-banner" hidden onclick="location.reload()">새 버전이 있어요. 눌러서 새로고침</button>
 
 <script src="logic.js"></script>
+<script id="logic-guard">
+/* A new page paired with an old saved logic.js (bad network during an update) would crash on the first screen.
+   If a function the page needs is missing, drop the saved logic.js and reload once to fetch the matching file.
+   Keep this list equal to every LifeLogic.<name> used below (a test checks it). */
+(function(){
+  var need=['BACKUP_FORMAT','BACKUP_VERSION','FOCUS_CATEGORIES','FOCUS_HISTORY_LIMIT','FOCUS_MINUTES','MAX_GOALS','MAX_POSTING_EVENTS','MAX_TASKS','POSTING_NOTES_MAX','STATE_SCHEMA_VERSION','addGoalTask','backupNudge','canAddGoal','certSchedulesOf','cleanPostingEvents','cleanPostingUrl','cleanTitle','dateOffset','deadlineInRange','extractDeadline','findGoalByTitle','firstUrl','focusCategoryName','focusMinutes','goalCount','goalList','goalProgress','goalTaskNames','habitStreak','isDone','isFocusMinutes','isHabitRestDay','isRepeating','koreaDate','migrateState','nextExam','occurrencesByDate','occurs','parkActiveGoal','parseShareParams','periodDates','postingEventsOf','readBackup','removeGoal','removeGoalTask','renameGoalTask','resetGoalTasks','restoreParkedGoal','resumeFocus','sanitizeState','scheduleItems','searchSchedule','skipOccurrence','stepTab','swipeDirection','switchGoal','toggleDone','upcomingAlerts','validDate','validTime','weekStart'];
+  var logic=typeof LifeLogic!=='undefined'?LifeLogic:null;
+  var flag='lifeAILogicReload';
+  if(logic&&need.every(function(n){return logic[n]!==undefined;})){try{sessionStorage.removeItem(flag);}catch(e){}return;}
+  var tried=false;
+  try{tried=sessionStorage.getItem(flag)==='1';sessionStorage.setItem(flag,'1');}catch(e){}
+  if(tried)return;
+  var reload=function(){location.reload();};
+  if(typeof caches!=='undefined'&&caches.keys){
+    caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.open(k).then(function(c){return c.delete('logic.js',{ignoreSearch:true});});}));}).then(reload,reload);
+  }else reload();
+})();
+</script>
 <script>
 
 const STORAGE_KEY='lifeAIPrototypeV5';
