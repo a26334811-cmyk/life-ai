@@ -580,6 +580,15 @@ test('sanitizeState fixes an unknown posting stage and a task list of the wrong 
   assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:raw.jobPostings}),true);
 });
 
+test('an old dated line is not re-read as a date in the current year',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('접수 마감 2023년 11월 30일',today),null,'old year must not turn into this year');
+  assert.equal(L.extractDeadline('마감 2023.11.30',today),null);
+  assert.equal(L.extractDeadline('마감 23.11.30',today),null);
+  assert.equal(L.extractDeadline('2023년 11월 30일 최초 게시, 접수 마감 12월 5일',today)?.date,'2026-12-05','a separate year-less date still works');
+  assert.equal(L.extractDeadline('접수 마감 2026년 11월 30일',today)?.date,'2026-11-30');
+});
+
 test('a period written with a bare hyphen gives its end date',()=>{
   const today='2026-11-16';
   assert.equal(L.extractDeadline('서류접수 26.11.10-26.11.30',today)?.date,'2026-11-30');

@@ -553,6 +553,10 @@
     if (!src || !validDate(today)) return null;
     const year = Number(today.slice(0, 4));
     const found = [];
+    // spans of dates written with a four-digit year, even when they fall outside the accepted range (an old "2023년 11월 30일"),
+    // so the year-less readers below do not pick the "11월 30일" part out of them again
+    const yearSpans = [];
+    const covered = (i) => found.some(f => i >= f.index && i < f.index + f.length) || yearSpans.some(f => i >= f.index && i < f.index + f.length);
     const add = (index, length, y, m, d, hasYear) => {
       let iso = null;
       const make = (yy) => { const s = yy + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); return validDate(s) ? s : null; };
@@ -568,17 +572,20 @@
     };
     let m;
     const full = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
-    while ((m = full.exec(src))) add(m.index, m[0].length, Number(m[1]), Number(m[2]), Number(m[3]), true);
+    while ((m = full.exec(src))) {
+      yearSpans.push({ index: m.index, length: m[0].length });
+      add(m.index, m[0].length, Number(m[1]), Number(m[2]), Number(m[3]), true);
+    }
     // two-digit year as many company sites write it: 26.11.22(일) -> 2026-11-22
     // a hyphen right before is allowed ("26.11.10-26.11.30"); a digit, dot or slash right before still rules it out
     const twoDigit = /(?<![\d./])(\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?![\d])/g;
     while ((m = twoDigit.exec(src))) {
-      if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      if (covered(m.index)) continue;
       add(m.index, m[0].length, 2000 + Number(m[1]), Number(m[2]), Number(m[3]), true);
     }
     const korean = /(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
     while ((m = korean.exec(src))) {
-      if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
+      if (covered(m.index)) continue;
       add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
     }
     // a trailing dot is fine ("11.30." / "12.5.(금)"); a dot followed by a digit is a longer number ("1.2.3")
