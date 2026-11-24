@@ -303,6 +303,18 @@ test('resumeFocus ignores damaged data',()=>{
   assert.equal(L.resumeFocus({status:'paused',remaining:99999,minutes:25},now).remaining,1500,'capped to the chosen length');
 });
 
+test('resumeFocus caps a running timer whose end time is further away than the chosen length',()=>{
+  const now=Date.parse('2026-05-10T03:00:00Z');
+  const far=L.resumeFocus({status:'running',deadline:now+3*3600*1000,minutes:25,category:'job'},now);
+  assert.equal(far.status,'running');assert.equal(far.remaining,1500);assert.equal(far.deadline,now+25*60*1000);assert.equal(far.category,'job');
+  const huge=L.resumeFocus({status:'running',deadline:now+999*24*3600*1000,minutes:25},now);
+  assert.equal(huge.remaining,1500);
+  const exact=L.resumeFocus({status:'running',deadline:now+25*60*1000,minutes:25},now);
+  assert.equal(exact.remaining,1500);assert.equal(exact.deadline,now+25*60*1000);
+  const normal=L.resumeFocus({status:'running',deadline:now+600*1000,minutes:25},now);
+  assert.equal(normal.remaining,600,'a normal remaining time is kept as saved');
+});
+
 test('backupNudge asks when never backed up, stale, or history is nearly full',()=>{
   const now=Date.parse('2026-05-20T00:00:00Z');
   assert.equal(L.backupNudge({},now),null,'empty app is not nagged');
