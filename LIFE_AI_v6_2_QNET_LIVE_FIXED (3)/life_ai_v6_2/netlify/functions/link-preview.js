@@ -255,14 +255,17 @@ function plain(text, max) {
     .trim().slice(0, max || 200);
 }
 
-function metaContent(html, key) {
+// The app looks for the deadline in this text and reads at most 30000 characters of it (extractDeadline in logic.js),
+// so send that much: a deadline in a late "접수 안내" section must not be cut off.
+const DESCRIPTION_MAX = 30000;
+function metaContent(html, key, max) {
   // [^<>] stops at the next '<', so a page full of unclosed "<meta " cannot make the search quadratic.
-  const tags = html.match(/<meta\b[^<>]{0,2000}>/gi) || [];
+  const tags = html.match(/<meta\b[^<>]{0,100000}>/gi) || [];
   for (const tag of tags) {
     const name = /(?:property|name)\s*=\s*["']([^"']+)["']/i.exec(tag);
     if (!name || name[1].toLowerCase() !== key) continue;
     const content = /content\s*=\s*"([^"]*)"|content\s*=\s*'([^']*)'/i.exec(tag);
-    if (content) return plain(content[1] !== undefined ? content[1] : content[2], 600);
+    if (content) return plain(content[1] !== undefined ? content[1] : content[2], max || 600);
   }
   return '';
 }
@@ -358,7 +361,7 @@ function parsePage(rawHtml, finalUrl) {
   const job = nodes.find(isJobPosting);
   const siteName = metaContent(html, 'og:site_name');
   const metaTitle = metaContent(html, 'og:title') || metaContent(html, 'twitter:title') || plain(titleText(html), 200);
-  const metaDescription = metaContent(html, 'og:description') || metaContent(html, 'description');
+  const metaDescription = metaContent(html, 'og:description', DESCRIPTION_MAX) || metaContent(html, 'description', DESCRIPTION_MAX);
   if (job) {
     const title = text(job.title) || metaTitle;
     const stated = text(job.hiringOrganization);
@@ -369,7 +372,7 @@ function parsePage(rawHtml, finalUrl) {
       company: stated || inferred, companyInferred: Boolean(inferred),
       deadline: isoDate(job.validThrough),
       region: regionFrom(job.jobLocation),
-      description: plain(job.description, 10000) || metaDescription
+      description: plain(job.description, DESCRIPTION_MAX) || metaDescription
     };
   }
   const inferred = inferCompany(html, nodes, metaTitle, siteName);

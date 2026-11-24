@@ -288,3 +288,20 @@ test('a real posting is still read after a long run of unclosed tags',()=>{
   const r=parsePage('<meta '.repeat(100)+JSON_LD,'https://example.com/job/1');
   assert.equal(r.company,'삼천리');
 });
+
+test('a long description keeps a deadline that sits far down the text (JSON-LD and meta)',()=>{
+  const L=require('../logic.js');
+  const filler='담당 업무와 자격 요건을 안내합니다. '.repeat(250); // ~5000 chars, past the old 1500/600 limits
+  const tail='접수 안내: 지원 마감 2026년 12월 5일까지';
+  const ld='<script type="application/ld+json">'+JSON.stringify({'@type':'JobPosting',title:'시설관리',hiringOrganization:'삼천리',description:'<p>'+filler+tail+'</p>'})+'</script>';
+  const a=parsePage(ld,'https://e.com');
+  assert.ok(a.description.length>4000,'JSON-LD description is not cut at 1500');
+  assert.equal(L.extractDeadline(a.description,'2026-11-16').date,'2026-12-05');
+  const meta='<html><head><meta property="og:title" content="시설관리"><meta name="description" content="'+filler+tail+'"></head></html>';
+  const b=parsePage(meta,'https://e.com');
+  assert.ok(b.description.length>4000,'meta description is not cut at 600');
+  assert.equal(L.extractDeadline(b.description,'2026-11-16').date,'2026-12-05');
+  const huge=parsePage('<meta name="description" content="'+'가'.repeat(50000)+'">','https://e.com');
+  assert.equal(huge.description.length,30000,'still capped');
+});
+
