@@ -466,9 +466,18 @@
   /* ---------- job posting helpers ---------- */
 
   function firstUrl(text) {
-    const match = String(text || '').match(/https?:\/\/[^\s<>"'`]+/i);
+    // Only ASCII URL characters count, so Korean text stuck to a link ("…/12)입니다", "…/12에서") ends the link.
+    const match = String(text || '').match(/https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&()*+,;=%]+/i);
     if (!match) return '';
-    const cleaned = match[0].replace(/[)\]}>.,;:!?。、」』”’]+$/, '');
+    // Trailing punctuation goes; a closing bracket goes only when the link has no opening one for it.
+    let cleaned = match[0];
+    for (;;) {
+      const last = cleaned.slice(-1);
+      const open = { ')': '(', ']': '[' }[last];
+      if ('.,;:!?'.includes(last)) cleaned = cleaned.slice(0, -1);
+      else if (open && cleaned.split(last).length > cleaned.split(open).length) cleaned = cleaned.slice(0, -1);
+      else break;
+    }
     try { const u = new URL(cleaned); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
   }
 

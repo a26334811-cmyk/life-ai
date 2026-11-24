@@ -420,6 +420,15 @@ test('firstUrl and parseShareParams read links from shared text',()=>{
   assert.equal(L.firstUrl('보세요 https://example.com/job/1?a=1&b=2. 감사'),'https://example.com/job/1?a=1&b=2');
   assert.equal(L.firstUrl('링크 없음'),'');
   assert.equal(L.firstUrl('javascript:alert(1) ftp://x.com'),'');
+  // Korean text stuck to the link ends the link (messenger pastes)
+  assert.equal(L.firstUrl('공고 (https://site.com/job/12)입니다'),'https://site.com/job/12');
+  assert.equal(L.firstUrl('https://site.com/job/12에서 확인하세요'),'https://site.com/job/12');
+  assert.equal(L.firstUrl('https://site.com/job/12?id=3&x=1입니다.'),'https://site.com/job/12?id=3&x=1');
+  assert.equal(L.firstUrl('링크: https://site.com/job/12.'),'https://site.com/job/12');
+  assert.equal(L.firstUrl('(https://site.com/job/12)'),'https://site.com/job/12');
+  assert.equal(L.firstUrl('https://en.wikipedia.org/wiki/Foo_(bar) 참고'),'https://en.wikipedia.org/wiki/Foo_(bar)','a balanced bracket stays');
+  assert.equal(L.firstUrl('https://en.wikipedia.org/wiki/Foo_(bar))입니다'),'https://en.wikipedia.org/wiki/Foo_(bar)');
+  assert.equal(L.parseShareParams('?text='+encodeURIComponent('공고예요(https://site.com/job/12)입니다')).url,'https://site.com/job/12');
   const s=L.parseShareParams('?title=%EC%8B%9C%EC%84%A4%EA%B4%80%EB%A6%AC%20%EC%B1%84%EC%9A%A9&text=%EC%9E%90%EC%84%B8%ED%9E%88%20https%3A%2F%2Fexample.com%2Fjob%2F1');
   assert.equal(s.url,'https://example.com/job/1');assert.equal(s.title,'시설관리 채용');
   const onlyText=L.parseShareParams('?text='+encodeURIComponent('삼천리 신입 https://example.com/j/9'));
