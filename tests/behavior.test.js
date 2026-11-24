@@ -664,6 +664,38 @@ test('the notice only says the original was kept when the copy was really stored
   assert.match(unreadable.run('startupNotice'),/보관하지 못했어요/);
 });
 
+test('when saving fails, planner/habit/posting forms keep the input, show only the warning and undo the change',async()=>{
+  const a=createApp();
+  a.run("globalThis.__origSet=localStorage.setItem;localStorage.setItem=()=>{throw new Error('quota')}");
+  // planner
+  fillForm(a,{title:'치과',date:'2026-05-12'});
+  a.run('plannerFormOpen=true');
+  await a.run('plannerSave()');
+  assert.equal(a.run('plannerEntries().length'),0,'not kept in memory either');
+  assert.equal(a.run('plannerFormOpen'),true,'form stays open');
+  assert.equal(a.el('plannerTitle').value,'치과');
+  assert.doesNotMatch(a.toasts.join('|'),/일정을 저장했어요/);
+  assert.equal(a.toasts.at(-1),'저장하지 못했어요. 백업 후 공간을 확보해 주세요.');
+  // habit (a second failure still warns, even though persistState warns only once)
+  a.el('habitName').value='운동';
+  a.run('habitAdd()');
+  assert.equal(a.run('habitEntries().length'),0);
+  assert.doesNotMatch(a.toasts.join('|'),/습관을 추가했어요/);
+  assert.equal(a.toasts.at(-1),'저장하지 못했어요. 백업 후 공간을 확보해 주세요.');
+  // posting
+  a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';a.el('postingUrl').value='https://example.com/jobs/1';a.el('postingNotes').value='메모';
+  a.run('savePosting()');
+  assert.equal(a.run('state.jobPostings.length'),0);
+  assert.equal(a.el('postingCompany').value,'삼천리','input is not cleared');
+  assert.equal(a.el('postingNotes').value,'메모');
+  assert.doesNotMatch(a.toasts.join('|'),/공고와 마감일을 저장했어요/);
+  // after space is freed, the same form saves once (no duplicate)
+  a.run('localStorage.setItem=globalThis.__origSet');
+  a.run('savePosting()');
+  assert.equal(a.run('state.jobPostings.length'),1);
+  assert.match(a.toasts.at(-1),/저장했어요/);
+});
+
 test('data saved by the previous version is upgraded',()=>{
   const old=JSON.stringify({mainGoal:'x',plannerEntries:[{id:'r',title:'매일',date:'2026-05-01',repeat:'daily',done:true}]});
   const a=createApp(old);
