@@ -262,7 +262,7 @@ test('send-to-other-device uses the share sheet with a backup file when the brow
   a.context.navigator = { canShare: d => Boolean(d.files), share: async d => { shared.push(d); } };
   await a.run('shareLifeAIBackup()');
   assert.equal(shared.length, 1);
-  assert.match(shared[0].files[0].name, /^life-ai-backup-2026-05-10\.json$/);
+  assert.match(shared[0].files[0].name, /^life-ai-backup-2026-05-10-\d{4}\.json$/);
   const payload = JSON.parse(shared[0].files[0].parts[0]);
   assert.equal(payload.format, 'life-ai-backup');
   assert.equal(payload.state.mainGoal, '전기기사 준비');

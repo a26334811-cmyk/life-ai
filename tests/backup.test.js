@@ -37,7 +37,7 @@ test('making a backup downloads a json file and remembers the backup date',async
 
   a.run('exportLifeAIBackup()');
   assert.equal(a.downloads.length,1);
-  assert.match(a.downloads[0].filename,/^life-ai-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(a.downloads[0].filename,/^life-ai-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
   assert.match(a.downloads[0].type,/application\/json/);
   assert.match(a.toasts.at(-1),/백업 파일을 만들었어요/);
   assert.ok(a.saved().lastBackupAt,'the date of the last backup is remembered');

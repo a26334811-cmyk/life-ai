@@ -699,6 +699,13 @@ test('when saving fails, planner/habit/posting forms keep the input, show only t
 const backupFile=(state,size)=>({files:[{size:size||100,text:async()=>JSON.stringify({format:'life-ai-backup',version:1,exportedAt:'2026-05-01T00:00:00.000Z',state})}]});
 const goodBackup={mainGoal:'백업 목표',nickname:'a',activity:[],completedTasks:[false,false,false,false,false]};
 
+test('the backup file name uses the Korean date and time, so a morning backup is not dated yesterday',()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',nickname:'n'}),{now:Date.parse('2026-05-09T23:30:00Z')});
+  assert.equal(a.run('makeLifeAIBackup().filename'),'life-ai-backup-2026-05-10-0830.json');
+  const b=createApp(JSON.stringify({mainGoal:'x',nickname:'n'}),{now:Date.parse('2026-05-10T00:05:00Z')});
+  assert.equal(b.run('makeLifeAIBackup().filename'),'life-ai-backup-2026-05-10-0905.json','a second backup the same day is told apart');
+});
+
 test('a backup is written compactly, and a restore accepts what the app can export',async()=>{
   const a=createApp(JSON.stringify({mainGoal:'x',nickname:'n'}));
   const made=a.run('makeLifeAIBackup()');

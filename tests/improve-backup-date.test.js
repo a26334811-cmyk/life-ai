@@ -16,5 +16,5 @@ test('backup file name uses the Korean date', () => {
   a.context.document.createElement = () => { const l = { click() { names.push(l.download); }, remove() {} }; return l; };
   a.context.document.body = { appendChild() {} };
   a.run('exportLifeAIBackup()');
-  assert.deepEqual(names, ['life-ai-backup-2026-05-10.json']);
+  assert.deepEqual(names, ['life-ai-backup-2026-05-10-0530.json']);
 });

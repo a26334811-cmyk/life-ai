@@ -874,6 +874,11 @@ const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
 /* Browser storage holds about 5M characters; Korean text is up to 3 bytes each, so a backup the app itself
    makes can reach about 15MB. Restore must accept at least that much. */
 const LIFE_AI_BACKUP_MAX_BYTES=16*1024*1024;
+/* Korean date and time for the file name, e.g. 2026-11-25-0930 (Korea has no daylight saving: UTC+9). */
+function backupFileStamp(){
+  const now=Date.now();
+  return LifeLogic.koreaDate(now)+'-'+new Date(now+9*3600000).toISOString().slice(11,16).replace(':','');
+}
 /* Builds the backup file text. The date of this backup is set before copying, so the file holds it.
    rollback() undoes the date when the backup did not happen after all. */
 function makeLifeAIBackup(){
@@ -885,7 +890,7 @@ function makeLifeAIBackup(){
   const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
   return {
     text:JSON.stringify(payload),
-    filename:'life-ai-backup-'+koreaToday()+'.json',
+    filename:'life-ai-backup-'+backupFileStamp()+'.json',
     rollback(){if(hadBackupAt)state.lastBackupAt=previousBackupAt;else delete state.lastBackupAt;}
   };
 }
