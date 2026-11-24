@@ -130,6 +130,12 @@ test('focus timer starts with the saved duration after reopening the app',()=>{
   assert.doesNotMatch(html,/let focusRemaining=25\*60/);
 });
 
+test('mobile bottom nav has no backdrop blur (its background is almost opaque, so blur only costs scrolling speed)',()=>{
+  const base=html.match(/\.bottomnav\{([^}]*)\}/)[1];
+  assert.match(base,/position:fixed/,'matched the base nav rule');
+  assert.doesNotMatch(base,/backdrop-filter\s*:\s*blur/);
+});
+
 test('home summary is rounded and compact with details available on demand',()=>{
   assert.match(html,/class="soft-overview"/);
   assert.match(html,/class="soft-overview-row"/);
