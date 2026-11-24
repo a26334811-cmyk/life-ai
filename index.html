@@ -569,10 +569,14 @@ h3{font-size:16px;line-height:1.4}
       <button class="btn primary" onclick="addWatchCompany()">관심 회사 저장</button>
     </details>
     <div class="section-title">관심 회사</div><div id="watchCompanies" class="stack"></div>
+    <div class="card" id="quickPosting"><label for="quickPostingUrl"><strong>🔗 링크만 붙여넣고 먼저 저장</strong></label>
+      <div class="field"><input id="quickPostingUrl" type="url" inputmode="url" placeholder="공고 링크 (https://…)" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();savePostingLinkOnly()}"></div>
+      <button class="btn primary" id="quickPostingButton" onclick="savePostingLinkOnly()">링크만 저장</button>
+      <p class="meta">회사명·공고명·마감일은 앱이 링크에서 읽어 채워 봐요. 못 읽어도 링크는 저장돼요. 나중에 "공고 수정"에서 채우면 돼요.</p></div>
     <details id="postingEditor" class="card"><summary>＋ 공고 저장하기</summary><form id="postingForm" class="card" onsubmit="event.preventDefault();savePosting()">
       <h3 id="postingFormTitle">관심 공고 저장</h3><input id="postingId" type="hidden">
-      <div class="field"><label for="postingCompany">회사명 *</label><input id="postingCompany" required></div>
-      <div class="field"><label for="postingTitle">공고명·직무 *</label><input id="postingTitle" required placeholder="예: 도시가스 시설관리 신입 채용"></div>
+      <div class="field"><label for="postingCompany">회사명 (나중에 채워도 돼요)</label><input id="postingCompany"></div>
+      <div class="field"><label for="postingTitle">공고명·직무 (나중에 채워도 돼요)</label><input id="postingTitle" placeholder="예: 도시가스 시설관리 신입 채용"></div>
       <div class="field"><label for="postingUrl">공고 링크 *</label><input id="postingUrl" type="url" required placeholder="https://"></div>
       <div class="posting-autofill"><button type="button" class="btn secondary" id="postingFetch" onclick="fillPostingFromUrl()">🔎 링크에서 정보 가져오기</button><p id="postingFetchStatus" class="meta" role="status" aria-live="polite"></p></div>
       <div class="field"><label for="postingDeadline">지원 마감일 (미정·채용시 마감이면 비워두세요)</label><input id="postingDeadline" type="date" oninput="postingDeadlineAuto=false"></div>
@@ -2621,6 +2625,10 @@ function postingDeadlineMarkHTML(p){
   if(p.deadlineChecked===true)return '<p class="meta">✓ 공식 공고에서 마감일을 확인했어요.</p>';
   return '';
 }
+function postingNeedsInfoHTML(p){
+  if(p.needsInfo!==true)return '';
+  return `<p class="meta">✏ 회사명·공고명을 아직 못 채웠어요. <button type="button" class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">지금 채우기</button></p>`;
+}
 function confirmPostingDeadline(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
   p.deadlineGuess=false;p.deadlineChecked=true;
@@ -2768,17 +2776,61 @@ function handleSharedLink(){
   postingSetStatus('"링크에서 정보 가져오기"를 누르면 회사명과 마감일을 찾아 볼게요.');
   return true;
 }
+/* A posting can be saved with only its link. The missing company / title get these stand-ins and the card asks to fill them. */
+const POSTING_NO_TITLE='공고 이름 미입력';
+function postingHost(url){try{return new URL(url).hostname.replace(/^www\./,'');}catch(e){return '회사명 미입력';}}
+/* Saves just the link now, then tries to read the page in the background and fills only what it finds. */
+function savePostingLinkOnly(){
+  jobCollections();
+  const box=document.getElementById('quickPostingUrl');
+  const url=LifeLogic.cleanPostingUrl(String(box?.value||'').trim());
+  if(!url){toast('올바른 공고 링크를 입력해 주세요. (https://로 시작해요)');return;}
+  if(state.jobPostings.some(x=>LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 확인해 주세요.');return;}
+  const post={id:newId(),company:postingHost(url),title:POSTING_NO_TITLE,needsInfo:true,url,deadline:'',deadlineTime:'',alwaysOpen:false,region:'',notes:'',
+    stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()};
+  state.jobPostings.unshift(post);
+  const saved=persistState();
+  if(box)box.value='';
+  renderJobHub();
+  if(saved)toast('링크를 저장했어요. 공고 내용을 읽어 볼게요…');
+  return readSavedPosting(post.id);
+}
+/* Reads the page of a saved posting and fills only the stand-in / empty fields (never what the user typed). */
+async function readSavedPosting(id){
+  const post=state.jobPostings.find(x=>x.id===id);if(!post)return;
+  try{
+    const response=await fetchWithTimeout('/.netlify/functions/link-preview?url='+encodeURIComponent(post.url),15000);
+    const data=await response.json().catch(()=>({}));
+    const p=state.jobPostings.find(x=>x.id===id);if(!p)return; // deleted meanwhile
+    if(!response.ok||!data.ok)throw new Error('unreadable');
+    const siteName=data.siteName||'',today=koreaToday(),found=[];
+    const title=LifeLogic.cleanTitle(data.title,siteName);
+    if(title&&p.title===POSTING_NO_TITLE){p.title=title;found.push('공고명');}
+    if(data.company&&p.company===postingHost(p.url)){p.company=data.company;found.push('회사명');}
+    if(data.region&&!p.region){p.region=data.region;found.push('근무지역');}
+    if(!p.deadline&&!p.alwaysOpen){
+      let d=data.deadline&&LifeLogic.validDate(data.deadline)&&LifeLogic.deadlineInRange(data.deadline,today)?{date:data.deadline,time:''}:null;
+      if(!d)d=LifeLogic.extractDeadline(data.description,today);
+      if(d&&d.date>=today){p.deadline=d.date;p.deadlineTime=d.time||'';p.deadlineGuess=true;found.push('마감일');}
+    }
+    p.needsInfo=p.title===POSTING_NO_TITLE||p.company===postingHost(p.url);
+    persistState();renderJobHub();
+    toast(found.length?'링크에서 '+found.join('·')+'을(를) 채웠어요. 내용을 확인해 주세요.':'링크에서 채울 내용을 찾지 못했어요. 공고 수정에서 직접 채워 주세요.');
+  }catch(e){
+    toast('지금은 링크를 읽지 못했어요. 링크는 저장돼 있어요. 나중에 공고 수정에서 채워 주세요.');
+  }
+}
 function savePosting(){
   jobCollections();const value=id=>document.getElementById(id).value.trim();
   const alwaysOpen=document.getElementById('postingAlways').checked;
   const company=value('postingCompany'),title=value('postingTitle'),url=LifeLogic.cleanPostingUrl(value('postingUrl')),deadline=alwaysOpen?'':value('postingDeadline');
-  if(!company||!title||!url){toast('회사명·공고명과 올바른 공고 링크를 입력해 주세요.');return;}
+  if(!url){toast('올바른 공고 링크를 입력해 주세요.');return;}
   if(deadline&&!LifeLogic.validDate(deadline)){toast('마감일을 올바르게 입력해 주세요.');return;}
   const deadlineTime=deadline?value('postingDeadlineTime'):''; // a time without a date means nothing
   if(deadlineTime&&!LifeLogic.validTime(deadlineTime)){toast('마감 시각을 올바르게 입력해 주세요. (예: 18:00)');return;}
   const id=value('postingId'),existing=state.jobPostings.find(x=>x.id===id);
   if(state.jobPostings.some(x=>x.id!==id&&LifeLogic.cleanPostingUrl(x.url)===url)){toast('이미 저장한 공고예요. 아래 공고에서 수정해 주세요.');return;}
-  const data={company,title,url,deadline,deadlineTime,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes')};
+  const data={company:company||postingHost(url),title:title||POSTING_NO_TITLE,needsInfo:!company||!title,url,deadline,deadlineTime,alwaysOpen,region:value('postingRegion'),notes:value('postingNotes')};
   // found by the app and not changed by the user: the card asks to check it. A changed date or time loses an earlier "checked" mark.
   data.deadlineGuess=Boolean(deadline&&postingDeadlineAuto);
   data.deadlineChecked=Boolean(deadline&&existing&&existing.deadlineChecked===true&&existing.deadline===deadline&&(existing.deadlineTime||'')===deadlineTime&&!data.deadlineGuess);
@@ -2787,7 +2839,7 @@ function savePosting(){
 }
 function editPosting(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;
-  const fields={postingId:p.id,postingCompany:p.company,postingTitle:p.title,postingUrl:p.url,postingDeadline:p.deadline,postingDeadlineTime:LifeLogic.validTime(p.deadlineTime)?p.deadlineTime:'',postingRegion:p.region,postingNotes:p.notes};
+  const fields={postingId:p.id,postingCompany:p.company===postingHost(p.url)&&p.needsInfo?'':p.company,postingTitle:p.title===POSTING_NO_TITLE?'':p.title,postingUrl:p.url,postingDeadline:p.deadline,postingDeadlineTime:LifeLogic.validTime(p.deadlineTime)?p.deadlineTime:'',postingRegion:p.region,postingNotes:p.notes};
   Object.entries(fields).forEach(([id,value])=>document.getElementById(id).value=value||'');
   postingDeadlineAuto=p.deadlineGuess===true;
   document.getElementById('postingAlways').checked=Boolean(p.alwaysOpen);
@@ -2860,7 +2912,7 @@ function postingIsEnded(p,today){
   return ['관심','준비 중'].includes(p.stage||'관심')&&Boolean(p.deadline)&&p.deadline<today;
 }
 function postingCardHTML(p){
-  return `<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(postingDueText(p)):p.alwaysOpen?'상시채용':'마감일 미정'} · <span class="posting-progress" data-id="${esc(p.id)}">${postingProgressText(p)}</span></p>${postingDeadlineMarkHTML(p)}${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><label>면접 시간 (선택)<input type="time" value="${esc(p.interviewTime||'')}" data-id="${esc(p.id)}" onchange="setInterviewTime(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`;
+  return `<div class="card"><h3>${esc(p.company)} · ${esc(p.title)}</h3><p class="meta">${esc(p.region||'지역 미입력')} · ${p.deadline?esc(postingDueText(p)):p.alwaysOpen?'상시채용':'마감일 미정'} · <span class="posting-progress" data-id="${esc(p.id)}">${postingProgressText(p)}</span></p>${postingNeedsInfoHTML(p)}${postingDeadlineMarkHTML(p)}${postingStageLine(p)}<a class="btn secondary" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener">원문 공고 확인</a><details data-posting="${esc(p.id)}"><summary>준비 목록·지원상태 보기</summary><label>지원 상태<select style="width:100%;padding:12px" data-id="${esc(p.id)}" onchange="setPostingStage(this.dataset.id,this.value)">${postingStages.map(stage=>`<option ${stage===p.stage?'selected':''}>${stage}</option>`).join('')}</select></label><label>면접 날짜<input type="date" value="${esc(p.interviewDate||'')}" data-id="${esc(p.id)}" onchange="setInterviewDate(this.dataset.id,this.value)"></label><label>면접 시간 (선택)<input type="time" value="${esc(p.interviewTime||'')}" data-id="${esc(p.id)}" onchange="setInterviewTime(this.dataset.id,this.value)"></label><p style="white-space:pre-wrap">${esc(p.notes||'공고의 필수·우대조건을 메모해 보세요.')}</p>${['모집조건 확인','이력서 준비','자기소개서 준비','증빙서류 준비'].map((label,i)=>`<label class="check"><input type="checkbox" ${p.tasks[i]?'checked':''} data-id="${esc(p.id)}" onchange="setPostingTask(this.dataset.id,${i},this.checked)"><span>${label}</span></label>`).join('')}<button class="btn ghost" data-id="${esc(p.id)}" onclick="editPosting(this.dataset.id)">공고 수정</button><button class="btn ghost" data-id="${esc(p.id)}" onclick="deletePosting(this.dataset.id)">공고 삭제</button></details></div>`;
 }
 
 function esc(s){
