@@ -827,6 +827,24 @@ test('a past deadline does not open the paste box, a missing deadline still does
   assert.equal(none.opened,true);assert.match(none.text,/마감일은 링크에서 찾지 못했어요/);
 });
 
+test('a filler deadline like 2099-12-31 from the page is ignored, then the text is searched',async()=>{
+  const now=Date.parse('2026-11-16T03:00:00Z');
+  const a=createApp(undefined,{now,fetch:reply({ok:true,title:'상시 채용',company:'삼천리',deadline:'2099-12-31',description:''})});
+  a.el('postingUrl').value='https://example.com/job/4';
+  await a.run('fillPostingFromUrl()');
+  assert.equal(a.el('postingDeadline').value,'');
+  assert.doesNotMatch(status(a),/채운 항목: [^.]*마감일/);
+  assert.match(status(a),/마감일은 링크에서 찾지 못했어요/);
+  const b=createApp(undefined,{now,fetch:reply({ok:true,title:'상시 채용',company:'삼천리',deadline:'2099-12-31',description:'지원 마감 12월 5일 18시까지'})});
+  b.el('postingUrl').value='https://example.com/job/5';
+  await b.run('fillPostingFromUrl()');
+  assert.equal(b.el('postingDeadline').value,'2026-12-05','falls back to the date in the text');
+  const c=createApp(undefined,{now,fetch:reply({ok:true,title:'정기 채용',company:'삼천리',deadline:'2027-06-30',description:''})});
+  c.el('postingUrl').value='https://example.com/job/6';
+  await c.run('fillPostingFromUrl()');
+  assert.equal(c.el('postingDeadline').value,'2027-06-30','a date within two years is still trusted');
+});
+
 test('the deadline is found in the page description when the page has no structured deadline',async()=>{
   const a=createApp(undefined,{now:Date.parse('2026-11-16T03:00:00Z'),fetch:reply({ok:true,title:'안전관리',description:'모집 안내. 지원 마감 12월 5일 (금) 18시까지'})});
   a.el('postingUrl').value='https://example.com/job/3';
