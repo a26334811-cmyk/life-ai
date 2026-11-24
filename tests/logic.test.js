@@ -558,3 +558,15 @@ test('saved postings keep only http(s) links; a backup with an unsafe link is re
   assert.equal(L.validateBackupState(raw),false);
   assert.equal(L.validateBackupState({...raw,jobPostings:[good,mk('c')]}),true);
 });
+
+test('sanitizeState fixes an unknown posting stage and a task list of the wrong size instead of leaving a broken posting',()=>{
+  const mk=(id,extra)=>({id,company:'가',title:'x',...extra});
+  const raw={jobPostings:[mk('a',{stage:'면접',tasks:[true,false,false,true]}),mk('b',{stage:'이상한 단계',tasks:[true]}),mk('c',{tasks:[true,'yes',null,false,true]}),mk('d',{})]};
+  const {state,dropped}=L.sanitizeState(raw);
+  assert.deepEqual(state.jobPostings[0].tasks,[true,false,false,true]);assert.equal(state.jobPostings[0].stage,'면접');
+  assert.equal(state.jobPostings[1].stage,'관심');assert.deepEqual(state.jobPostings[1].tasks,[true,false,false,false]);
+  assert.deepEqual(state.jobPostings[2].tasks,[true,false,false,false]);
+  assert.equal('stage' in state.jobPostings[3],false,'a posting without a stage keeps no stage (the app reads that as 관심)');
+  assert.deepEqual(dropped,[],'fixing a posting is not reported as lost data');
+  assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:raw.jobPostings}),true);
+});

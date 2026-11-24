@@ -222,6 +222,9 @@
     return out;
   }
 
+  // Same list as postingStages in index.html. A posting with an unknown stage would vanish from the calendar and the banner.
+  const POSTING_STAGES = ['관심', '준비 중', '지원 완료', '면접', '합격', '불합격', '지원 취소'];
+
   // A saved posting's memo is capped so a few pasted postings cannot fill the browser's storage. Longer ones are cut, not dropped.
   const POSTING_NOTES_MAX = 2000;
 
@@ -332,6 +335,11 @@
           kept = kept.map(p => {
             const fixes = {};
             if (p.events !== undefined) fixes.events = cleanPostingEvents(p.events);
+            if (p.stage !== undefined && !POSTING_STAGES.includes(p.stage)) fixes.stage = '관심';
+            if (Array.isArray(p.tasks)) {
+              const four = Array.from({ length: 4 }, (_, i) => p.tasks[i] === true); // exactly four ticks, anything else counts as not done
+              if (four.length !== p.tasks.length || four.some((v, i) => v !== p.tasks[i])) fixes.tasks = four;
+            }
             if (typeof p.notes === 'string' && p.notes.length > POSTING_NOTES_MAX) fixes.notes = p.notes.slice(0, POSTING_NOTES_MAX);
             return Object.keys(fixes).length ? Object.assign({}, p, fixes) : p;
           });
