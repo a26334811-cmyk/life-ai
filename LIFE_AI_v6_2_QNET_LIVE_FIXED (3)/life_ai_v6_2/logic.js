@@ -478,7 +478,8 @@
       else if (open && cleaned.split(last).length > cleaned.split(open).length) cleaned = cleaned.slice(0, -1);
       else break;
     }
-    try { const u = new URL(cleaned); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
+    // a link that carries a user name or password ("https://trusted.com@evil.example") is a disguised link: never picked up from pasted text
+    try { const u = new URL(cleaned); if (u.username || u.password) return ''; return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
   }
 
   /* Tidy a posting link before it is saved or compared: http/https only, no id:password@, no #fragment,

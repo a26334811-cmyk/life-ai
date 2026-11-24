@@ -43,9 +43,9 @@ test('saving a posting stores the cleaned link and treats tracking-only differen
 
 test('a shared link is cleaned and matched against already saved (older, unclean) links',()=>{
   const old=JSON.stringify({mainGoal:'x',jobPostings:[{id:'p1',company:'A',title:'T',url:'https://example.com/job/9?utm_source=a',deadline:'',stage:'관심',tasks:[false,false,false,false]}]});
-  const a=createApp(old,{search:'?url='+encodeURIComponent('https://u:p@example.com/job/9?fbclid=1#z')});
+  const a=createApp(old,{search:'?url='+encodeURIComponent('https://example.com/job/9?fbclid=1#z')});
   assert.match(a.el('toast').textContent,/이미 저장한 공고/,'startup toast goes through the real toast element');
-  const b=createApp(undefined,{search:'?url='+encodeURIComponent('https://u:p@example.com/job/10?fbclid=1#z'),fetch:async()=>({ok:true,json:async()=>({ok:false})})});
+  const b=createApp(undefined,{search:'?url='+encodeURIComponent('https://example.com/job/10?fbclid=1#z'),fetch:async()=>({ok:true,json:async()=>({ok:false})})});
   assert.equal(b.el('postingUrl').value,'https://example.com/job/10');
 });
 /* #121 the home header had a bell that looked clickable but did nothing */
