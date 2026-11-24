@@ -570,7 +570,8 @@
     const full = /(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?/g;
     while ((m = full.exec(src))) add(m.index, m[0].length, Number(m[1]), Number(m[2]), Number(m[3]), true);
     // two-digit year as many company sites write it: 26.11.22(일) -> 2026-11-22
-    const twoDigit = /(?<![\d.\-/])(\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?![\d])/g;
+    // a hyphen right before is allowed ("26.11.10-26.11.30"); a digit, dot or slash right before still rules it out
+    const twoDigit = /(?<![\d./])(\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?![\d])/g;
     while ((m = twoDigit.exec(src))) {
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
       add(m.index, m[0].length, 2000 + Number(m[1]), Number(m[2]), Number(m[3]), true);
@@ -581,7 +582,7 @@
       add(m.index, m[0].length, 0, Number(m[1]), Number(m[2]), false);
     }
     // a trailing dot is fine ("11.30." / "12.5.(금)"); a dot followed by a digit is a longer number ("1.2.3")
-    const short = /(?<![\d.\-/])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d\-/])(?!\.\d)/g;
+    const short = /(?<![\d./])(\d{1,2})\s*[./]\s*(\d{1,2})(?![\d/])(?!\.\d)/g;
     while ((m = short.exec(src))) {
       if (found.some(f => m.index >= f.index && m.index < f.index + f.length)) continue;
       const before = found.length;
@@ -617,7 +618,7 @@
       // also "11.10 – 11.30", "11.10 — 11.30" and a space-separated "11.10 - 11.30"
       const noParen = before.replace(/\([^)]*\)/g, '');
       const compact = noParen.replace(/\s+/g, '');
-      const isRangeEnd = /[~∼～–—]$/.test(compact) || /\s-\s*$/.test(noParen);
+      const isRangeEnd = /[~∼～–—]$/.test(compact) || /\s-\s*$/.test(noParen) || /\d\.?-$/.test(compact);
       // for a range end, the clue words sit before the range start ("면접: 12.5 ~ 12.7"), so look there too
       let near = before.slice(-10);
       if (isRangeEnd) {

@@ -580,6 +580,17 @@ test('sanitizeState fixes an unknown posting stage and a task list of the wrong 
   assert.equal(L.validateBackupState({nickname:'a',mainGoal:'b',activity:[],completedTasks:[],jobPostings:raw.jobPostings}),true);
 });
 
+test('a period written with a bare hyphen gives its end date',()=>{
+  const today='2026-11-16';
+  assert.equal(L.extractDeadline('서류접수 26.11.10-26.11.30',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('접수 11/10-11/30',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('접수 11.20.-11.30.',today)?.date,'2026-11-30');
+  assert.equal(L.extractDeadline('지원기간 2026-11-10-2026-11-30',today)?.date,'2026-11-30');
+  // hyphens inside a full date must not create extra dates
+  assert.equal(L.extractDeadline('마감일 2026-12-05',today)?.date,'2026-12-05');
+  assert.equal(L.extractDeadline('마감 12-05',today),null,'month-day with only hyphens is not read');
+});
+
 test('month.day dates that end with a dot are read, longer dotted numbers are not',()=>{
   const today='2026-11-16';
   assert.equal(L.extractDeadline('접수 마감 11.30.',today)?.date,'2026-11-30');
