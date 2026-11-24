@@ -1233,6 +1233,27 @@ test('opening the cert screen with a personal goal leaves the search empty and s
   assert.equal(b.el('certSearchInput').value,'');
 });
 
+/* ---------- bottom menu for screen readers (#526) ---------- */
+test('bottom menu is named, hides decorative icons and marks the current page',()=>{
+  const {html}=require('./helpers/app-harness.js');
+  assert.match(html,/<nav id="bottomnav" class="bottomnav" aria-label="주요 메뉴">/);
+  const icons=html.match(/<span class="navicon"[^>]*>/g);
+  assert.equal(icons.length,5);
+  assert.ok(icons.every(s=>s.includes('aria-hidden="true"')));
+  const a=createApp();
+  const mk=target=>{const attrs={};return {dataset:{target},attrs,classList:{add(){},remove(){}},
+    setAttribute(k,v){attrs[k]=v;},removeAttribute(k){delete attrs[k];}};};
+  const buttons=['home','my'].map(mk);
+  a.context.document.querySelectorAll=sel=>sel==='.bottomnav button'?buttons:
+    sel.startsWith('.bottomnav button[data-target=')?buttons.filter(b=>sel.includes('"'+b.dataset.target+'"')):[];
+  a.run("go('home')");
+  assert.equal(buttons[0].attrs['aria-current'],'page');
+  assert.equal('aria-current' in buttons[1].attrs,false);
+  a.run("go('my')");
+  assert.equal('aria-current' in buttons[0].attrs,false,'cleared from the old menu item');
+  assert.equal(buttons[1].attrs['aria-current'],'page');
+});
+
 test('a cert goal with a found cert name still fills the search box and searches',()=>{
   const a=openCert({mainGoal:'전기기사 준비',goalType:'cert',parsedGoal:{raw:'전기기사 준비',type:'cert',subject:'전기기사'}});
   assert.equal(a.el('certSearchInput').value,'전기기사');
