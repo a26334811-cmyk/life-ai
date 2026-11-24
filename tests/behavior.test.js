@@ -775,6 +775,23 @@ test('home and MY show the backup reminder until a backup is made, and it can be
   assert.equal(fresh.run('backupNudgeHTML()'),'','empty app is not nagged');
 });
 
+test('the backup reminder also appears when browser storage is about 80% full',()=>{
+  const L=createApp().context.LifeLogic;
+  const base={mainGoal:'x',lastBackupAt:'2026-05-09T00:00:00Z'};
+  const now=Date.parse('2026-05-10T03:00:00Z');
+  assert.equal(L.backupNudge(base,now,{storageChars:3999999}),null);
+  assert.equal(L.backupNudge(base,now,{storageChars:4000000}).kind,'storage');
+  assert.equal(L.backupNudge({},now,{storageChars:4500000}),null,'an empty app is still not nagged');
+  // in the app: size at startup and after saving a big note
+  const big=JSON.stringify({mainGoal:'x',lastBackupAt:'2026-05-09T00:00:00Z',jobPostings:[{id:'p',company:'c',title:'t',url:'https://e.com',notes:'가'.repeat(4100000)}]});
+  const a=createApp(big);
+  assert.match(a.run('backupNudgeHTML()'),/저장 공간이 거의 찼어요/);
+  const b=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:'2026-05-09T00:00:00Z'}));
+  assert.equal(b.run('backupNudgeHTML()'),'');
+  b.run("state.notesBig='가'.repeat(4100000);persistState()");
+  assert.match(b.run('backupNudgeHTML()'),/저장 공간이 거의 찼어요/);
+});
+
 test('a nearly full focus history triggers the reminder and overflow warns',()=>{
   const history=Array.from({length:460},(_,i)=>({date:'2026-05-01',minutes:25,category:'study',completedAt:'t'+i}));
   const a=createApp(JSON.stringify({mainGoal:'x',lastBackupAt:new Date(Date.parse('2026-05-10T03:00:00Z')-10*86400000).toISOString(),focusHistory:history}));

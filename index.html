@@ -749,10 +749,14 @@ function storageWarningHTML(){
 let lifeAISaveWarningShown=false;
 /* Set once a backup restore is written: until the page reloads, nothing may overwrite the restored data with the old in-memory state. */
 let lifeAIRestoring=false;
+/* Size of the records at the last save, so the backup reminder can tell when storage is nearly full. */
+let savedStateChars=savedState?savedState.length:0;
 function persistState(){
   if(lifeAIRestoring)return false;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const json=JSON.stringify(state);
+    savedStateChars=json.length;
+    localStorage.setItem(STORAGE_KEY, json);
     lifeAISaveWarningShown=false;
     const banner=document.getElementById('saveFailBanner');
     if(banner)banner.hidden=true;
@@ -994,7 +998,7 @@ function exportDeadlineCalendar(){
 }
 /* Reminder card on Home and MY: never backed up, last backup is old, or focus history is nearly full. */
 function backupNudgeHTML(){
-  const nudge=LifeLogic.backupNudge(state,Date.now());
+  const nudge=LifeLogic.backupNudge(state,Date.now(),{storageChars:savedStateChars});
   if(!nudge)return '';
   return `<div class="backup-nudge" role="note"><p>💾 ${esc(nudge.message)}</p><button class="btn primary" onclick="exportLifeAIBackup()">지금 백업</button><button class="btn ghost" onclick="snoozeBackupNudge()">7일 뒤에</button></div>`;
 }

@@ -16,6 +16,8 @@
     return FOCUS_CATEGORIES.some(c => c.name === value) ? value : FOCUS_CATEGORIES[0].name;
   }
   const FOCUS_HISTORY_LIMIT = 500;
+  // Browser storage holds about 5M characters; ask for a backup at 80%.
+  const STORAGE_NUDGE_CHARS = 4000000;
   const DANGEROUS_KEYS = ['__proto__', 'prototype', 'constructor'];
 
   // The calendar asks about the same few date strings thousands of times per draw, so the answer is remembered.
@@ -447,6 +449,10 @@
     const limit = (opts && opts.historyLimit) || FOCUS_HISTORY_LIMIT;
     if (!hasUserData(state)) return null;
     if (state.backupSnoozeUntil && Date.parse(state.backupSnoozeUntil) > now) return null;
+    const storageChars = Number(opts && opts.storageChars) || 0;
+    if (storageChars >= STORAGE_NUDGE_CHARS) {
+      return { kind: 'storage', message: '저장 공간이 거의 찼어요. 더 쌓이면 저장이 안 될 수 있으니 지금 백업해 두세요.' };
+    }
     const count = Array.isArray(state.focusHistory) ? state.focusHistory.length : 0;
     const last = Date.parse(state.lastBackupAt || '');
     // A backup made within the last 7 days answers the "history nearly full" warning; later checks still apply.
