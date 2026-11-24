@@ -696,6 +696,25 @@ test('when saving fails, planner/habit/posting forms keep the input, show only t
   assert.match(a.toasts.at(-1),/저장했어요/);
 });
 
+const backupFile=(state,size)=>({files:[{size:size||100,text:async()=>JSON.stringify({format:'life-ai-backup',version:1,exportedAt:'2026-05-01T00:00:00.000Z',state})}]});
+const goodBackup={mainGoal:'백업 목표',nickname:'a',activity:[],completedTasks:[false,false,false,false,false]};
+
+test('a backup is written compactly, and a restore accepts what the app can export',async()=>{
+  const a=createApp(JSON.stringify({mainGoal:'x',nickname:'n'}));
+  const made=a.run('makeLifeAIBackup()');
+  assert.doesNotMatch(made.text,/\n/,'no pretty-print line breaks');
+  assert.equal(JSON.parse(made.text).format,'life-ai-backup');
+  // a 3MB backup used to be refused (the limit was 2MB); now it is restored
+  const b=createApp(JSON.stringify({mainGoal:'old',nickname:'b'}),{search:''});
+  b.run('location.reload=()=>{}');
+  await b.run('importLifeAIBackup')(backupFile(goodBackup,3*1024*1024));
+  assert.equal(b.saved().mainGoal,'백업 목표');
+  const c=createApp(JSON.stringify({mainGoal:'old',nickname:'b'}),{search:''});
+  await c.run('importLifeAIBackup')(backupFile(goodBackup,17*1024*1024));
+  assert.match(c.toasts.at(-1),/16MB 이하/);
+  assert.equal(c.saved().mainGoal,'old','too large: nothing changes');
+});
+
 test('data saved by the previous version is upgraded',()=>{
   const old=JSON.stringify({mainGoal:'x',plannerEntries:[{id:'r',title:'매일',date:'2026-05-01',repeat:'daily',done:true}]});
   const a=createApp(old);

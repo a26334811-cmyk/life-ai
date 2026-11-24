@@ -871,6 +871,9 @@ async function editCurrentGoal(){
 
 const LIFE_AI_BACKUP_FORMAT=LifeLogic.BACKUP_FORMAT;
 const LIFE_AI_BACKUP_VERSION=LifeLogic.BACKUP_VERSION;
+/* Browser storage holds about 5M characters; Korean text is up to 3 bytes each, so a backup the app itself
+   makes can reach about 15MB. Restore must accept at least that much. */
+const LIFE_AI_BACKUP_MAX_BYTES=16*1024*1024;
 /* Builds the backup file text. The date of this backup is set before copying, so the file holds it.
    rollback() undoes the date when the backup did not happen after all. */
 function makeLifeAIBackup(){
@@ -881,7 +884,7 @@ function makeLifeAIBackup(){
   delete backupState.focusRun; // a running timer in a file would be counted as a finished session when restored later
   const payload={format:LIFE_AI_BACKUP_FORMAT,version:LIFE_AI_BACKUP_VERSION,exportedAt,state:backupState};
   return {
-    text:JSON.stringify(payload,null,2),
+    text:JSON.stringify(payload),
     filename:'life-ai-backup-'+koreaToday()+'.json',
     rollback(){if(hadBackupAt)state.lastBackupAt=previousBackupAt;else delete state.lastBackupAt;}
   };
@@ -889,6 +892,7 @@ function makeLifeAIBackup(){
 function downloadBackupFile(made){
   const blob=new Blob([made.text],{type:'application/json;charset=utf-8'});
   const url=URL.createObjectURL(blob);
+  if(blob.size>LIFE_AI_BACKUP_MAX_BYTES)setTimeout(()=>toast('백업 파일이 너무 커서 복원이 안 될 수 있어요. 오래된 공고 메모를 정리해 주세요.',6000),400);
   const link=document.createElement('a');
   link.href=url;link.download=made.filename;
   document.body.appendChild(link);link.click();link.remove();
@@ -1013,7 +1017,7 @@ function backupError(message){return Object.assign(new Error(message),{friendly:
 async function importLifeAIBackup(input){
   const file=input.files?.[0];
   if(!file)return;
-  if(file.size>2*1024*1024){toast('백업 파일은 2MB 이하만 복원할 수 있어요.');return;}
+  if(file.size>LIFE_AI_BACKUP_MAX_BYTES){toast('백업 파일은 16MB 이하만 복원할 수 있어요.');return;}
   try{
     const result=LifeLogic.readBackup(await file.text());
     if(!result.ok)throw backupError(result.message);

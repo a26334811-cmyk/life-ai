@@ -106,14 +106,14 @@ test('restore refuses broken files and keeps the current records',async()=>{
   await refuses(JSON.stringify(goodPayload({...baseState,plannerEntries:[{title:'x',date:'nope'}]})),{expectToast:/구조가 올바르지 않아요/});
 });
 
-test('restore refuses a file over 2MB without reading it',async()=>{
+test('restore refuses a file over 16MB without reading it',async()=>{
   const b=await appWithRecords();
   const original=b.storage.get(KEY);
   let read=false;
-  b.context.__input={files:[{size:2*1024*1024+1,text:async()=>{read=true;return '';}}]};
+  b.context.__input={files:[{size:16*1024*1024+1,text:async()=>{read=true;return '';}}]};
   await b.run('importLifeAIBackup(__input)');
   assert.equal(read,false);
-  assert.match(b.toasts.at(-1),/2MB 이하/);
+  assert.match(b.toasts.at(-1),/16MB 이하/);
   assert.equal(b.storage.get(KEY),original);assert.equal(b.reloads,0);
 });
 
