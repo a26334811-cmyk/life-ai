@@ -50,7 +50,7 @@ exports.handler = async (event) => {
       career:decodeXml(xmlText(b,'career')),
       regDt:decodeXml(xmlText(b,'regDt')),
       closeDt:decodeXml(xmlText(b,'closeDt')),
-      url:(()=>{const candidate=decodeXml(xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl'));try{const parsed=new URL(candidate);return ['https:','http:'].includes(parsed.protocol)?candidate:'';}catch{return '';}})(),
+      url:(()=>{const candidate=decodeXml(xmlText(b,'wantedInfoUrl') || xmlText(b,'wantedMobileInfoUrl'));try{const parsed=new URL(candidate);if(parsed.protocol==='http:')return candidate.replace(/^\s*http:/i,'https:');return parsed.protocol==='https:'?candidate:'';}catch{return '';}})(),
       infoSvc:decodeXml(xmlText(b,'infoSvc'))
     })).filter(x=>x.title);
     return {

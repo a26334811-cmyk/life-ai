@@ -431,3 +431,13 @@ test('renaming a goal refreshes the certificate search name, region and timing b
  assert.equal(a.run('certQueryName()'),'전기기사');assert.equal(a.run('state.parsedGoal.region'),'');assert.equal(a.run('state.parsedGoal.timing'),'');
  assert.equal(a.run('state.goalType'),'cert');assert.equal(a.run('state.parsedGoal.type'),'cert');
 });
+test('saving an http posting link warns about the missing encryption but still saves it',()=>{
+ const a=app();a.el('postingCompany').value='삼천리';a.el('postingTitle').value='시설관리';
+ a.el('postingUrl').value='http://example.com/jobs/1';a.run('savePosting()');
+ assert.equal(a.run('state.jobPostings.length'),1);
+ assert.match(a.toasts[a.toasts.length-1],/암호화 안 된 링크.*https/);
+ a.el('postingCompany').value='다른 회사';a.el('postingTitle').value='정비';
+ a.el('postingUrl').value='https://example.com/jobs/2';a.run('savePosting()');
+ assert.equal(a.run('state.jobPostings.length'),2);
+ assert.doesNotMatch(a.toasts[a.toasts.length-1],/암호화/);
+});

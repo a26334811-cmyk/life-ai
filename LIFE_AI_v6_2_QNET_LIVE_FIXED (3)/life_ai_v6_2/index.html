@@ -2903,7 +2903,7 @@ function savePosting(){
   data.deadlineGuess=Boolean(deadline&&postingDeadlineAuto);
   data.deadlineChecked=Boolean(deadline&&existing&&existing.deadlineChecked===true&&existing.deadline===deadline&&(existing.deadlineTime||'')===deadlineTime&&!data.deadlineGuess);
   if(existing)Object.assign(existing,data);else state.jobPostings.unshift({...data,id:newId(),stage:'관심',tasks:POSTING_TASKS.map(()=>false),createdAt:new Date().toISOString()});
-  const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast('공고와 마감일을 저장했어요.');
+  const saved=persistState();clearPostingForm();document.getElementById('postingEditor').open=false;renderJobHub();if(saved)toast(url.startsWith('http://')?'공고를 저장했어요. 암호화 안 된 링크(http)예요. 가능하면 https로 바꿔 보세요.':'공고와 마감일을 저장했어요.');
 }
 function editPosting(id){
   const p=state.jobPostings.find(x=>x.id===id);if(!p)return;

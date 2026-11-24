@@ -112,3 +112,8 @@ test('drops items with an empty title before applying the 10-item limit',async()
   assert.ok(items.every(x=>x.title&&x.wantedAuthNo!=='EMPTY'&&x.wantedAuthNo!=='BLANK'));
   assert.equal(items[0].wantedAuthNo,'K1');
 });
+test('http result links are upgraded to https',async()=>{
+  const handler=setup('<wantedRoot><wanted><title>정비</title><wantedInfoUrl>http://www.work24.go.kr/wk/a/b/1200/dtlEmpDetail.do?wantedAuthNo=K1</wantedInfoUrl></wanted></wantedRoot>');
+  const {items}=JSON.parse((await handler({queryStringParameters:{keyword:'정비'}})).body);
+  assert.equal(items[0].url,'https://www.work24.go.kr/wk/a/b/1200/dtlEmpDetail.do?wantedAuthNo=K1');
+});
