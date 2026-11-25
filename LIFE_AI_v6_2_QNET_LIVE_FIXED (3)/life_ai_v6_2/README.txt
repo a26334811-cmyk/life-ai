@@ -10,6 +10,11 @@ LIFE AI v6 — 실데이터 베타
    - 국가자격 시험일정 API에서 실제 원서접수/시험/합격발표 일정을 조회합니다.
    - Netlify 환경변수: DATA_GO_KR_SERVICE_KEY
 
+3) 하루 기록 알림 (앱이 꺼져 있어도 오는 알림, 웹 푸시)
+   - 서버 함수: push-subscribe(폰 저장), push-send(10분마다 도는 예약 함수, 운영 배포에서만 동작)
+   - Netlify 환경변수: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (npx web-push generate-vapid-keys 로 만든 한 쌍)
+   - 서버에는 알림 주소·시간·요일·문구·'오늘 썼는지'만 저장하고 기록 내용은 보내지 않습니다.
+
 중요
 - 인증키를 index.html에 직접 넣지 마세요. 친구에게 링크를 공유하면 노출됩니다.
 - 반드시 Netlify 환경변수에 넣습니다.
