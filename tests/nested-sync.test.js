@@ -20,7 +20,7 @@ function neededFiles(){
   for(const m of html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)) add(m[1],'index.html <script src>');
   for(const m of html.matchAll(/<link\b[^>]*\bhref="([^"]+)"/g)) add(m[1],'index.html <link href>');
   for(const m of html.matchAll(/serviceWorker\.register\('([^']+)'/g)) add(m[1],'index.html serviceWorker.register');
-  for(const m of html.matchAll(/\/\.netlify\/functions\/([\w-]+)/g)) add('netlify/functions/'+m[1]+'.js','index.html fetch of /.netlify/functions/'+m[1]);
+  for(const m of html.matchAll(/\/\.netlify\/functions\/([\w-]+)/g)){const ext=['.js','.mjs'].find(e=>fs.existsSync(path.join(root,'netlify/functions/'+m[1]+e)))||'.js';add('netlify/functions/'+m[1]+ext,'index.html fetch of /.netlify/functions/'+m[1]);}
   const sw=read('sw.js');
   for(const name of ['CORE','OPTIONAL']){
     const list=sw.match(new RegExp('const '+name+'\\s*=\\s*\\[([^\\]]*)\\]'));

@@ -57,9 +57,9 @@ test('journalStats counts days and moods in a period',()=>{
 });
 
 test('cleanJournalSettings forces every field into a safe shape',()=>{
-  assert.deepEqual(L.cleanJournalSettings(undefined),{remind:false,time:'21:00',days:[0,1,2,3,4,5,6],lastNotified:'',message:''});
+  assert.deepEqual(L.cleanJournalSettings(undefined),{remind:false,time:'21:00',days:[0,1,2,3,4,5,6],lastNotified:'',message:'',push:false});
   const s=L.cleanJournalSettings({remind:true,time:'7:5',days:[6,1,1,9,'x',-1],lastNotified:'2026-13-01',message:'  잠깐 쉬어요  '});
-  assert.deepEqual(s,{remind:true,time:'21:00',days:[1,6],lastNotified:'',message:'잠깐 쉬어요'});
+  assert.deepEqual(s,{remind:true,time:'21:00',days:[1,6],lastNotified:'',message:'잠깐 쉬어요',push:false});
   assert.equal(L.cleanJournalSettings({remind:'yes'}).remind,false);
 });
 
@@ -390,4 +390,145 @@ test('the journal screen has what a phone needs: big mood buttons, 16px text, a 
   assert.match(screen,/role="group" aria-label="오늘의 기분"/);
   assert.equal((screen.match(/class="journal-mood-btn/g)||[]).length,6);
   assert.ok(screen.includes('이 폰에만 저장되고 다른 곳으로 보내지지 않아요'));
+});
+
+/* ---------- reminder that arrives with the app closed (push) ---------- */
+const PUBLIC_KEY='BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM';
+const SUBSCRIPTION={endpoint:'https://fcm.googleapis.com/fcm/send/abc-token',keys:{p256dh:'p256dh-key-value',auth:'auth-key-value'}};
+// A phone with push support: fakes for the notification permission, the worker's push manager and the server.
+function pushPhone(state,opts={}){
+  const a=appWith(state,opts.app||{});
+  const calls={subscribe:[],unsubscribe:0,posts:[],gets:0,permissionAsked:0};
+  let subscription=null;
+  const make=()=>({...SUBSCRIPTION,toJSON(){return {endpoint:this.endpoint,keys:this.keys};},unsubscribe:async()=>{calls.unsubscribe++;subscription=null;return true;}});
+  if(opts.existing)subscription=make();
+  const pushManager={
+    getSubscription:async()=>subscription,
+    subscribe:async options=>{
+      calls.subscribe.push(options);
+      if(opts.subscribeFails)throw new Error('blocked');
+      subscription=make();
+      return subscription;
+    }
+  };
+  a.context.PushManager=function PushManager(){};
+  a.context.atob=atob;
+  a.context.Notification={permission:opts.permission||'default',requestPermission:async()=>{calls.permissionAsked++;a.context.Notification.permission=opts.answer||'granted';return a.context.Notification.permission;}};
+  a.context.navigator.serviceWorker={ready:Promise.resolve({pushManager}),getRegistration:async()=>null};
+  a.context.fetch=async(url,init)=>{
+    if(!init||!init.method||init.method==='GET'){calls.gets++;return opts.keyStatus?{ok:false,status:opts.keyStatus,json:async()=>({})}:{ok:true,status:200,json:async()=>({publicKey:PUBLIC_KEY})};}
+    calls.posts.push(JSON.parse(init.body));
+    return opts.postFails?{ok:false,status:500,json:async()=>({})}:{ok:true,status:200,json:async()=>({ok:true})};
+  };
+  return {a,calls,current:()=>subscription};
+}
+
+test('turning on the closed-app reminder asks permission, subscribes with the server key and sends only settings',async()=>{
+  const {a,calls}=pushPhone({journal:[entry('2026-11-24',{text:'아주 사적인 이야기'})],journalSettings:{remind:true,time:'23:00',days:[1,3],message:'한 줄만 써요'}});
+  await a.run('journalPushToggle(true)');
+  assert.equal(calls.permissionAsked,1);
+  assert.equal(calls.subscribe.length,1);
+  assert.equal(calls.subscribe[0].userVisibleOnly,true);
+  assert.equal(calls.subscribe[0].applicationServerKey.length,65,'the 65-byte server key');
+  assert.equal(a.saved().journalSettings.push,true);
+  assert.equal(calls.posts.length,1);
+  const sent=calls.posts[0];
+  assert.equal(sent.action,'save');
+  assert.deepEqual(sent.subscription,SUBSCRIPTION);
+  assert.deepEqual(sent.settings,{remind:true,time:'23:00',days:[1,3],message:'한 줄만 써요',lastNotified:''});
+  assert.equal(sent.doneDate,'','nothing written today');
+  assert.doesNotMatch(JSON.stringify(calls.posts),/사적인/,'no record text leaves the phone');
+  assert.match(a.toasts.at(-1),/꺼져 있어도/);
+});
+
+test('a time that already passed today does not fire at once when it is turned on',async()=>{
+  const {a,calls}=pushPhone({journalSettings:{remind:true,time:'20:00'}});
+  await a.run('journalPushToggle(true)');
+  assert.equal(calls.posts[0].settings.lastNotified,TODAY,'today is settled, so the first reminder is the next valid day');
+});
+
+test('what the server is told stays current: writing today, deleting it, and changing the settings',async()=>{
+  const {a,calls}=pushPhone({journalSettings:{remind:true,time:'23:00',push:true}},{existing:true});
+  a.run('journalOpen()');
+  a.el('journalText').value='오늘의 글';a.run("journalPickMood('good')");a.el('journalText').value='오늘의 글';
+  a.run('journalSave()');
+  a.flushTimeouts();await flush();await flush();
+  assert.equal(calls.posts.at(-1).doneDate,TODAY,'the server learns that today is written, so no reminder comes');
+  assert.doesNotMatch(JSON.stringify(calls.posts),/오늘의 글/);
+  await a.run('journalDelete()');
+  a.flushTimeouts();await flush();await flush();
+  assert.equal(calls.posts.at(-1).doneDate,'','deleting makes the day open again');
+  a.run("journalChangeTime('22:00')");
+  a.flushTimeouts();await flush();await flush();
+  assert.equal(calls.posts.at(-1).settings.time,'22:00');
+  a.run('journalChangeDay(3,false)');
+  a.flushTimeouts();await flush();await flush();
+  assert.equal(calls.posts.at(-1).settings.days.includes(3),false);
+});
+
+test('while the server sends the reminder, the app does not also show its own',async()=>{
+  const {a}=pushPhone({journalSettings:{remind:true,time:'20:00',push:true}},{existing:true});
+  await flush();
+  assert.equal(await a.run('journalReminderCheck()'),false);
+  assert.equal(a.toasts.filter(t=>/오늘 하루는 어땠나요/.test(t)).length,0);
+});
+
+test('turning it off forgets the phone on the server and keeps the in-app reminder',async()=>{
+  const {a,calls}=pushPhone({journalSettings:{remind:true,time:'23:00',push:true}},{existing:true});
+  await a.run('journalPushToggle(false)');
+  assert.equal(calls.unsubscribe,1);
+  assert.deepEqual(calls.posts.at(-1),{action:'remove',endpoint:SUBSCRIPTION.endpoint});
+  assert.equal(a.saved().journalSettings.push,false);
+  assert.equal(a.saved().journalSettings.remind,true,'the in-app reminder stays on');
+});
+
+test('it is refused with a clear message when it cannot work: blocked, no server key, server error, unsupported, iPhone browser tab',async()=>{
+  const denied=pushPhone({journalSettings:{remind:true}},{answer:'denied'});
+  await denied.a.run('journalPushToggle(true)');
+  assert.match(denied.a.toasts.at(-1),/허용되지 않았어요/);
+  assert.equal(denied.calls.subscribe.length,0);
+  assert.notEqual(denied.a.saved().journalSettings.push,true,'nothing was turned on');
+  const notReady=pushPhone({journalSettings:{remind:true}},{keyStatus:503});
+  await notReady.a.run('journalPushToggle(true)');
+  assert.match(notReady.a.toasts.at(-1),/아직 준비되지 않았어요/);
+  assert.equal(notReady.calls.subscribe.length,0);
+  const down=pushPhone({journalSettings:{remind:true}},{postFails:true});
+  await down.a.run('journalPushToggle(true)');
+  assert.match(down.a.toasts.at(-1),/저장하지 못했어요/);
+  assert.equal(down.a.saved().journalSettings.push,false,'not left half on');
+  assert.equal(down.calls.unsubscribe,1,'the new subscription is dropped again');
+  const refused=pushPhone({journalSettings:{remind:true}},{subscribeFails:true});
+  await refused.a.run('journalPushToggle(true)');
+  assert.match(refused.a.toasts.at(-1),/켜지 못했어요/);
+  const none=appWith({journalSettings:{remind:true}});
+  await none.run('journalPushToggle(true)');
+  assert.ok(none.toasts.some(t=>/지원하지 않아요/.test(t)),'a browser without push says so');
+  const iphone=pushPhone({journalSettings:{remind:true}},{app:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'}});
+  await iphone.a.run('journalPushToggle(true)');
+  assert.ok(iphone.a.toasts.some(t=>/홈 화면에 추가/.test(t)));
+  assert.equal(iphone.calls.permissionAsked,0,'the permission box is not even shown');
+  const installed=pushPhone({journalSettings:{remind:true}},{app:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',standalone:true}});
+  await installed.a.run('journalPushToggle(true)');
+  assert.equal(installed.a.saved().journalSettings.push,true,'an iPhone app added to the Home Screen can turn it on');
+});
+
+test('if the phone dropped its push subscription, the setting switches itself off instead of lying',async()=>{
+  const {a}=pushPhone({journalSettings:{remind:true,push:true}},{existing:false});
+  assert.equal(await a.run('journalPushSync()'),false);
+  assert.equal(a.run('journalSettings().push'),false);
+});
+
+test('the settings screen explains the closed-app reminder, and it needs the reminder switched on first',()=>{
+  const off=pushPhone({journalSettings:{remind:false}});
+  off.a.run('journalOpen()');
+  const html=off.a.el('journalContent').innerHTML;
+  assert.match(html,/id="journalPush"[^>]*disabled/);
+  assert.match(html,/위의 알림을 먼저 켜 주세요/);
+  const on=pushPhone({journalSettings:{remind:true}});
+  on.a.run('journalOpen()');
+  assert.doesNotMatch(on.a.el('journalContent').innerHTML,/id="journalPush"[^>]*disabled/);
+  assert.match(on.a.el('journalContent').innerHTML,/기록 내용은 보내지 않아요/);
+  const plain=appWith({journalSettings:{remind:true}});
+  plain.run('journalOpen()');
+  assert.match(plain.el('journalContent').innerHTML,/앱이 열려 있을 때만 알려 드려요/,'a browser without push says so');
 });

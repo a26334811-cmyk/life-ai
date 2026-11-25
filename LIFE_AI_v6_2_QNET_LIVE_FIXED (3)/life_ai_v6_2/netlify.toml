@@ -2,6 +2,10 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  # @netlify/blobs (the reminder storage) needs Node 22 or newer.
+  NODE_VERSION = "22"
+
 [functions]
   node_bundler = "esbuild"
 

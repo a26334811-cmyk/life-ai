@@ -64,6 +64,19 @@ self.addEventListener('fetch', event => {
   }));
 });
 
+/* A reminder pushed by the server (see netlify/functions/push-send.mjs) arrives even when the app is closed.
+   It carries only a short title and the screen to open - never the text of a daily record. */
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
+  if (!data || typeof data !== 'object') data = {};
+  const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 80) : '오늘 하루는 어땠나요?';
+  const body = typeof data.body === 'string' ? data.body.slice(0, 160) : '';
+  const screen = ['calendar', 'journal'].includes(data.screen) ? data.screen : 'journal';
+  // One tag: a second reminder replaces the first instead of piling up.
+  event.waitUntil(self.registration.showNotification(title, { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'life-ai-journal', data: { screen } }));
+});
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   // A notification can name the screen it belongs to (the daily-record reminder asks for 'journal').

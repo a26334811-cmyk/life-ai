@@ -7,5 +7,9 @@
     "sync": "node scripts/sync-nested.js",
     "sync:check": "node scripts/sync-nested.js --check",
     "icons": "node scripts/make-icons.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.11",
+    "web-push": "^4.0.0"
   }
 }

@@ -10,7 +10,8 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const nested = path.join(root, 'LIFE_AI_v6_2_QNET_LIVE_FIXED (3)', 'life_ai_v6_2');
 
-const FILES = ['index.html', 'logic.js', 'sw.js', 'manifest.json', 'netlify.toml', 'README.txt'];
+// package.json and package-lock.json go along: Netlify installs the server functions' parts (web-push, @netlify/blobs) from the folder it deploys.
+const FILES = ['index.html', 'logic.js', 'sw.js', 'manifest.json', 'netlify.toml', 'README.txt', 'package.json', 'package-lock.json'];
 const DIRS = ['icons', 'netlify/functions'];
 
 function sharedFiles() {

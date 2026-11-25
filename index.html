@@ -279,6 +279,9 @@
 .journal-home.done{background:#f3f8f1}
 .journal-preview{white-space:pre-wrap;margin:6px 0 10px;line-height:1.6}
 .journal-settings summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.journal-settings label:not(.check){display:block;margin-top:12px;font-size:14px}
+.journal-settings input:not([type=checkbox]){display:block;width:100%;margin-top:4px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;box-sizing:border-box}
+.journal-push{margin-top:6px}
 .journal-days{border:0;padding:0;margin:8px 0;display:flex;flex-wrap:wrap;gap:4px 12px}
 .journal-days legend{font-size:14px;margin-bottom:4px}
 .journal-report{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
@@ -2694,7 +2697,7 @@ let journalSettingsOpen=false;
 let journalReminderTimer=null;
 function journalEntries(){if(!Array.isArray(state.journal))state.journal=[];return state.journal;}
 function journalSettings(){return LifeLogic.cleanJournalSettings(state.journalSettings);}
-function journalSetSettings(patch){state.journalSettings={...journalSettings(),...patch};return persistState();}
+function journalSetSettings(patch){state.journalSettings={...journalSettings(),...patch};const saved=persistState();journalPushSyncSoon();return saved;}
 function journalMessage(){return journalSettings().message||JOURNAL_DEFAULT_MESSAGE;}
 function journalDateMap(){return new Map(journalEntries().map(e=>[e.date,e]));}
 function journalEntry(date){return LifeLogic.journalEntryOn(journalEntries(),date);}
@@ -2769,6 +2772,7 @@ function journalSave(){
   if(!persistOrRollback('journal',snapshot)){if(draft)state.journalDraft=draft;return;}
   clearTimeout(journalTypingTimer);journalTypingTimer=null;
   toast(existing?'기록을 고쳤어요.':journalDate===today?'오늘 하루를 기록했어요. 수고했어요 🌙':'기록을 남겼어요.');
+  journalPushSyncSoon();
   renderJournal();
 }
 async function journalDelete(){
@@ -2781,6 +2785,7 @@ async function journalDelete(){
   if(!persistOrRollback('journal',snapshot))return;
   journalMoodChoice='';
   toast('기록을 지웠어요.');
+  journalPushSyncSoon();
   renderJournal();
 }
 
@@ -2793,8 +2798,9 @@ function journalSettingsHTML(){
     <label class="check"><input type="checkbox" id="journalRemind" ${s.remind?'checked':''} onchange="journalChangeRemind(this.checked)"><span>정한 시간에 기록하라고 알려 주세요</span></label>
     <label>알림 시간<input type="time" id="journalRemindTime" value="${esc(s.time)}" onchange="journalChangeTime(this.value)"></label>
     <fieldset class="journal-days"><legend>반복 요일</legend>${WEEKDAYS_SHORT.map((name,i)=>`<label class="check journal-day"><input type="checkbox" ${s.days.includes(i)?'checked':''} onchange="journalChangeDay(${i},this.checked)"><span>${name}</span></label>`).join('')}</fieldset>
+    <div class="journal-push"><label class="check"><input type="checkbox" id="journalPush" ${s.push?'checked':''} ${s.remind?'':'disabled'} onchange="journalPushToggle(this.checked)"><span>앱이 꺼져 있어도 알림 받기</span></label><p class="meta" id="journalPushHelp">${esc(journalPushHelp())}</p></div>
     <label>알림 문구<input id="journalRemindMessage" maxlength="40" placeholder="${JOURNAL_DEFAULT_MESSAGE}" value="${esc(s.message)}" onchange="journalChangeMessage(this.value)"></label>
-    <p class="meta">오늘 이미 기록했다면 알림은 오지 않아요. 알림은 하루에 한 번만 보내요. 이 앱은 서버가 없어서 <strong>앱이 열려 있거나 백그라운드에 살아 있을 때</strong> 알려 드려요. 앱이 완전히 꺼져 있었다면, 다시 열었을 때 홈 화면에서 "${esc(journalMessage())}" 하고 물어봐요.</p>
+    <p class="meta">오늘 이미 기록했다면 알림은 오지 않아요. 알림은 하루에 한 번만 보내요. 기본으로는 <strong>앱이 열려 있거나 백그라운드에 살아 있을 때</strong> 알려 드려요. 앱이 꺼져 있어도 받으려면 위의 "앱이 꺼져 있어도 알림 받기"를 켜 주세요. 켜지 않았는데 앱이 꺼져 있었다면, 다시 열었을 때 홈 화면에서 "${esc(journalMessage())}" 하고 물어봐요.</p>
   </details>`;
 }
 function journalRecentHTML(){
@@ -2864,6 +2870,7 @@ async function journalShowNotification(message){
 }
 /* Shows today's reminder when it is due (once a day, only while there is no record yet). */
 async function journalReminderCheck(){
+  if(journalSettings().push)return false; // the server sends it (even when the app is closed)
   if(!LifeLogic.journalReminderDue(state.journalSettings,journalEntries(),Date.now()))return false;
   journalSetSettings({lastNotified:koreaToday()});
   const message=journalMessage();
@@ -2901,6 +2908,98 @@ function journalChangeDay(day,checked){
   journalSetSettings({days:[...days].sort()});
 }
 function journalChangeMessage(value){journalSetSettings({message:String(value||'').trim().slice(0,40)});}
+/* ---- the reminder that also arrives when the app is closed (the server sends it as a push message) ----
+   The server only learns the phone's push address, the reminder time, weekdays and message, and whether today is
+   already written. It never receives the text of a record. */
+const JOURNAL_PUSH_URL='/.netlify/functions/push-subscribe';
+let journalPushTimer=null,journalPushBusy=false;
+function journalPushSupported(){return typeof navigator!=='undefined'&&Boolean(navigator.serviceWorker)&&typeof PushManager!=='undefined'&&focusNotificationsSupported();}
+/* iPhone and iPad only deliver push to an app that was added to the Home Screen and opened from there. */
+function journalPushNeedsInstall(){return isIosDevice()&&!isStandalone();}
+function journalPushHelp(){
+  if(!journalPushSupported())return '이 브라우저에서는 꺼진 앱 알림을 쓸 수 없어요. 앱이 열려 있을 때만 알려 드려요.';
+  if(journalPushNeedsInstall())return '아이폰은 앱을 홈 화면에 추가하고, 그 아이콘으로 열었을 때만 켤 수 있어요.';
+  if(!journalSettings().remind)return '위의 알림을 먼저 켜 주세요.';
+  return '켜면 알림 시간·요일·문구와 "오늘 썼는지"만 알림 서버에 보내요. 기록 내용은 보내지 않아요.';
+}
+function journalKeyBytes(text){
+  const padded=String(text)+'='.repeat((4-String(text).length%4)%4);
+  const raw=atob(padded.replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from(raw,c=>c.charCodeAt(0));
+}
+async function journalPushSend(body){
+  const res=await fetch(JOURNAL_PUSH_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  return res&&res.ok;
+}
+/* Tells the server this phone's current reminder settings. Returns true when the server has them. */
+async function journalPushSync(){
+  if(!journalSettings().push||!journalPushSupported())return false;
+  try{
+    const registration=await navigator.serviceWorker.ready;
+    const subscription=await registration.pushManager.getSubscription();
+    if(!subscription){ // the phone dropped it (the user blocked notifications or cleared the site data)
+      state.journalSettings={...journalSettings(),push:false};persistState();
+      if(currentScreen==='journal')renderJournal();
+      return false;
+    }
+    const s=journalSettings(),today=koreaToday();
+    return Boolean(await journalPushSend({action:'save',subscription:subscription.toJSON(),
+      settings:{remind:s.remind,time:s.time,days:s.days,message:s.message,lastNotified:s.lastNotified},
+      doneDate:journalEntry(today)?today:''}));
+  }catch(e){return false;}
+}
+function journalPushSyncSoon(){
+  if(!journalSettings().push)return;
+  clearTimeout(journalPushTimer);
+  journalPushTimer=setTimeout(journalPushSync,800);
+}
+async function journalPushEnable(){
+  if(journalPushBusy)return;
+  if(!journalPushSupported()){toast('이 브라우저는 꺼진 앱 알림을 지원하지 않아요.',6000);renderJournal();return;}
+  if(journalPushNeedsInstall()){toast('아이폰은 앱을 홈 화면에 추가해서 그 아이콘으로 열었을 때만 켤 수 있어요.',7000);renderJournal();return;}
+  journalPushBusy=true;
+  let created=null;
+  try{
+    let permission=Notification.permission;
+    if(permission==='default')permission=await Notification.requestPermission();
+    if(permission!=='granted'){toast('알림이 허용되지 않았어요. 브라우저 설정에서 허용해 주세요.',6000);return;}
+    const keyResponse=await fetch(JOURNAL_PUSH_URL);
+    if(!keyResponse.ok){toast(keyResponse.status===503?'알림 서버가 아직 준비되지 않았어요.':'알림 서버에 연결하지 못했어요.',6000);return;}
+    const {publicKey}=await keyResponse.json();
+    const registration=await navigator.serviceWorker.ready;
+    let subscription=await registration.pushManager.getSubscription();
+    if(!subscription){subscription=created=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:journalKeyBytes(publicKey)});}
+    const s=journalSettings();
+    // a time that already passed today must not fire at once: today is settled first
+    journalSetSettings({push:true,...(s.lastNotified===koreaToday()?{}:journalSettleToday(s.time))});
+    if(!await journalPushSync()){
+      journalSetSettings({push:false});
+      if(created){try{await created.unsubscribe();}catch(e){}}
+      toast('알림 서버에 저장하지 못했어요. 잠시 뒤에 다시 해 주세요.',6000);
+      return;
+    }
+    toast('앱이 꺼져 있어도 정한 시간에 알려 드릴게요.',6000);
+  }catch(e){
+    if(created){try{await created.unsubscribe();}catch(x){}}
+    state.journalSettings={...journalSettings(),push:false};persistState();
+    toast('꺼진 앱 알림을 켜지 못했어요.',6000);
+  }finally{journalPushBusy=false;if(currentScreen==='journal')renderJournal();}
+}
+async function journalPushDisable(){
+  journalSetSettings({push:false});
+  try{
+    const registration=await navigator.serviceWorker.ready;
+    const subscription=await registration.pushManager.getSubscription();
+    if(subscription){
+      const endpoint=subscription.endpoint;
+      await subscription.unsubscribe();
+      await journalPushSend({action:'remove',endpoint});
+    }
+  }catch(e){}
+  toast('꺼진 앱 알림을 껐어요. 앱이 열려 있을 때는 계속 알려 드려요.',5000);
+  if(currentScreen==='journal')renderJournal();
+}
+function journalPushToggle(checked){return checked?journalPushEnable():journalPushDisable();}
 function journalRestartOnVisible(){if(typeof document.hidden!=='undefined'&&!document.hidden)journalReminderCheck();}
 if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',journalRestartOnVisible);
 
@@ -3640,7 +3739,7 @@ else renderHome();
 if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
 handleSharedLink();
 if(startupNotice)setTimeout(()=>toast(startupNotice,startupNoticeMs),600);
-journalReminderCheck();journalScheduleReminder();
+journalReminderCheck();journalScheduleReminder();journalPushSyncSoon();
 /* A tapped notification asks an open window to show a screen. */
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof navigator.serviceWorker.addEventListener==='function')navigator.serviceWorker.addEventListener('message',event=>{const d=event&&event.data;if(d&&d.type==='open-screen'&&LINK_SCREENS.includes(d.screen))go(d.screen);});
 </script>

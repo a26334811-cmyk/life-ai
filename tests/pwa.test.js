@@ -244,6 +244,28 @@ test('the daily-record notification opens the journal: an open window is told to
   assert.equal(odd.self.__opened,'./index.html?screen=calendar');
 });
 
+test('a pushed reminder is shown even with the app closed, with one tag, and opens the journal when tapped',async()=>{
+  const sw=loadWorker();
+  const shown=[];let wait;
+  sw.self.registration={showNotification:async(title,options)=>{shown.push({title,options});}};
+  const push=json=>sw.handlers.push({data:{json:()=>{if(json instanceof Error)throw json;return json;}},waitUntil:p=>{wait=p;}});
+  push({title:'오늘 한 줄만 써 볼까요?',body:'한 줄이면 충분해요.',screen:'journal'});
+  await wait;
+  assert.equal(shown[0].title,'오늘 한 줄만 써 볼까요?');
+  assert.equal(shown[0].options.tag,'life-ai-journal');
+  assert.equal(shown[0].options.data.screen,'journal');
+  assert.equal(shown[0].options.icon,'icons/icon-192.png');
+  push({title:'  ',screen:'evil'});await wait;
+  assert.equal(shown[1].title,'오늘 하루는 어땠나요?','an empty title falls back to the default');
+  assert.equal(shown[1].options.data.screen,'journal','an unknown screen name falls back to the journal');
+  push(new Error('not json'));await wait;
+  assert.equal(shown.length,3,'an unreadable message still shows the default reminder');
+  push({title:'가'.repeat(300)});await wait;
+  assert.equal(shown[3].title.length,80);
+  sw.handlers.push({data:null,waitUntil:p=>{wait=p;}});await wait;
+  assert.equal(shown.length,5,'a message without data shows the default reminder');
+});
+
 test('manifest lets the phone Share sheet send a link to the app (GET with title, text, url)',()=>{
   const target=manifest.share_target;
   assert.ok(target,'share_target');

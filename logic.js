@@ -1041,7 +1041,8 @@
       time: validTime(s.time) ? s.time : '21:00',
       days,
       lastNotified: validDate(s.lastNotified) ? s.lastNotified : '',
-      message: typeof s.message === 'string' ? s.message.trim().slice(0, 40) : ''
+      message: typeof s.message === 'string' ? s.message.trim().slice(0, 40) : '',
+      push: s.push === true // the phone asked the server to send the reminder even when the app is closed
     };
   }
 
