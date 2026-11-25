@@ -66,11 +66,17 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  // A notification can name the screen it belongs to (the daily-record reminder asks for 'journal').
+  const data = event.notification.data;
+  const screen = data && ['calendar', 'journal'].includes(data.screen) ? data.screen : 'calendar';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
       const open = clients.find(client => 'focus' in client);
-      if (open) return open.focus();
-      return self.clients.openWindow('./index.html?screen=calendar');
+      if (open) {
+        try { open.postMessage({ type: 'open-screen', screen }); } catch (e) {}
+        return open.focus();
+      }
+      return self.clients.openWindow('./index.html?screen=' + screen);
     })
   );
 });

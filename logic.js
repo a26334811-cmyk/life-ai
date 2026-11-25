@@ -198,8 +198,8 @@
 
   const STRING_KEYS = ['nickname', 'mainGoal', 'selectedCompany', 'selectedJob', 'employmentStatus', 'career', 'education', 'ownedCert', 'policyIncome', 'recoveryMode', 'lastBackupAt', 'backupSnoozeUntil', 'goalId'];
   const BOOLEAN_KEYS = ['jobPreparationStarted', 'policyIncomeAdded', 'jobSubmitted', 'favorite'];
-  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals', 'taskNames'];
-  const OBJECT_KEYS = ['parsedGoal', 'focusSettings', 'focusRun'];
+  const ARRAY_KEYS = ['activity', 'completedTasks', 'habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'watchCompanies', 'favoriteCerts', 'otherGoals', 'taskNames', 'journal'];
+  const OBJECT_KEYS = ['parsedGoal', 'focusSettings', 'focusRun', 'journalSettings', 'journalDraft'];
 
   // Ids of habits and planner entries are used inside page markup, so only plain id characters are allowed.
   const validId = value => typeof value === 'string' && /^[\w-]{1,40}$/.test(value);
@@ -213,6 +213,8 @@
     focusHistory: item => isPlain(item) && validDate(item.date) && Number.isFinite(Number(item.minutes)) && Number(item.minutes) >= 0,
     jobPostings: item => isPlain(item) && (item.tasks===undefined||Array.isArray(item.tasks)) && isText(item.id, 200) && isText(item.company, 2000) && isText(item.title, 2000) &&
       (item.url === undefined || item.url === '' || isHttpUrl(item.url)),
+    // a record of the day: a real date; the text is cut to its limit later by cleanJournalEntries
+    journal: item => isPlain(item) && validDate(item.date) && (item.mood === undefined || typeof item.mood === 'string') && (item.text === undefined || isText(item.text, 20000)),
     taskNames: item => isText(item, 100) && item.trim() !== '',
     watchCompanies: item => isPlain(item) || typeof item === 'string',
     favoriteCerts: item => isPlain(item) && isText(item.name, 300) && isText(item.code, 300)
@@ -337,6 +339,7 @@
         let kept = check ? items.filter(check) : items;
         if (key === 'taskNames' && kept.length > 20) kept = kept.slice(0, 20);
         if (key === 'plannerEntries') kept = kept.map(cleanPlannerEntry);
+        if (key === 'journal') kept = cleanJournalEntries(kept);
         if (key === 'jobPostings') {
           kept = kept.map(p => {
             const fixes = {};
@@ -436,13 +439,13 @@
   function hasUserData(state) {
     if (!state) return false;
     return Boolean(state.mainGoal) ||
-      ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts'].some(k => Array.isArray(state[k]) && state[k].length);
+      ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts', 'journal'].some(k => Array.isArray(state[k]) && state[k].length);
   }
 
   // How many saved records the user has made (habits, schedule entries, focus sessions, postings, favourites).
   function recordCount(state) {
     if (!state) return 0;
-    return ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts']
+    return ['habits', 'plannerEntries', 'focusHistory', 'jobPostings', 'favoriteCerts', 'journal']
       .reduce((sum, k) => sum + (Array.isArray(state[k]) ? state[k].length : 0), 0);
   }
 
@@ -968,7 +971,94 @@
     return { done, total: flags.length, percent: flags.length ? Math.round(done / flags.length * 100) : 0 };
   }
 
+  /* ---------- 하루 기록 (daily journal) ----------
+     One record per day: a mood (emoji) and/or a few lines of text. Everything here is pure (no page, no clock):
+     the page passes today's date / the time in. The text never leaves the phone; it is only part of the saved
+     state and of a backup file the user makes. */
+  const JOURNAL_MOODS = [
+    { key: 'great', emoji: '😄', label: '아주 좋아요', score: 5 },
+    { key: 'good', emoji: '🙂', label: '좋아요', score: 4 },
+    { key: 'okay', emoji: '😐', label: '보통이에요', score: 3 },
+    { key: 'tired', emoji: '😴', label: '피곤해요', score: 2 },
+    { key: 'sad', emoji: '😢', label: '속상해요', score: 1 },
+    { key: 'angry', emoji: '😠', label: '화가 나요', score: 1 }
+  ];
+  const JOURNAL_TEXT_MAX = 5000;
+  const journalMood = key => JOURNAL_MOODS.find(m => m.key === key) || null;
+
+  /* Keeps the good records: a real date, a known mood or none, text up to the limit, and at least a mood or some text.
+     One record per date (the most recently changed wins), oldest first. */
+  function cleanJournalEntries(list) {
+    if (!Array.isArray(list)) return [];
+    const byDate = new Map();
+    for (const item of list) {
+      if (!isPlain(item) || !validDate(item.date)) continue;
+      const text = typeof item.text === 'string' ? item.text.slice(0, JOURNAL_TEXT_MAX) : '';
+      const mood = journalMood(item.mood) ? item.mood : '';
+      if (!mood && !text.trim()) continue;
+      const stamp = value => (typeof value === 'string' && value.length <= 40 ? value : '');
+      const entry = { date: item.date, mood, text, createdAt: stamp(item.createdAt), updatedAt: stamp(item.updatedAt) };
+      const old = byDate.get(item.date);
+      if (!old || entry.updatedAt >= old.updatedAt) byDate.set(item.date, entry);
+    }
+    return [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+  const journalEntryOn = (entries, date) => (Array.isArray(entries) ? entries.find(e => e && e.date === date) : null) || null;
+
+  /* Days in a row with a record, ending today. A day not written yet does not break the row until the day is over. */
+  function journalStreak(entries, today) {
+    const set = new Set((Array.isArray(entries) ? entries : []).map(e => e && e.date));
+    let date = set.has(today) ? today : dateOffset(today, -1);
+    let count = 0;
+    while (set.has(date)) { count += 1; date = dateOffset(date, -1); }
+    return count;
+  }
+
+  /* Numbers for a report period (a list of dates): how many days have a record, how often each mood was chosen,
+     the mood chosen most often (the earlier one in the list wins a tie) and the average mood score (1 to 5). */
+  function journalStats(entries, dates) {
+    const inPeriod = new Set(dates);
+    const list = (Array.isArray(entries) ? entries : []).filter(e => e && inPeriod.has(e.date));
+    const counts = {};
+    let scoreSum = 0, scored = 0;
+    for (const e of list) {
+      const m = journalMood(e.mood);
+      if (!m) continue;
+      counts[m.key] = (counts[m.key] || 0) + 1;
+      scoreSum += m.score; scored += 1;
+    }
+    let top = '';
+    for (const m of JOURNAL_MOODS) if (counts[m.key] && (!top || counts[m.key] > counts[top])) top = m.key;
+    return { days: list.length, moods: counts, top, average: scored ? Math.round(scoreSum / scored * 10) / 10 : 0 };
+  }
+
+  /* Reminder settings with every field forced into a safe shape. */
+  function cleanJournalSettings(raw) {
+    const s = isPlain(raw) ? raw : {};
+    const days = Array.isArray(s.days) ? [...new Set(s.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort() : [0, 1, 2, 3, 4, 5, 6];
+    return {
+      remind: s.remind === true,
+      time: validTime(s.time) ? s.time : '21:00',
+      days,
+      lastNotified: validDate(s.lastNotified) ? s.lastNotified : '',
+      message: typeof s.message === 'string' ? s.message.trim().slice(0, 40) : ''
+    };
+  }
+
+  /* True when the reminder should show now: it is on, today is one of the chosen weekdays, the time has come,
+     today has no record yet and today's reminder was not shown already (so it never repeats). */
+  function journalReminderDue(settings, entries, nowMs) {
+    const s = cleanJournalSettings(settings);
+    if (!s.remind) return false;
+    const today = koreaDate(nowMs);
+    const time = new Date(nowMs + 9 * 3600000).toISOString().slice(11, 16);
+    const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+    if (!s.days.includes(weekday) || time < s.time || s.lastNotified === today) return false;
+    return !journalEntryOn(entries, today);
+  }
+
   const api = {
+    JOURNAL_MOODS, JOURNAL_TEXT_MAX, journalMood, cleanJournalEntries, journalEntryOn, journalStreak, journalStats, cleanJournalSettings, journalReminderDue,
     GOAL_FIELDS, MAX_GOALS, goalCount, canAddGoal, snapshotGoal, applyGoal, parkActiveGoal, restoreParkedGoal,
     switchGoal, removeGoal, goalList, findGoalByTitle, swipeDirection, stepTab,
     certSchedulesOf, nextExam, upcomingAlerts, searchSchedule,

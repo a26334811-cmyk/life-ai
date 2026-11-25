@@ -225,6 +225,25 @@ test('tapping the notification focuses an open window or opens the calendar',asy
   assert.equal(none.self.__opened,'./index.html?screen=calendar');
 });
 
+test('the daily-record notification opens the journal: an open window is told to show it, a closed app opens on it',async()=>{
+  const sw=loadWorker();
+  const told=[];let focused=false,wait;
+  sw.self.__clients=[{focus:async()=>{focused=true;},postMessage:m=>told.push(m)}];
+  sw.handlers.notificationclick({notification:{close(){},data:{screen:'journal'}},waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.ok(focused);
+  assert.deepEqual(JSON.parse(JSON.stringify(told)),[{type:'open-screen',screen:'journal'}]);
+  const none=loadWorker();none.self.__clients=[];
+  none.handlers.notificationclick({notification:{close(){},data:{screen:'journal'}},waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.equal(none.self.__opened,'./index.html?screen=journal');
+  // an unknown screen name in the notification falls back to the calendar
+  const odd=loadWorker();odd.self.__clients=[];
+  odd.handlers.notificationclick({notification:{close(){},data:{screen:'evil'}},waitUntil:p=>{wait=p;}});
+  await wait;
+  assert.equal(odd.self.__opened,'./index.html?screen=calendar');
+});
+
 test('manifest lets the phone Share sheet send a link to the app (GET with title, text, url)',()=>{
   const target=manifest.share_target;
   assert.ok(target,'share_target');

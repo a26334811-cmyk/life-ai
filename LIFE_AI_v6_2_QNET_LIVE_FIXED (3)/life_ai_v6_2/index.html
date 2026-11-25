@@ -254,6 +254,37 @@
 .planner-tabpanel.slide-next{animation:planner-slide-next .18s ease-out}
 .planner-tabpanel.slide-prev{animation:planner-slide-prev .18s ease-out}
 @media(prefers-reduced-motion:reduce){.planner-tabpanel.slide-next,.planner-tabpanel.slide-prev{animation:none}}
+/* 하루 기록 (daily journal) */
+.journal-card h3{margin:0 0 4px}
+.journal-card label{display:block;margin-top:10px;font-size:14px}
+.journal-card input[type=date]{display:block;margin-top:4px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;box-sizing:border-box}
+.journal-streak{display:block;width:fit-content;margin:6px 0 4px;padding:6px 12px;border-radius:999px;background:#fff4e5;color:#8a5a00;font-size:14px}
+.journal-mood{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.journal-mood-btn{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:64px;padding:8px 4px;border:1px solid var(--line);border-radius:14px;background:var(--card,#fff);font-size:13px;cursor:pointer}
+.journal-mood-btn.selected{border:2px solid var(--primary);background:#e8f1ff;font-weight:700}
+.journal-mood-emoji{font-size:26px;line-height:1.1}
+.journal-text{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);border-radius:14px;font-size:16px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box}
+.journal-count{text-align:right;margin:2px 0}
+.journal-actions{display:flex;gap:8px;margin-top:6px}
+.journal-actions .btn{flex:1}
+.journal-recent-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer}
+.journal-recent-item.selected{border:2px solid var(--primary)}
+.journal-recent-item .meta{display:block}
+.journal-emoji{font-size:28px;line-height:1}
+.journal-home{display:flex;align-items:center;gap:12px}
+.journal-home>div{flex:1;min-width:0}
+.journal-home .journal-emoji{flex:none}
+.journal-home .btn{width:auto;flex:none;white-space:nowrap;padding-left:16px;padding-right:16px}
+.journal-home p{margin:2px 0 0}
+.journal-home.done{background:#f3f8f1}
+.journal-preview{white-space:pre-wrap;margin:6px 0 10px;line-height:1.6}
+.journal-settings summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.journal-days{border:0;padding:0;margin:8px 0;display:flex;flex-wrap:wrap;gap:4px 12px}
+.journal-days legend{font-size:14px;margin-bottom:4px}
+.journal-report{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.journal-report p{margin:2px 0 0}
+.planner-day{position:relative}
+.planner-day .journal-mark{position:absolute;top:2px;right:3px;font-size:12px;line-height:1}
 @media(max-width:520px){.planner-item{flex-direction:column}.planner-item-actions{justify-content:flex-start}.planner-day{min-height:57px;padding:5px 2px}.planner-day .dot{display:none}.planner-day .dot-count{display:block}.planner-form{grid-template-columns:1fr}}
 
 .focus-timer{text-align:center;padding:16px 4px}
@@ -605,6 +636,11 @@ h3{font-size:16px;line-height:1.4}
     <button class="btn primary" onclick="go('jobHub')">💼 관심 회사·공고 관리</button><div id="opportunityFeed"></div>
   </section>
 
+  <section id="journal" class="screen">
+    <div class="topbar"><button class="back" aria-label="뒤로" onclick="historyBack()">←</button><h2 style="margin:0">하루 기록</h2></div>
+    <div id="journalContent"></div>
+  </section>
+
   <section id="my" class="screen">
     <div class="topbar"><h2 style="margin:0">MY</h2></div>
     <div id="myContent"></div>
@@ -629,7 +665,7 @@ h3{font-size:16px;line-height:1.4}
    If a function the page needs is missing, drop the saved logic.js and reload once to fetch the matching file.
    Keep this list equal to every LifeLogic.<name> used below (a test checks it). */
 (function(){
-  var need=['BACKUP_FORMAT','BACKUP_VERSION','FOCUS_CATEGORIES','FOCUS_HISTORY_LIMIT','FOCUS_MINUTES','MAX_GOALS','MAX_POSTING_EVENTS','MAX_TASKS','POSTING_NOTES_MAX','STATE_SCHEMA_VERSION','addGoalTask','backupNudge','canAddGoal','certSchedulesOf','cleanPostingEvents','cleanPostingUrl','cleanTitle','dateOffset','deadlineInRange','extractDeadline','findGoalByTitle','firstUrl','focusCategoryName','focusMinutes','goalCount','goalList','goalProgress','goalTaskNames','habitStreak','isDone','isFocusMinutes','isHabitRestDay','isRepeating','koreaDate','migrateState','nextExam','occurrencesByDate','occurs','parkActiveGoal','parseShareParams','periodDates','postingEventsOf','readBackup','removeGoal','removeGoalTask','renameGoalTask','resetGoalTasks','restoreParkedGoal','resumeFocus','sanitizeState','scheduleItems','searchSchedule','skipOccurrence','stepTab','swipeDirection','switchGoal','toggleDone','upcomingAlerts','validDate','validTime','weekStart'];
+  var need=['BACKUP_FORMAT','BACKUP_VERSION','FOCUS_CATEGORIES','FOCUS_HISTORY_LIMIT','FOCUS_MINUTES','MAX_GOALS','MAX_POSTING_EVENTS','MAX_TASKS','POSTING_NOTES_MAX','STATE_SCHEMA_VERSION','addGoalTask','backupNudge','canAddGoal','certSchedulesOf','cleanPostingEvents','cleanPostingUrl','cleanTitle','dateOffset','deadlineInRange','extractDeadline','findGoalByTitle','firstUrl','focusCategoryName','focusMinutes','goalCount','goalList','goalProgress','goalTaskNames','habitStreak','isDone','isFocusMinutes','isHabitRestDay','isRepeating','koreaDate','migrateState','nextExam','occurrencesByDate','occurs','parkActiveGoal','parseShareParams','periodDates','postingEventsOf','readBackup','removeGoal','removeGoalTask','renameGoalTask','resetGoalTasks','restoreParkedGoal','resumeFocus','sanitizeState','scheduleItems','searchSchedule','skipOccurrence','stepTab','swipeDirection','switchGoal','toggleDone','upcomingAlerts','validDate','validTime','weekStart','JOURNAL_MOODS','JOURNAL_TEXT_MAX','cleanJournalEntries','cleanJournalSettings','journalEntryOn','journalMood','journalReminderDue','journalStats','journalStreak'];
   var logic=typeof LifeLogic!=='undefined'?LifeLogic:null;
   var flag='lifeAILogicReload';
   if(logic&&need.every(function(n){return logic[n]!==undefined;})){try{sessionStorage.removeItem(flag);}catch(e){}return;}
@@ -1163,6 +1199,7 @@ function go(id,mode){
   if(id==='goalDetail'){taskEditing=false;renderTasks();}
   if(id==='calendar'){renderCalendar();plannerShowSwipeHint();}
   if(id==='my') renderMy();
+  if(id==='journal') renderJournal();
   if(id==='jobHub') renderJobHub();
   if(id==='liveJobs'){const k=document.getElementById('liveJobKeyword');if(k)k.value=defaultLiveJobKeyword();}
   if(id==='opportunities') filterOpportunities('all');
@@ -1356,6 +1393,7 @@ function renderHome(){
   c.innerHTML=`
     ${upcomingBannerHTML()}
     <div class="backup-nudge-slot">${backupNudgeHTML()}</div>
+    ${journalHomeCardHTML()}
     <div class="soft-overview" aria-label="내 생활 요약">
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">📅</span><div class="soft-overview-copy"><strong>${nextEvent?esc(nextEvent.when):'다가오는 시험 확인'}</strong><span class="meta">${nextEvent?esc(nextEvent.name):'시험 일정은 Q-Net에서 확인할 수 있어요'}</span></div><button class="soft-overview-action" onclick="go('cert')" aria-label="시험 일정 보기">보기</button></div>
       <div class="soft-overview-row"><span class="soft-overview-icon" aria-hidden="true">🎯</span><div class="soft-overview-copy"><strong>목표 진행 ${progress}%</strong><span class="meta">${completed} / ${taskTotal}단계 완료</span></div><button class="soft-overview-action" onclick="go('goals')" aria-label="내 목표 보기">보기</button></div>
@@ -2186,6 +2224,7 @@ function progressInsightsHTML(){
       <div><strong>${activeDays}일</strong><p class="meta">활동한 날</p></div>
       <div><strong>${totalPossible?rate+'%':'—'}</strong><p class="meta">습관 달성률</p></div>
     </div>
+    ${journalReportHTML(dates)}
     ${monthly?`<div class="insights-heatmap" aria-label="월간 날짜별 집중 시간">
       ${WEEKDAYS_SHORT.map(d=>`<span class="insights-weekday">${d}</span>`).join('')}
       ${heatmap}
@@ -2562,6 +2601,7 @@ function renderCalendarNow(){
   const dateLabel=plannerView==='month'?plannerSelected.slice(0,7):plannerView==='day'?plannerSelected.slice(5)+' ('+WEEKDAYS_SHORT[weekdayOf(plannerSelected)]+')':plannerSelected;
   const byDate=LifeLogic.occurrencesByDate(plannerEntries(),[...dates,plannerSelected]); // every entry is looked at once, not once per day cell
   const dayList=plannerForDate(plannerSelected,byDate.get(plannerSelected));
+  const journalByDay=journalDateMap(); // days that have a daily record
   const upcoming=plannerUpcomingPriority();
   c.innerHTML=`
     <div class="planner-tabbar" role="tablist" aria-label="일정관리 메뉴">
@@ -2604,7 +2644,7 @@ function renderCalendarNow(){
       ${plannerView==='day'
         ?`<p class="planner-day-summary">${esc(plannerSelected)} · ${WEEKDAYS_LONG[weekdayOf(plannerSelected)]}의 일정</p>`
         :`<div class="planner-grid">${WEEKDAYS_SHORT.map(d=>`<div class="planner-weekday">${d}</div>`).join('')}
-        ${dates.map(date=>{const dayEvents=plannerForDate(date,byDate.get(date)),otherMonth=plannerView==='month'&&date.slice(0,7)!==plannerSelected.slice(0,7);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''} ${otherMonth?'other':''}" onclick="plannerSelect('${date}',true)" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}${otherMonth?' (다른 달)':''}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
+        ${dates.map(date=>{const dayEvents=plannerForDate(date,byDate.get(date)),otherMonth=plannerView==='month'&&date.slice(0,7)!==plannerSelected.slice(0,7);return `<button type="button" class="planner-day ${date===today?'today':''} ${date===plannerSelected?'selected':''} ${otherMonth?'other':''}" onclick="plannerSelect('${date}',true)" aria-label="${plannerDayLabel(date,dayEvents.length,date===today)}${journalByDay.has(date)?' · 하루 기록 있음':''}${otherMonth?' (다른 달)':''}" aria-pressed="${date===plannerSelected}"><strong>${Number(date.slice(8))}</strong>${journalByDay.has(date)?`<span class="journal-mark" aria-hidden="true">${journalEmoji(journalByDay.get(date))}</span>`:''}${dayEvents.slice(0,2).map(e=>`<span class="dot${e.done?' done':''}"${e.done?' style="opacity:.5;text-decoration:line-through"':''}>${e.origin==='external'?'💼':e.origin==='cert'?'🏅':e.category==='study'?'📚':'•'} ${esc(e.title)}</span>`).join('')}${dayEvents.length?`<span class="dot-count" aria-hidden="true">●${dayEvents.length}</span>`:''}</button>`}).join('')}
         </div>`}
 
     </div>
@@ -2612,6 +2652,7 @@ function renderCalendarNow(){
       ${dayList.length?dayList.map(e=>`<div class="planner-item"><div><strong${e.done?' style="text-decoration:line-through;opacity:.6"':''}>${e.origin==='external'?'💼 ':e.origin==='cert'?'🏅 ':''}${esc(e.title)}</strong>${e.done?' <span class="meta">✓ 완료</span>':''}<p class="meta">${esc(e.time||'종일')} · ${e.origin==='external'?'저장한 채용공고':e.origin==='cert'?'조회한 자격증 일정':e.repeat&&e.repeat!=='none'?'반복 일정':'개인 일정'}</p></div>
       ${e.origin==='personal'?`<div class="planner-item-actions"><button class="btn ghost" aria-label="${e.done?'되돌리기':'완료 표시'}: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerToggle(this.dataset.id,'${plannerSelected}')">${e.done?'되돌리기':'완료 표시'}</button>${LifeLogic.isRepeating(e)?'':`<button class="btn ghost" aria-label="내일로 미루기: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerPostpone(this.dataset.id)">내일</button>`}<button class="btn ghost" aria-label="수정: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerEdit(this.dataset.id,'${plannerSelected}')">수정</button><button class="btn ghost" aria-label="삭제: ${plannerEscapeAttr(e.title)}" data-id="${plannerEscapeAttr(e.id)}" onclick="plannerRemove(this.dataset.id,'${plannerSelected}')">삭제</button></div>`:e.origin==='cert'?certAddHTML(e):e.origin==='external'?`<div class="planner-item-actions"><button class="btn ghost" onclick="go('jobHub')">공고 보기</button></div>`:''}</div>`).join(''):'<p class="meta">이 날짜에는 등록된 일정이 없어요.</p>'}
     </div>
+    ${journalDayCardHTML(plannerSelected)}
     <div class="card">
       <div class="planner-form-heading">
         <h3>${existing?'✏️ 일정 수정':'일정 관리'}</h3>
@@ -2639,6 +2680,230 @@ function renderCalendarNow(){
   document.getElementById('plannerRepeat').value=existing?.repeat||'none';
 }
 
+/* ================= 하루 기록 (daily journal) =================
+   One small record per day: a mood emoji and/or a few lines. Kept only in this phone's saved state (state.journal),
+   never sent anywhere. A half-written text is saved as a draft (state.journalDraft) while typing, so leaving the screen
+   does not lose it. The reminder is checked while the app is open (there is no server that could wake a closed app). */
+/* Screens a link or a tapped notification may open. */
+const LINK_SCREENS=['journal','calendar'];
+const JOURNAL_DEFAULT_MESSAGE='오늘 하루는 어땠나요?';
+let journalDate='';          // the day shown on the journal screen ('' = choose when it opens)
+let journalMoodChoice='';    // the mood chosen in the form
+let journalTypingTimer=null;
+let journalSettingsOpen=false;
+let journalReminderTimer=null;
+function journalEntries(){if(!Array.isArray(state.journal))state.journal=[];return state.journal;}
+function journalSettings(){return LifeLogic.cleanJournalSettings(state.journalSettings);}
+function journalSetSettings(patch){state.journalSettings={...journalSettings(),...patch};return persistState();}
+function journalMessage(){return journalSettings().message||JOURNAL_DEFAULT_MESSAGE;}
+function journalDateMap(){return new Map(journalEntries().map(e=>[e.date,e]));}
+function journalEntry(date){return LifeLogic.journalEntryOn(journalEntries(),date);}
+function journalEmoji(entry){const m=entry&&LifeLogic.journalMood(entry.mood);return m?m.emoji:'📝';}
+function journalDayName(date){return date.slice(5).replace('-','월 ')+'일 ('+WEEKDAYS_SHORT[weekdayOf(date)]+')';}
+function journalFirstLine(text,max){const line=String(text||'').split('\n').find(x=>x.trim())||'';return line.length>max?line.slice(0,max)+'…':line;}
+
+/* Opens the journal screen on a day (a past day or today; nothing given = today, or the day of an unsaved draft). */
+function journalOpen(date){
+  const today=koreaToday();
+  journalDate=date&&LifeLogic.validDate(date)&&date<=today?date:'';
+  go('journal');
+}
+function journalPickDate(){
+  const today=koreaToday();
+  if(journalDate&&LifeLogic.validDate(journalDate)&&journalDate<=today)return;
+  const draft=state.journalDraft;
+  journalDate=draft&&LifeLogic.validDate(draft.date)&&draft.date<=today?draft.date:today;
+}
+/* What the form starts with: the unsaved draft of that day first, then the saved record. */
+function journalFormValues(){
+  const draft=state.journalDraft;
+  if(draft&&draft.date===journalDate)return {mood:LifeLogic.journalMood(draft.mood)?draft.mood:'',text:typeof draft.text==='string'?draft.text:'',draft:true};
+  const entry=journalEntry(journalDate);
+  return entry?{mood:entry.mood,text:entry.text,draft:false}:{mood:'',text:'',draft:false};
+}
+function journalReadText(){const box=document.getElementById('journalText');return box?String(box.value||''):journalFormValues().text;}
+/* Saves what is typed so far as a draft (nothing is saved as a record yet). Equal to the saved record = no draft. */
+function journalAutosave(){
+  clearTimeout(journalTypingTimer);journalTypingTimer=null;
+  if(!journalDate)return false;
+  const text=journalReadText().slice(0,LifeLogic.JOURNAL_TEXT_MAX),mood=journalMoodChoice;
+  const entry=journalEntry(journalDate);
+  const same=entry?(entry.text===text&&entry.mood===mood):(!text.trim()&&!mood);
+  if(same){if(state.journalDraft)delete state.journalDraft;}
+  else state.journalDraft={date:journalDate,mood,text};
+  const saved=persistState();
+  const note=document.getElementById('journalNote');
+  if(note)note.textContent=same?'':saved?'임시 저장했어요. 저장 버튼을 누르면 기록이 돼요.':'임시 저장하지 못했어요. 저장 공간을 확인해 주세요.';
+  return saved;
+}
+function journalOnInput(){
+  clearTimeout(journalTypingTimer);
+  journalTypingTimer=setTimeout(journalAutosave,700);
+  const count=document.getElementById('journalCount');
+  if(count)count.textContent=journalReadText().length+' / '+LifeLogic.JOURNAL_TEXT_MAX;
+}
+function journalPickMood(key){
+  if(!LifeLogic.journalMood(key))return;
+  journalMoodChoice=journalMoodChoice===key?'':key; // tapping the chosen one again clears it
+  journalAutosave();
+  renderJournal();
+}
+function journalSetDate(value){
+  if(!LifeLogic.validDate(value)||value>koreaToday()){toast('오늘까지의 날짜를 골라 주세요.');renderJournal();return;}
+  journalAutosave(); // keep what is typed for the day being left
+  journalDate=value;
+  renderJournal();
+}
+function journalSave(){
+  const today=koreaToday();
+  if(!journalDate||journalDate>today)return;
+  const text=journalReadText().slice(0,LifeLogic.JOURNAL_TEXT_MAX),mood=journalMoodChoice;
+  if(!mood&&!text.trim()){toast('기분을 고르거나 한 줄만 적어 주세요.');return;}
+  const entries=journalEntries(),snapshot=JSON.stringify(entries),draft=state.journalDraft;
+  const existing=entries.find(e=>e.date===journalDate);
+  const now=new Date().toISOString();
+  if(existing){existing.mood=mood;existing.text=text;existing.updatedAt=now;}
+  else entries.push({date:journalDate,mood,text,createdAt:now,updatedAt:now});
+  state.journal=LifeLogic.cleanJournalEntries(entries);
+  if(state.journalDraft)delete state.journalDraft;
+  if(!persistOrRollback('journal',snapshot)){if(draft)state.journalDraft=draft;return;}
+  clearTimeout(journalTypingTimer);journalTypingTimer=null;
+  toast(existing?'기록을 고쳤어요.':journalDate===today?'오늘 하루를 기록했어요. 수고했어요 🌙':'기록을 남겼어요.');
+  renderJournal();
+}
+async function journalDelete(){
+  const entry=journalEntry(journalDate);
+  if(!entry)return;
+  if(!await uiConfirm('이 날의 기록을 지울까요?\n지우면 다시 되찾을 수 없어요.',{title:'기록 삭제',ok:'삭제',danger:true}))return;
+  const snapshot=JSON.stringify(journalEntries());
+  state.journal=journalEntries().filter(e=>e.date!==journalDate);
+  if(state.journalDraft&&state.journalDraft.date===journalDate)delete state.journalDraft;
+  if(!persistOrRollback('journal',snapshot))return;
+  journalMoodChoice='';
+  toast('기록을 지웠어요.');
+  renderJournal();
+}
+
+function journalMoodButtonsHTML(){
+  return LifeLogic.JOURNAL_MOODS.map(m=>`<button type="button" class="journal-mood-btn${journalMoodChoice===m.key?' selected':''}" aria-pressed="${journalMoodChoice===m.key}" aria-label="${esc(m.label)}" onclick="journalPickMood('${m.key}')"><span class="journal-mood-emoji" aria-hidden="true">${m.emoji}</span><span>${esc(m.label)}</span></button>`).join('');
+}
+function journalSettingsHTML(){
+  const s=journalSettings();
+  return `<details class="card journal-settings" ${journalSettingsOpen?'open':''} ontoggle="journalSettingsOpen=this.open"><summary>🔔 기록 알림 설정</summary>
+    <label class="check"><input type="checkbox" id="journalRemind" ${s.remind?'checked':''} onchange="journalChangeRemind(this.checked)"><span>정한 시간에 기록하라고 알려 주세요</span></label>
+    <label>알림 시간<input type="time" id="journalRemindTime" value="${esc(s.time)}" onchange="journalChangeTime(this.value)"></label>
+    <fieldset class="journal-days"><legend>반복 요일</legend>${WEEKDAYS_SHORT.map((name,i)=>`<label class="check journal-day"><input type="checkbox" ${s.days.includes(i)?'checked':''} onchange="journalChangeDay(${i},this.checked)"><span>${name}</span></label>`).join('')}</fieldset>
+    <label>알림 문구<input id="journalRemindMessage" maxlength="40" placeholder="${JOURNAL_DEFAULT_MESSAGE}" value="${esc(s.message)}" onchange="journalChangeMessage(this.value)"></label>
+    <p class="meta">오늘 이미 기록했다면 알림은 오지 않아요. 알림은 하루에 한 번만 보내요. 이 앱은 서버가 없어서 <strong>앱이 열려 있거나 백그라운드에 살아 있을 때</strong> 알려 드려요. 앱이 완전히 꺼져 있었다면, 다시 열었을 때 홈 화면에서 "${esc(journalMessage())}" 하고 물어봐요.</p>
+  </details>`;
+}
+function journalRecentHTML(){
+  const list=journalEntries().slice(-7).reverse();
+  if(!list.length)return '';
+  return `<h3 class="section-title">최근 기록</h3><div class="stack journal-recent">${list.map(e=>`<button type="button" class="card journal-recent-item${e.date===journalDate?' selected':''}" onclick="journalSetDate('${e.date}')"><span class="journal-emoji" aria-hidden="true">${journalEmoji(e)}</span><span><strong>${esc(journalDayName(e.date))}</strong><span class="meta">${esc(journalFirstLine(e.text,40)||LifeLogic.journalMood(e.mood)?.label||'')}</span></span></button>`).join('')}</div>`;
+}
+function renderJournal(){
+  const c=document.getElementById('journalContent');
+  if(!c)return;
+  const today=koreaToday();
+  journalPickDate();
+  const values=journalFormValues();
+  journalMoodChoice=values.mood;
+  const entry=journalEntry(journalDate);
+  const streak=LifeLogic.journalStreak(journalEntries(),today);
+  const isToday=journalDate===today;
+  c.innerHTML=`
+    <div class="card journal-card">
+      <h3>🌙 ${isToday?esc(journalMessage()):esc(journalDayName(journalDate))+'은 어땠나요?'}</h3>
+      <p class="meta">한 줄만 적어도 충분해요. 기록은 이 폰에만 저장되고 다른 곳으로 보내지지 않아요.</p>
+      <div class="journal-streak" aria-live="polite">${streak?`🔥 ${streak}일 연속 기록 중이에요`:'오늘부터 한 줄씩 시작해 봐요'}</div>
+      <label>날짜<input type="date" id="journalDateInput" value="${esc(journalDate)}" max="${today}" onchange="journalSetDate(this.value)"></label>
+      <div class="journal-mood" role="group" aria-label="오늘의 기분">${journalMoodButtonsHTML()}</div>
+      <label class="wide">오늘의 기록<textarea id="journalText" class="journal-text" rows="6" maxlength="${LifeLogic.JOURNAL_TEXT_MAX}" placeholder="예: 면접 준비를 조금 했다. 피곤하지만 뿌듯하다." oninput="journalOnInput()">${esc(values.text)}</textarea></label>
+      <p class="meta journal-count"><span id="journalCount">${values.text.length} / ${LifeLogic.JOURNAL_TEXT_MAX}</span></p>
+      <p class="meta" id="journalNote" aria-live="polite">${values.draft?'저장하지 않은 임시 글을 불러왔어요.':''}</p>
+      <div class="journal-actions"><button class="btn primary" onclick="journalSave()">${entry?'기록 고치기':'기록 저장'}</button>${entry?'<button class="btn ghost" onclick="journalDelete()">삭제</button>':''}</div>
+    </div>
+    ${journalRecentHTML()}
+    ${journalSettingsHTML()}`;
+}
+
+/* ---- other screens ---- */
+function journalHomeCardHTML(){
+  const today=koreaToday(),entry=journalEntry(today),streak=LifeLogic.journalStreak(journalEntries(),today);
+  if(entry)return `<div class="card journal-home done"><span class="journal-emoji" aria-hidden="true">${journalEmoji(entry)}</span><div><strong>오늘 하루를 기록했어요</strong><p class="meta">${streak}일 연속 · 눌러서 다시 볼 수 있어요</p></div><button class="btn ghost" onclick="journalOpen()">보기</button></div>`;
+  return `<div class="card journal-home"><span class="journal-emoji" aria-hidden="true">🌙</span><div><strong>${esc(journalMessage())}</strong><p class="meta">한 줄이면 충분해요.${streak?' 지금 '+streak+'일 연속이에요.':''}</p></div><button class="btn primary" onclick="journalOpen()">기록하기</button></div>`;
+}
+function journalDayCardHTML(date){
+  const entry=journalEntry(date);
+  if(entry){
+    const mood=LifeLogic.journalMood(entry.mood);
+    const text=entry.text.length>300?entry.text.slice(0,300)+'…':entry.text;
+    return `<div class="card journal-day-card" id="journalDayCard"><h3>${journalEmoji(entry)} ${esc(date)} 하루 기록</h3>${mood?`<p class="meta">${esc(mood.label)}</p>`:''}${text?`<p class="journal-preview">${esc(text)}</p>`:''}<button class="btn secondary" onclick="journalOpen('${date}')">열어서 보기·고치기</button></div>`;
+  }
+  if(date>koreaToday())return '';
+  return `<div class="card journal-day-card" id="journalDayCard"><h3>📝 ${esc(date)} 하루 기록</h3><p class="meta">이 날의 기록이 아직 없어요.</p><button class="btn secondary" onclick="journalOpen('${date}')">기록 남기기</button></div>`;
+}
+function journalReportHTML(dates){
+  const stats=LifeLogic.journalStats(journalEntries(),dates);
+  const streak=LifeLogic.journalStreak(journalEntries(),koreaToday());
+  const top=LifeLogic.journalMood(stats.top);
+  return `<div class="journal-report" aria-label="하루 기록 요약"><div><strong>📝 ${stats.days}일</strong><p class="meta">하루 기록</p></div><div><strong>${top?top.emoji+' '+esc(top.label):'—'}</strong><p class="meta">가장 많은 기분${stats.average?' · 평균 '+stats.average+'점':''}</p></div><div><strong>🔥 ${streak}일</strong><p class="meta">연속 기록</p></div></div>`;
+}
+
+/* ---- reminder ---- */
+async function journalShowNotification(message){
+  if(!focusNotificationsSupported()||Notification.permission!=='granted')return false;
+  if(typeof document.hidden!=='undefined'&&!document.hidden)return false; // the app is in front: the in-app message is enough
+  const options={body:'잠깐 시간을 내서 오늘을 적어 봐요. 한 줄이면 충분해요.',icon:'icons/icon-192.png',badge:'icons/icon-192.png',tag:'life-ai-journal',data:{screen:'journal'}};
+  try{
+    const registration=navigator.serviceWorker&&navigator.serviceWorker.getRegistration?await navigator.serviceWorker.getRegistration():null;
+    if(registration&&registration.showNotification){await registration.showNotification(message,options);return true;}
+    new Notification(message,options);return true;
+  }catch(e){return false;}
+}
+/* Shows today's reminder when it is due (once a day, only while there is no record yet). */
+async function journalReminderCheck(){
+  if(!LifeLogic.journalReminderDue(state.journalSettings,journalEntries(),Date.now()))return false;
+  journalSetSettings({lastNotified:koreaToday()});
+  const message=journalMessage();
+  const shown=await journalShowNotification(message);
+  if(!shown){
+    toast('📝 '+message,6000);
+    if(currentScreen==='home')renderHome();
+  }
+  return true;
+}
+function journalScheduleReminder(){
+  clearTimeout(journalReminderTimer);
+  journalReminderTimer=setTimeout(()=>{journalReminderCheck();journalScheduleReminder();},60000);
+}
+/* When the reminder is switched on or its time moves, "today" is settled first so it does not fire at once for a time already gone. */
+function journalSettleToday(time){
+  const now=new Date(Date.now()+9*3600000).toISOString().slice(11,16);
+  return {lastNotified:time<=now?koreaToday():''};
+}
+async function journalChangeRemind(checked){
+  if(!checked){journalSetSettings({remind:false});toast('기록 알림을 껐어요.');return;}
+  journalSetSettings({remind:true,...journalSettleToday(journalSettings().time)});
+  if(!focusNotificationsSupported()){toast('이 브라우저는 알림을 지원하지 않아요. 앱을 열면 홈에서 알려 드릴게요.',6000);return;}
+  let permission=Notification.permission;
+  if(permission==='default'){try{permission=await Notification.requestPermission();}catch(e){permission='denied';}}
+  toast(permission==='granted'?'정한 시간에 알려 드릴게요.':'브라우저 알림이 막혀 있어요. 앱을 열면 홈에서 알려 드릴게요.',6000);
+}
+function journalChangeTime(value){
+  if(!LifeLogic.validTime(value)){toast('알림 시간을 확인해 주세요.');renderJournal();return;}
+  journalSetSettings({time:value,...journalSettleToday(value)});
+}
+function journalChangeDay(day,checked){
+  const days=new Set(journalSettings().days);
+  if(checked)days.add(day);else days.delete(day);
+  journalSetSettings({days:[...days].sort()});
+}
+function journalChangeMessage(value){journalSetSettings({message:String(value||'').trim().slice(0,40)});}
+function journalRestartOnVisible(){if(typeof document.hidden!=='undefined'&&!document.hidden)journalReminderCheck();}
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',journalRestartOnVisible);
+
 const GOAL_TYPE_NAMES={job:'취업',cert:'자격증',policy:'지원사업',custom:'직접 입력'};
 function goalTypeName(type){return Object.hasOwn(GOAL_TYPE_NAMES,type)?GOAL_TYPE_NAMES[type]:'미설정';}
 function renderMy(){
@@ -2658,6 +2923,7 @@ function renderMy(){
     </div>
     <h3 class="section-title">최근 활동</h3>
     <div class="card">${state.activity.length ? state.activity.map(x=>`<p>• ${esc(x)}</p>`).join('') : '<p class="meta">아직 기록된 활동이 없어요.</p>'}</div>
+    <button class="btn secondary" onclick="journalOpen()">📝 하루 기록·알림 설정</button>
     <button class="btn secondary" onclick="go('jobHub')">💼 관심 회사·저장한 공고 관리</button>
     <h3 class="section-title">관심 자격증</h3><div class="stack">${favoriteCertHTML()}</div>
     <div class="install-slot">${installCardHTML()}</div>
@@ -3368,12 +3634,15 @@ if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof location!=='u
 }
 requestPersistentStorage();
 focusRestore();
-if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('screen')==='calendar')go('calendar');
+if(typeof location!=='undefined'&&typeof URLSearchParams!=='undefined'&&LINK_SCREENS.includes(new URLSearchParams(location.search).get('screen')))go(new URLSearchParams(location.search).get('screen'));
 else if(state.mainGoal)go('home');
 else renderHome();
 if(!screenHistoryStarted)recordScreenHistory(currentScreen,'replace');
 handleSharedLink();
 if(startupNotice)setTimeout(()=>toast(startupNotice,startupNoticeMs),600);
+journalReminderCheck();journalScheduleReminder();
+/* A tapped notification asks an open window to show a screen. */
+if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof navigator.serviceWorker.addEventListener==='function')navigator.serviceWorker.addEventListener('message',event=>{const d=event&&event.data;if(d&&d.type==='open-screen'&&LINK_SCREENS.includes(d.screen))go(d.screen);});
 </script>
 </body>
 </html>
